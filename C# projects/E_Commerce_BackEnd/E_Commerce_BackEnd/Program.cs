@@ -1,0 +1,206 @@
+using System.Text;
+using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
+using Amazon.Extensions.NETCore.Setup;
+using Amazon.SecretsManager;
+using Amazon.KeyManagementService;
+using AutoMapper;
+using E_Commerce_BackEnd.MIddleware;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using E_Commerce_BackEnd.Models.Context.ContextInjection;
+using E_Commerce_BackEnd.Services.Helpers.DtoMapper;
+using E_Commerce_BackEnd.Services.emailService;
+using E_Commerce_BackEnd.UnitOfWork;
+using E_Commerce_BackEnd.Models.Context;
+using E_Commerce_BackEnd.Services.Helpers.adminHelpers;
+using E_Commerce_BackEnd.Services.uService;
+using E_Commerce_BackEnd.Services.Helpers.AWS_Secret;
+using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
+using E_Commerce_BackEnd.Services.Helpers.Resolvers;
+using E_Commerce_BackEnd.Services.uAdminService;
+using E_Commerce_BackEnd.Services.uAdressService;
+using E_Commerce_BackEnd.Services.uProductsService;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.RateLimiting;
+
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Configure AWS options
+var region = builder.Configuration.GetAWSOptions();
+AWSOptions awsOptions = new AWSOptions
+{
+    Profile = "misu_stefan",
+    ProfilesLocation = "/Users/misustefan/.aws/credentials",
+    Region = region.Region
+};
+builder.Services.AddDefaultAWSOptions(awsOptions);
+
+
+// Add AWS services
+builder.Services.AddSingleton<IAmazonSecretsManager>(sp =>
+{
+    
+
+    var client = new AmazonSecretsManagerClient(awsOptions.Credentials,awsOptions.Region);
+    return client;
+    
+});
+
+builder.Services.AddSingleton<IAmazonKeyManagementService>(sp =>
+{
+    var client = new AmazonKeyManagementServiceClient(awsOptions.Credentials,awsOptions.Region);
+    return client;
+});
+
+// user-secrets
+builder.Configuration.AddUserSecrets<Program>();
+
+
+// Add data protection using AWS Systems Manager Parameter Store
+builder.Services.AddDataProtection()
+    .PersistKeysToAWSSystemsManager("prod/texx.ro/JWT_key")
+    .PersistKeysToAWSSystemsManager("prod/texx.ro/admin");
+
+// Configure DbContext and logger
+string? connectionString = builder.Configuration.GetConnectionString("CMDatabase");
+if (connectionString == null)
+{
+    throw new InvalidOperationException($"Connection string CMDatabase is null");
+}
+var loggerFactory = DbContextInjection.MyLoggerFactory;
+
+builder.Services.M_DbContextInjection<ECommerceContext>(connectionString, loggerFactory);
+
+// Mapper configuration
+builder.Services.AddAutoMapper(typeof(Program));
+builder.Services.AddSingleton<IMapper>(sp =>
+{
+    var mapperConfig = new MapperConfiguration(cfg =>
+    {
+        cfg.AddProfile(new MappersProfile());
+        
+    });
+    return new Mapper(mapperConfig);
+});
+// Resolver for mapper
+builder.Services.AddScoped<ProducatorValueResolver>();
+
+// CORS configuration
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowVueApp",
+        policy =>
+        {
+            policy.WithOrigins("http://localhost:8080")
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+        });
+});
+
+// Unit of work and repositories
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+// Service layer
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IAdressService, AdressService>();
+builder.Services.AddTransient<ITokenService, TokenService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IBucketAcces, BucketAccess>();
+
+builder.Services.AddTransient<JwtTokenMiddlewareFactory>();
+builder.Services.AddTransient<AdminMiddleware>();
+builder.Services.AddScoped<DocumentProcessing>();
+
+builder.Services.AddMemoryCache();
+
+builder.Services.AddRateLimiter(x =>
+    x.AddFixedWindowLimiter(policyName: "fixed", options =>
+    {
+        options.PermitLimit = 4; // 4 requests
+        options.Window = TimeSpan.FromSeconds(30);
+        options.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        options.QueueLimit = 2;
+    }));
+
+// JWT Authentication
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+var key = await TokenService.GetSecret("prod/texx.ro/JWT_key");
+builder.Services.AddAuthentication(x =>
+{
+    x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    x.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme;
+    x.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+}).AddCookie()
+    .AddGoogle(options =>
+{
+    var googleAuth = builder.Configuration.GetSection("GoogleAuth");
+    options.ClientId = googleAuth["ClientId"]!;
+    options.ClientSecret = googleAuth["ClientSecret"]!;
+    options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+})
+    .AddJwtBearer(x =>
+{
+    x.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            context.Token = context.Request.Cookies["JWTToken"];
+            return Task.CompletedTask;
+        }
+    };
+
+    x.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidIssuer = jwtSettings["Issuer"],
+        ValidAudience = jwtSettings["Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ClockSkew = TimeSpan.Zero
+    };
+});
+
+// Authorization policy
+builder.Services.AddAuthorization();
+
+
+// Controllers and Swagger
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // for enums // to send the string representation to the backend 
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+       
+    });
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+var app = builder.Build();
+
+app.UseCors("AllowVueApp");
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseRateLimiter();
+
+app.UseMiddleware<JwtTokenMiddlewareFactory>();
+app.UseMiddleware<AdminMiddleware>();
+
+app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+app.Run();
