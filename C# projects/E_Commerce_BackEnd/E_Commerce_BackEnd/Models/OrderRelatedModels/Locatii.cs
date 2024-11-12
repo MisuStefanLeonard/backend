@@ -6,8 +6,6 @@ namespace E_Commerce_BackEnd.Models.OrderRelatedModels;
 
 public class Locatii : ICloneable
 {
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int IdLocatie { get;  init; }
     public string? Oras { get;  init; }
     public string? Judet { get;  init; }

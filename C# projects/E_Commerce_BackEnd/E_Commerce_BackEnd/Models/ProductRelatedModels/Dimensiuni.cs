@@ -2,13 +2,13 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using E_Commerce_BackEnd.Models.OrderRelatedModels;
 
 namespace E_Commerce_BackEnd.Models.ProductRelatedModels;
 
 public class Dimensiuni 
 {
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    
     public int IdDimensiune { get; init; }
 
     [StringLength(4)] 
@@ -23,6 +23,9 @@ public class Dimensiuni
     public string? RecomandarePat { get; set; }
 
     public ICollection<ProduseCuDimensiuni>? DProduseCuDimensiuni { get; }
+    public ICollection<AsociereSeturi>? DAsociereSeturi { get; }
+    public ICollection<ProduseCuComenzi>? DProduseCuComenzi { get; }
+    public ICollection<CosCumparaturi>? DPeCosCumparaturi { get; }
 
     public Dimensiuni()
     {

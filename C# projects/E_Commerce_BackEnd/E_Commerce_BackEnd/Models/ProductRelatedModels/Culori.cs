@@ -8,8 +8,7 @@ namespace E_Commerce_BackEnd.Models.ProductRelatedModels;
 public class Culori 
 {
     // Attributes
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    
     public int IdCuloare { get; init; }
 
     [StringLength(20)] 
@@ -19,23 +18,11 @@ public class Culori
     public int IdCodCuloare { get; init; }
     public CodCulori CodCuloare { get; } = null!;
 
-    public ICollection<ProduseCuCulori>? CProduseCuCulori { get; }
-    
+    public ICollection<ProduseCuCulori>? CProduseCuCulori { get; } 
+    public ICollection<AsociereSeturi>? CAsociereSeturi { get; }
+    public ICollection<ProduseCuComenzi>? CProduseCuComenzi { get; }
+    public ICollection<CosCumparaturi>? CuloriPeCosCumparaturi { get; }
 
-    public Culori()
-    {
-       
-    }
-
-    public Culori(string numeCuloare, int idCodCuloare, 
-        CodCulori codCuloare, ICollection<ProduseCuCulori>? cProduseCuCulori)
-    {
-        NumeCuloare = numeCuloare;
-        IdCodCuloare = idCodCuloare;
-        CodCuloare = codCuloare;
-        CProduseCuCulori = cProduseCuCulori == null ? [] : new HashSet<ProduseCuCulori>(cProduseCuCulori);
-
-    }
     
 
 }

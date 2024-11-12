@@ -4,8 +4,6 @@ namespace E_Commerce_BackEnd.Models.DTO;
 
 public class ConturiDto
 {
-    
-    
     [StringLength(10)]
     public string? Nume { get; init; }
     

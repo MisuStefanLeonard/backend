@@ -1,8 +1,14 @@
-using E_Commerce_BackEnd.Models.DTO.ProduseDtos;
+using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.ReviewsDto;
 using E_Commerce_BackEnd.Services.uProductsService;
+using E_Commerce_BackEnd.Services.uReviewService;
+using E_Commerce_BackEnd.Services.uSeturiService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
+using Newtonsoft.Json;
+using Sqids;
+
 
 namespace E_Commerce_BackEnd.Controllers;
 
@@ -11,139 +17,149 @@ namespace E_Commerce_BackEnd.Controllers;
 [Route("api/product")]
 public class ProductController : ControllerBase
 {
-    private readonly IProductService _productService;
 
-    public ProductController(IProductService productService)
+    private readonly IProductService _productService;
+    private readonly IReviewService _reviewService;
+    private readonly ISeturiService _seturiService;
+    private readonly SqidsEncoder<int> _sqidsEncoder;
+
+
+    public ProductController(IProductService productService, IReviewService reviewService, SqidsEncoder<int> sqidsEncoder, ISeturiService seturiService)
     {
         _productService = productService;
+        _reviewService = reviewService;
+        _sqidsEncoder = sqidsEncoder;
+        _seturiService = seturiService;
     }
 
-
-    [HttpDelete("delete/{codProdus}")]
-    [Authorize]
-
-    public async Task<IActionResult> DeleteProduct([FromRoute] string codProdus)
+    [HttpGet("paginated/{pageNumber:int?}/{currency}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetProductsPerPage([FromRoute] int? pageNumber ,[FromQuery] string? productTypes,
+        [FromQuery] string? productColors, [FromQuery] string? productDimensions, [FromQuery] string? productPrice, 
+        [FromQuery] bool? productReverseFace , [FromRoute] string currency)
     {
-        var deleteProductResponse = await _productService.DeleteProduct(codProdus);
+        Console.WriteLine($"product widhts : {productDimensions} ");
+        List<string>? listOfProductTypes = null;
+        List<string>? listOfProductColors = null;
+        List<string>? listOfProductDimensions = null;
+        List<decimal>? listOfProductPrices = null;
 
-        switch (deleteProductResponse)
+        if (!productTypes.IsNullOrEmpty())
         {
-            case 1:
-                return Ok("Deleted succesfully");
-            case -1:
-                return NotFound("Product not found");
-            case -2:
-                return BadRequest("Bad request, rolling back transaction");
+            listOfProductTypes = productTypes!.Split(",").ToList();
         }
-
-        return StatusCode(500, "Server error");
-    }
-
-    [HttpDelete("delete/{tipProdus}/{categorieProdus}/{codProdus}")]
-    [Authorize]
-    public async Task<IActionResult> DeleteTypeOnProduct([FromRoute] string codProdus,
-                    [FromRoute]string tipProdus,[FromRoute] string categorieProdus)
-    {
-        var responseToDeleteTypeOnProduct = await _productService
-            .DeleteTypeOnProduct(codProdus, tipProdus, categorieProdus);
-
-        return responseToDeleteTypeOnProduct switch
+        if (!productColors.IsNullOrEmpty())
         {
-            1 => Ok("Deleted type on product succesfully"),
-            0 => NotFound("An error occured when querying the database"),
-            -1 => BadRequest("An fatal error occured when querying the database! Rolling back transaction"),
-            _ => StatusCode(500, "Server error")
-        };
+            listOfProductColors = productColors!.Split(",").ToList();
+        } 
+        if(!productDimensions.IsNullOrEmpty())
+        {
+            listOfProductDimensions = productDimensions!.Split(",").ToList();
+        } 
+        if(!productPrice.IsNullOrEmpty())
+        {
+            listOfProductPrices = productPrice!.Split(",").Select(Convert.ToDecimal).ToList();
+        } 
+        
+        var productsPerPage = await _productService.GetProductsForUsers(pageNumber, listOfProductTypes, listOfProductColors
+                            ,listOfProductDimensions,listOfProductPrices,productReverseFace , currency.ToUpper());
+        
+        return Ok(productsPerPage);
     }
     
-    [HttpDelete("delete/{codProdus}/{lungime}/{latime}/{pret}/{recomandarePat}")]
-    [Authorize]
-    public async Task<IActionResult> DeleteDimensionOnProduct([FromRoute] string codProdus, [FromRoute]string lungime,
-        [FromRoute] string latime, [FromRoute] string pret, [FromRoute] string recomandarePat)
+    [HttpGet("filterOptions/{currency}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetFilterOptions([FromRoute] string currency)
     {
-        var responseToDeleteDimensionOnProduct = await _productService
-            .DeleteDimensionOnProduct(codProdus, lungime, latime,pret,recomandarePat);
-
-        return responseToDeleteDimensionOnProduct switch
-        {
-            1 => Ok("Deleted dimension on product succesfully"),
-            0 => NotFound("An error occured when querying the database"),
-            -1 => BadRequest("An fatal error occured when querying the database! Rolling back transaction"),
-            _ => StatusCode(500, "Server error")
-        };
+        var filterOptions = await _productService.FilterOptions(currency);
+        return Ok(filterOptions);
     }
-    
-    [HttpDelete("delete/{codProdus}/{numeCuloare}/{codCuloare}/color")]
-    [Authorize]
-    public async Task<IActionResult> DeleteDimensionOnProduct([FromRoute] string codProdus, 
-        [FromRoute]string numeCuloare,[FromRoute] string codCuloare)
-    {
-        var responseToDeleteColorOnProduct = await _productService
-            .DeleteColorOnProduct(codProdus, numeCuloare, codCuloare);
 
-        return responseToDeleteColorOnProduct switch
+    [HttpGet("{codProdus}/{tipProdus}/{currency}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetProductPage([FromRoute] string codProdus , [FromRoute] string tipProdus , [FromRoute] string currency)
+    {
+        var productData = await _productService.GetProductPage(codProdus, tipProdus, currency.ToUpper());
+
+        return productData switch
         {
-            1 => Ok("Deleted color on product succesfully"),
-            0 => NotFound("An error occured when querying the database"),
-            -1 => BadRequest("An fatal error occured when querying the database! Rolling back transaction"),
+            { Key: 1, Value: not null } => Ok(productData.Value),
+            { Key: 1, Value: null } => NotFound("Product has been deleted"),
+            { Key: 0, Value: null } => BadRequest("General error occured"),
             _ => StatusCode(500, "Server error")
         };
     }
 
-    [HttpDelete("delete/{codProdus}/{numeCuloare}/{codCuloare}/{caleImagine}/{fisierInBucket}/image")]
+    [HttpPost("postReview")]
     [Authorize]
-    public async Task<IActionResult> DeleteImageOnProduct([FromRoute] string codProdus,
-        [FromRoute] string numeCuloare, [FromRoute] string codCuloare, [FromRoute] string caleImagine,
-        [FromRoute] string fisierInBucket)
+    public async Task<IActionResult> PostReview([FromForm] string reviewInfo)
     {
-        var responseToDeleteImageOnProduct = await _productService
-            .DeleteImageOnProduct(codProdus, numeCuloare, codCuloare,caleImagine,fisierInBucket);
+       
+        var jsonToDto = JsonConvert.DeserializeObject<ReviewReceivedDto>(reviewInfo);
 
-        return responseToDeleteImageOnProduct switch
+        if (!Request.Cookies.TryGetValue("JWTToken", out var token)) 
+            return StatusCode(500, "Server error");
+        
+        var responseFromReviewPosting = await _reviewService.PostReview(jsonToDto!, token);
+        return responseFromReviewPosting.Key switch
         {
-            1 => Ok("Deleted image on product succesfully"),
-            0 => NotFound("An error occured when querying the database"),
-            -1 => BadRequest("An fatal error occured when querying the database! Rolling back transaction"),
+            1 => Ok(responseFromReviewPosting),
+            0 => NotFound("Product has not been found/Account has not been found"),
+            -1 => BadRequest("General error occured"),
             _ => StatusCode(500, "Server error")
         };
     }
 
-    [HttpDelete("delete/{codProdus}/{codVoucher}")]
-    [Authorize]
-    public async Task<IActionResult> DeleteVoucherOnProduct([FromRoute] string codProdus, [FromRoute] string codVoucher)
+    [HttpGet("sets/paginated/{pageNumber:int?}/{currency}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetSetsPerPage([FromRoute] int? pageNumber ,[FromQuery] string? productTypes,
+         [FromQuery] string? productPrice, [FromRoute] string currency, [FromQuery] string? productName)
     {
-        var responseToDeleteVoucherOnProduct = await _productService
-            .DeleteVoucherOnProduct(codProdus, codVoucher);
 
-        return responseToDeleteVoucherOnProduct switch
+        List<string>? listOfProductTypes = null;
+        List<decimal>? listOfProductPrices = null;
+
+        if (!productTypes.IsNullOrEmpty())
         {
-            1 => Ok("Deleted voucher on product succesfully"),
-            0 => NotFound("An error occured when querying the database"),
-            -1 => BadRequest("An fatal error occured when querying the database! Rolling back transaction"),
-            _ => StatusCode(500, "Server error")
-        };
-    }
-
-    [HttpGet("getProductTypes")]
-    [Authorize]
-    public async Task<IActionResult> GetProductTypes()
-    {
-        var responseForProductOptions = await _productService.GetProductTypes();
-
-        if (responseForProductOptions is null)
+            listOfProductTypes = productTypes!.Split(",").ToList();
+        }
+        
+        if(!productPrice.IsNullOrEmpty())
         {
-            return NoContent();
+            listOfProductPrices = productPrice!.Split(",").Select(Convert.ToDecimal).ToList();
         }
 
-        return Ok(responseForProductOptions);
+        var setsPerPage = await _seturiService.GetSetsForUsers(pageNumber, listOfProductTypes,
+            listOfProductPrices,productName ,currency);
+        
+        return Ok(setsPerPage);
     }
+    
+    
+    
+    [HttpGet("set/{encodedIdSet}/{numeSet}/{currency}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetSetPage([FromRoute] string encodedIdSet, [FromRoute] string numeSet,
+        [FromRoute] string currency)
+    {
+        if (_sqidsEncoder.Decode(encodedIdSet) is [var decodedId]
+            && encodedIdSet == _sqidsEncoder.Encode(decodedId))
+        {
+            var setData = await _seturiService.GetSetForUser(decodedId, numeSet, currency);
 
-    // [HttpPut("save/{codProdus}")]
-    // [Authorize]
-    // public async Task<IActionResult> SaveModifiedProduct([FromBody] ProduseDtoForAdminModification modifiedProduct)
-    // {
-    //     
-    // }
+            return setData switch
+            {
+                { Key: 1, Value: not null } => Ok(setData.Value),
+                { Key: 1, Value: null } => NotFound("Set has been deleted"),
+                { Key: 0, Value: null } => BadRequest("General error occured"),
+                _ => StatusCode(500, "Server error")
+            };
+        }
 
+        return StatusCode(500, "Decoded id not found");
+    }
+    
+    
+    
     
 }

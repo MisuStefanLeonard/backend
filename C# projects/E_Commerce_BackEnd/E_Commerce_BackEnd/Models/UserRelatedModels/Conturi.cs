@@ -1,48 +1,36 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using E_Commerce_BackEnd.Models.ProductRelatedModels;
 
 namespace E_Commerce_BackEnd.Models.UserRelatedModels;
 public  class Conturi 
 {
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int IdCont { get; init; } //
-    
     [StringLength(10)]
     public string? Nume { get; init; } // 
-    
     [StringLength(20)]
     public string? Prenume { get; init; } // 
-    
     public bool? Gen { get; init; } //
-    
     [StringLength(10)]
     public string? NrTelefon { get; init; } // 
-    
     [StringLength(15)]
     public string? Username { get; init; } //  username
-    
     [StringLength(50)]
     public string? Email { get; init; } // email
-    
     [StringLength(150)]
     public string? Parola { get; init; } // parola
-    
     public  DateTime? DataCreare { get; init; }
-    
     [StringLength(100)]
     public string CodActivare { get; set; }
-    
     public bool Verificat { get; set; }
-    
     public bool IsGuest { get; set; }
-    
     [StringLength(15)]
     public string Rol { get; init; }
-    
-    public DateTime OraLinkConfirmare { get; set; } 
-    public  ICollection<Adrese>? AdreseConturi { get; set; }
-
+    public DateTime OraLinkConfirmare { get; set; }
+    public ICollection<Adrese>? AdreseConturi { get; set; } = new HashSet<Adrese>();
+    public ICollection<CosCumparaturi>? ProduseInCosPeCont { get; } = new HashSet<CosCumparaturi>();
+    public ICollection<Reviews>? ReviewsProduse { get; } = new HashSet<Reviews>();
+    public RememberUser? RememberUserSession { get; set; } 
     public Conturi()
     {
         

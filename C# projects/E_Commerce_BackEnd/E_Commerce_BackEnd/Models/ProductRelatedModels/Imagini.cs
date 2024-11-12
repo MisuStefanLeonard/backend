@@ -8,8 +8,7 @@ namespace E_Commerce_BackEnd.Models.ProductRelatedModels;
 public class Imagini
 {
     // Attributes
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+   
     public int IdImagine { get; init; }
     
     [StringLength(100)]

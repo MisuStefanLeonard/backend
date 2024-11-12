@@ -7,6 +7,7 @@ using E_Commerce_BackEnd.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.IdentityModel.Tokens;
 
 namespace E_Commerce_BackEnd.Services.uAdressService;
 
@@ -33,6 +34,7 @@ public class AdressService : IAdressService
 
         if (_cache.TryGetValue(cacheKey, out IList<AdreseDto>? adreseInCache))
         {
+            _logger.LogInformation("RETURNED FROM CACHE");
             return adreseInCache;
         }
         
@@ -41,7 +43,7 @@ public class AdressService : IAdressService
         var allUserAdressessQueryable = await adressRepository
             .FindQueryableOfEntitiesAsync(a => a.IdCont == userId && a.IsDeleted == false ,
             a => a.Locatie,
-            a => a.DetaliiFacturi!);
+            a => a.DetaliuFactura!);
         
 
         if (allUserAdressessQueryable == null)
@@ -66,28 +68,25 @@ public class AdressService : IAdressService
     // helper
     private async void AddOrDeleteFromCacheStorage(AdreseDto newAddressDto , int userId , bool option)
     {
+       
         var cacheKey = $"Adrese_{userId}";
-        
+       
+
         if (_cache.TryGetValue(cacheKey, out IList<AdreseDto>? cachedAddresses))
         {
             // true for insertion
             // false for deletion
-            Console.WriteLine("INAINTE DE OPERATIE ");
-
-            foreach (var add in cachedAddresses)
-            {
-                Console.WriteLine("alias addres " + add.AliasDto);
-            }
-            
+           
             
             if (option)
             {
-                cachedAddresses.Add(newAddressDto);
+                cachedAddresses!.Add(newAddressDto);
                 
             }
             else
             {
-                var addressToRemoveFromCache = cachedAddresses
+                
+                var addressToRemoveFromCache = cachedAddresses!
                     .FirstOrDefault(a => a.AliasDto == newAddressDto.AliasDto);
 
                 if (addressToRemoveFromCache == null)
@@ -95,35 +94,27 @@ public class AdressService : IAdressService
                     _logger.LogWarning("Address already removed or not present in the cache");
                     return;
                 }
-                cachedAddresses.Remove(addressToRemoveFromCache);
-                _logger.LogInformation("Address removed succesfully from cache storage");
-                foreach (var item in cachedAddresses)
+                cachedAddresses!.Remove(addressToRemoveFromCache);
+                
+                if (cachedAddresses.Count == 0)
                 {
-                    Console.WriteLine("alias dupa remove " + item.AliasDto);
+                    _logger.LogInformation("EMPTY CACHE");
+                    _cache.Remove(cacheKey);
                 }
+                _logger.LogInformation("Address removed succesfully from cache storage");
+               
             }
 
             _cache.Set(cacheKey, cachedAddresses, TimeSpan.FromMinutes(10));
-            
-            _logger.LogWarning("DUPA SET INDIFIRENT DE OOPERATIE");
-            
-            if (_cache.TryGetValue(cacheKey, out IList<AdreseDto>? dto))
-            {
-                foreach (var item in dto!)
-                {
-                    Console.WriteLine("ALIAS " + item.AliasDto);
-                }
-            }
-            
-            
+
         }
         else
         {
             // If not in cache, fetch from DB and set cache
             var allUserAddressesQueryable = await _unitOfWork.Repository<Adrese>().FindQueryableOfEntitiesAsync(
-                a => a.IdCont == userId,
+                a => a.IdCont == userId && a.IsDeleted == false,
                 a => a.Locatie,
-                a => a.DetaliiFacturi!);
+                a => a.DetaliuFactura!);
 
             if (allUserAddressesQueryable == null)
             {
@@ -158,11 +149,11 @@ public class AdressService : IAdressService
 
             if (currentLocatie == null)
             {
-                Locatii newLocation = new Locatii
+                var newLocation = new Locatii
                 (
-                    adressDto.OrasDto!,
-                    adressDto.JudetDto!,
-                    adressDto.CodPostalDto!,
+                    adressDto.OrasDto,
+                    adressDto.JudetDto,
+                    adressDto.CodPostalDto,
                     new HashSet<Adrese>()
                 );
 
@@ -172,43 +163,61 @@ public class AdressService : IAdressService
                 currentLocatie = newLocation;
                 
             }
-            
-            var adressToBeSaved = new Adrese
-            (
-                adressDto.AliasDto!,
-                adressDto.TipAdresaDto,
-                adressDto.BlocDto,
-                adressDto.NrBlocDto,
-                adressDto.StradaDto!,
-                adressDto.NrStradaDto!,
-                currentLocatie.IdLocatie,
-                currentLocatie,
-                currentUserLoggedIn!.IdCont,
-                currentUserLoggedIn,
-                new HashSet<DetaliiFactura>(),
-                false
-            );
 
-            await adreseRepository.AddAsync(adressToBeSaved);
-            await _unitOfWork.CommitAsync();
-            
-            
-            var billingDetalils = new DetaliiFactura
+            Adrese addressToBeSaved;
+
+            if (adressDto.TipAdresaDto == TipAdrese.Livrare)
             {
-                Cif = adressDto.CifDto,
-                NumeFirma = adressDto.NumeFirmaDto,
-                IdAdresa = adressToBeSaved.IdAdresa,
-                Adrese = adressToBeSaved
-            };
+                addressToBeSaved = new Adrese
+                {
+                    Alias = adressDto.AliasDto,
+                    TipAdresa = adressDto.TipAdresaDto,
+                    Bloc =  adressDto.BlocDto,
+                    NrBloc = adressDto.NrBlocDto,
+                    Strada =  adressDto.StradaDto,
+                    NrStrada = adressDto.NrStradaDto,
+                    IsDeleted = false,
+                    IdLocatie = currentLocatie.IdLocatie,
+                    IdCont = currentUserLoggedIn!.IdCont,
+                    IdDetaliuFactura = null
+                };
+            }
+            else
+            {
+                var billingDetalils = new DetaliiFactura
+                {
+                    Cif = adressDto.CifDto,
+                    NumeFirma = adressDto.NumeFirmaDto,
+                };
+            
 
-            await detaliiFacturaRepository.AddAsync(billingDetalils);
+                await detaliiFacturaRepository.AddAsync(billingDetalils);
+                await _unitOfWork.CommitAsync();
+
+                addressToBeSaved = new Adrese
+                {
+                    Alias = adressDto.AliasDto,
+                    TipAdresa = adressDto.TipAdresaDto,
+                    Bloc = adressDto.BlocDto,
+                    NrBloc = adressDto.NrBlocDto,
+                    Strada = adressDto.StradaDto,
+                    NrStrada = adressDto.NrStradaDto,
+                    IsDeleted = false,
+                    IdLocatie = currentLocatie.IdLocatie,
+                    IdCont = currentUserLoggedIn!.IdCont,
+                    IdDetaliuFactura = billingDetalils.IdDetaliu
+                };
+            }
+            
+            await adreseRepository.AddAsync(addressToBeSaved);
             await _unitOfWork.CommitAsync();
+            
 
                 
             
             await _unitOfWork.CommitTransactionAsync(transaction);
             
-            AddOrDeleteFromCacheStorage(_mapper.Map<AdreseDto>(adressToBeSaved) , userId , true);
+            AddOrDeleteFromCacheStorage(_mapper.Map<AdreseDto>(addressToBeSaved) , userId , true);
             
             _logger.LogInformation("Adress succesfully saved!");
             
@@ -228,23 +237,9 @@ public class AdressService : IAdressService
         }
        
     }
-    
-    // ce de de facut
-    /*
-     * LOCATII daca sterge un client adresa , locatia ramane , nu o strergem
-     * --
-     * de vazut de ce dupa ce streg adresa nu se sterge din cache
-     * --
-     * de updatat pe frontend instant render dupa adaugare/stregere
-     * --
-     * de cizelat metodele un pic
-     * --
-     * de vazut dupa ce se sterge o adresa de facturare , se sterg si detaliile de facturarer
-     * dupa se vor sterge si comenzile ! de modificat ca id-ul pe comanda sa fie null
-     */
-     
-     
-
+    // de modificat in asa fel daca clientul nu are nicio comanda pe adresa respectica 
+    // sa se stearga de tot
+    // de asemenea , de rezolvat de ce cand mai e doar o adresa , nu se sterge si se arata formularul cu adresa care trebuia stearsa
     public async Task<int> DeleteAddress(int userId, string alias)
     {
         IDbContextTransaction? transaction = null;
@@ -259,7 +254,9 @@ public class AdressService : IAdressService
 
             var addressToDelete = await addressRepository
                 .FindQueryable(address => address.IdCont == userId && address.Alias == alias)
-                .FirstOrDefaultAsync();
+                    .Include(prop => prop.AdreseFacturarePeComanda)
+                .Include(prop => prop.AdreseLivrarePeComanda)
+                    .FirstOrDefaultAsync();
 
             if (addressToDelete == null)
             {
@@ -267,15 +264,26 @@ public class AdressService : IAdressService
                 return -1; 
             }
 
-            addressToDelete.IsDeleted = true;
+            // Safely check if there are any orders associated with the address
+            var addressHasOrders = addressToDelete.AdreseFacturarePeComanda.IsNullOrEmpty() &&
+                                    addressToDelete.AdreseLivrarePeComanda.IsNullOrEmpty();
+           
+            if (addressHasOrders)
+            {
+                _logger.LogInformation("Addres has no orders, can safe delete");
+                await addressRepository.DeleteAsync(addressToDelete);
+            }
+            else
+            {
+                addressToDelete.IsDeleted = true;
+                await addressRepository.UpdateAsync(addressToDelete);
+            }
 
-            await addressRepository.UpdateAsync(addressToDelete);
-            await _unitOfWork.CommitTransactionAsync(transaction);
             
             AddOrDeleteFromCacheStorage(_mapper.Map<AdreseDto>(addressToDelete), userId, false);
-
+            
             _logger.LogInformation("Address deleted successfully along with all its related entities");
-
+            await _unitOfWork.CommitTransactionAsync(transaction);
             return 1;
         }
         catch (Exception e)

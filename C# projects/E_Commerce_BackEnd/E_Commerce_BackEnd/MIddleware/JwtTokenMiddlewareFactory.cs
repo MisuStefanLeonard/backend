@@ -37,14 +37,18 @@ public class JwtTokenMiddlewareFactory : IMiddleware
             // Check if endpoint allows anonymous access
             if (endpoint?.Metadata.GetMetadata<AllowAnonymousAttribute>() != null)
             {
+                _logger.LogInformation("AM AJUNS IN ANONYMOUS");
                 await next(context);
                 return;
             }
             
+            Console.WriteLine("INAINTE DE TRAGEREA TOKENULUI");
             
             if (context.Request.Cookies.TryGetValue("JWTToken", out var token) &&
                 context.Request.Cookies.TryGetValue("userLoggedIn", out var isLoggedIn))
             {
+                Console.WriteLine("Dupa");
+
                 
                 
                 var principalUser = await _tokenService.TokenValidation(token);
@@ -77,7 +81,7 @@ public class JwtTokenMiddlewareFactory : IMiddleware
         catch (AuthenticationFailureException ex)
         {
             _logger.LogError(ex, "Authentication failure: Access was denied by the resource owner or by the remote server.");
-            context.Response.Redirect("http://localhost:8080/home");
+            context.Response.Redirect("http://localhost:3000/home");
         }
     }
 }

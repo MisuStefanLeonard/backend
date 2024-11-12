@@ -4,6 +4,9 @@ public enum StatusComanda
 {
     Finalizata,
     InProcesare,
-    Anulata
+    Procesata,
+    Rambursata,
+    Anulata,
+    InAsteptare // pentru transfer bancar
 }
 

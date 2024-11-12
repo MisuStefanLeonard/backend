@@ -20,11 +20,7 @@ public class GenericRepository<TEntity> : IRepository<TEntity> where TEntity : c
     {
         return await _dbSet.FindAsync(id);
     }
-
-    public async Task<TEntity?> GetByIdAsync(string id)
-    {
-        return await _dbSet.FindAsync(id);
-    }
+    
 
     public async Task<IList<TEntity>?> GetAllAsync()
     {
@@ -89,6 +85,12 @@ public class GenericRepository<TEntity> : IRepository<TEntity> where TEntity : c
     public async Task AddRangeAsync(IList<TEntity> listOfEntities)
     {
         await _dbSet.AddRangeAsync(listOfEntities);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task UpdateRangeAsync(IList<TEntity> listOfEntities)
+    {
+        _dbSet.UpdateRange();
         await _context.SaveChangesAsync();
     }
 

@@ -13,6 +13,10 @@ public class ProduseDto
     public ushort? StocDto { get; init; }
     public bool IsDeletedDto { get; set; }
     public bool ActivInMagazinDto { get; set; }
-
+    public decimal PretBazaDto { get; set; }
+    public decimal PretBazaRedusDto { get; set; }
     public string TipProdusDto { get; set; } = null!;
+    public bool ProdusLimitatDto { get; set; }
+    public bool ActiveazaInNoutati { get; set; }
+
 }

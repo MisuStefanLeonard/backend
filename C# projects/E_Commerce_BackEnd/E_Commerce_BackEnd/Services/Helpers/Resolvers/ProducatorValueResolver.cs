@@ -8,10 +8,11 @@ namespace E_Commerce_BackEnd.Services.Helpers.Resolvers;
 public class ProducatorValueResolver : IValueResolver<ProduseDtoForAdminModification, Produse,int?>
 {
     private readonly IUnitOfWork _unitOfWork;
-
+    
     public ProducatorValueResolver(IUnitOfWork unitOfWork)
     {
         _unitOfWork = unitOfWork;
+        
     }
     
     public int? Resolve(ProduseDtoForAdminModification source, Produse destination, int? destMember, ResolutionContext context)
@@ -20,16 +21,20 @@ public class ProducatorValueResolver : IValueResolver<ProduseDtoForAdminModifica
         {
             return null;
         }
-        
-        var producator = _unitOfWork.Repository<Producatori>()
+    
+        var producatorRepository = _unitOfWork.Repository<Producatori>();
+
+        var producator = producatorRepository
             .GetSimpleQueryable()
             .FirstOrDefault(prod => prod.NumeProducator == source.NumeProducatorDto);
 
         if (producator == null)
         {
+            Console.WriteLine("Producator not found, creating a new one");
             return null;
         }
 
         return producator.IdProducator;
     }
+
 }

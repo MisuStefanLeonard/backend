@@ -4,15 +4,15 @@ namespace E_Commerce_BackEnd.Models.DTO;
 
 public class AdreseDto
 {
-    public string? AliasDto { get; set; } //
+    public string AliasDto { get; set; } = null!;//
     public TipAdrese TipAdresaDto { get; set; } // 
     public string? BlocDto { get; set; } //
     public string? NrBlocDto { get; set; } // 
-    public string? StradaDto { get; set; } // NOT NULL
-    public string? NrStradaDto { get; set; } // NOT NULL
-    public string? OrasDto { get; set; } // NOT NULL
-    public string? JudetDto { get; set; } // NOT NULL 
-    public string? CodPostalDto { get; set; } // NOT NULL
+    public string StradaDto { get; set; } = null!; // NOT NULL
+    public string NrStradaDto { get; set; }  = null!;// NOT NULL
+    public string OrasDto { get; set;  } = null!; // NOT NULL
+    public string JudetDto { get; set; }  = null!;// NOT NULL 
+    public string CodPostalDto { get; set; }  = null!;// NOT NULL
     
     public bool IsDeletedDto { get; set; }
     

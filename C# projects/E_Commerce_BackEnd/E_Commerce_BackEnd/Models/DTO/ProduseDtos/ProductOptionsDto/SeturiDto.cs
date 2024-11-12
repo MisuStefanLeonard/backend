@@ -6,5 +6,10 @@ public class SeturiDto
     
     public string DescriereSetDto { get; set; } = null!;
     
+    public decimal PretSetDto { get; set; }
+
+    public decimal PretRedusSetDto { get; set; }
+    
+    public decimal SetActivInMagazin { get; set; }
     public bool JustAdded { get; set; } = false;
 }

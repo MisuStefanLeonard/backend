@@ -6,35 +6,15 @@ namespace E_Commerce_BackEnd.Models.UserRelatedModels;
 public class DetaliiFactura 
 {
     // Attributes
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int IdDetaliu { get; init; }
     
     [StringLength(12)]
-    public string? Cif { get; init; }
+    public string? Cif { get; set; }
     
     [StringLength(50)]
-    public string? NumeFirma { get; init; }
+    public string? NumeFirma { get; set; }
     //Foreign Keys
-    public  Adrese Adrese { get; set; } = null!;
-    public int IdAdresa { get; init; }
 
-    public ICollection<Comenzi>? DComenzi { get; } 
-
-    public DetaliiFactura()
-    {
-        
-    }
-
-    public DetaliiFactura(string? cif, DateTime dataEmitereFactura, Adrese adrese, int idAdresa, ICollection<Comenzi>? comenzi)
-    {
-        Cif = cif;
-        Adrese = adrese;
-        IdAdresa = idAdresa;
-        DComenzi = comenzi == null ? [] : new HashSet<Comenzi>(comenzi);
-    }
-
-   
-    
+    public ICollection<Adrese>? DfAdrese { get; } = new HashSet<Adrese>(); 
     
 }

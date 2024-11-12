@@ -8,16 +8,25 @@ namespace E_Commerce_BackEnd.UnitOfWork;
 public class UnitOfWork : IUnitOfWork 
 {
     private readonly ECommerceContext _context;
+    private readonly Dictionary<Type, object> _repositories;
 
-    public UnitOfWork(ECommerceContext context, IMapper mapper)
+    public UnitOfWork(ECommerceContext context)
     {
         _context = context;
-        
+        _repositories = new Dictionary<Type, object>();
     }
 
     public IRepository<TEntity> Repository<TEntity>() where TEntity : class
     {
-        return new GenericRepository<TEntity>(_context);
+        if (_repositories.ContainsKey(typeof(TEntity)))
+        {
+            return (IRepository<TEntity>)_repositories[typeof(TEntity)];
+        }
+
+        var repository = new GenericRepository<TEntity>(_context);
+        _repositories[typeof(TEntity)] = repository;
+        return repository;
+        // return new GenericRepository<TEntity>(_context);
     }
     
     
@@ -54,5 +63,6 @@ public class UnitOfWork : IUnitOfWork
     public void Dispose()
     {
         _context.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

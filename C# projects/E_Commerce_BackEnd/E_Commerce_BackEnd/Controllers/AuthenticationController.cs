@@ -7,7 +7,6 @@ using E_Commerce_BackEnd.Services.uService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.IdentityModel.Tokens;
-using System.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
@@ -26,25 +25,29 @@ namespace E_Commerce_BackEnd.Controllers
             _userService = service;
         }
 
-        // GET: api/user/getUsers
-        [Authorize]
-        [HttpGet("getUsers")]
-        public async Task<ActionResult<IEnumerable<Conturi>>> GetAccountsAsync()
-        {
-            var accounts = await _userService.GetAllAccountsAsync();
-            if (accounts == null || !accounts.Any())
-            {
-                return NotFound();
-            }
-            return Ok(accounts);
-        }
+        // // GET: api/user/getUsers
+        // [Authorize]
+        // [HttpGet("getUsers")]
+        // public async Task<ActionResult<IEnumerable<Conturi>>> GetAccountsAsync()
+        // {
+        //     var accounts = await _userService.GetAllAccountsAsync();
+        //     if (accounts == null || !accounts.Any())
+        //     {
+        //         return NotFound();
+        //     }
+        //     return Ok(accounts);
+        // }
         
-        [HttpGet("getUserByUsername/{username}")]
+        [HttpPost("getUserByUsername")]
         [AllowAnonymous]
-        public async Task<ActionResult<Conturi>> GetAccountByUsernameAsync(string username)
+        public async Task<IActionResult> GetAccountByUsernameAsync([FromBody]UsernameRequestDto usernameRequestDto)
         {
-            var account = await _userService.GetAccountByEmailAsync(username);
-
+            Console.WriteLine($"{usernameRequestDto.Username}");
+            var account = await _userService.GetAccountByUsernameAsync(usernameRequestDto.Username);
+            if (account is not null)
+            {
+                Console.WriteLine($"{account.Username}");
+            }
             if (account == null)
             {
                 return NotFound();
@@ -53,18 +56,22 @@ namespace E_Commerce_BackEnd.Controllers
             return Ok();
         }
         
-        [HttpGet("getUserByEmail/{email}")]
+        [HttpPost("getUserByEmail")]
         [AllowAnonymous]
-        public async Task<ActionResult<Conturi>> GetAccountByEmailAsync(string email)
+        public async Task<ActionResult<Conturi>> GetAccountByEmailAsync([FromBody]EmailRequestDto emailRequestDto)
         {
-            var account = await _userService.GetAccountByEmailAsync(email);
-
+            Console.WriteLine($"{emailRequestDto.Email}");
+            var account = await _userService.GetAccountByEmailAsync(emailRequestDto.Email);
+            if (account is not null)
+            {
+                Console.WriteLine($"{account.Email}");
+            }
             if (account == null)
             {
                 return NotFound();
             }
 
-            return Ok(account.Email);
+            return Ok();
         }
         
         // GET: api/user/get/5
@@ -126,13 +133,16 @@ namespace E_Commerce_BackEnd.Controllers
         {
             try
             {
+              
+
                 var user = await _userService.LoginAccountAsync(loginDto);
                 var isAdmin = user is { RoleProp: "Admin" };
                 if (user == null)
                 {
-                    return Unauthorized(new {message = "Invalid credentials or account is not verified"});
+                    return NotFound("Unautohrized access!");
                 }
-               
+          
+
                 var cookieOptions = new CookieOptions()
                 {
                     HttpOnly = true,
@@ -140,14 +150,19 @@ namespace E_Commerce_BackEnd.Controllers
                     SameSite = SameSiteMode.None,
                     Expires = DateTime.UtcNow.AddDays(1)
                 };
+                
+
                 var isLoggedInCookieOptions = new CookieOptions()
                 {
-                    Expires = DateTime.UtcNow.AddDays(1)
+                    Expires = DateTime.UtcNow.AddDays(1),
                 };
+              
                 Response.Cookies.Append("JWTToken", loginDto.TokenProp, cookieOptions);
                 Response.Cookies.Append("userLoggedIn" , "1" , isLoggedInCookieOptions);
                 Response.Cookies.Append("admin" , isAdmin ? "1" : "0" , isLoggedInCookieOptions);
-                return Ok(new { message = "Succesfull login" });
+              
+
+                return Ok();
                 
             }
             catch (Exception e)
@@ -194,7 +209,7 @@ namespace E_Commerce_BackEnd.Controllers
             Response.Cookies.Append("JWTToken", newJwtTokenForGoogleUser, cookieOptions);
             Response.Cookies.Append("userLoggedIn" , "1" , isLoggedInCookieOptions);
 
-            return Redirect("http://localhost:8080/home");
+            return Redirect("http://localhost:3000/home");
         }
 
         [HttpPost("checkPassword")]
@@ -257,7 +272,7 @@ namespace E_Commerce_BackEnd.Controllers
                 }
 
                 var response = await _userService.CheckForgotPasswordTokenLifeTime(token);
-                Console.WriteLine(" in backend dupa response");
+               
                 if (response)
                 {
                     return Ok("Token not yet expired");
@@ -281,22 +296,19 @@ namespace E_Commerce_BackEnd.Controllers
         {
             try
             {
-                
                 var response = await _userService.ChangePasswordAsync(changePasswordDto);
 
-                switch (response)
+                return response switch
                 {
-                    case 1:
-                        return Ok("Successfully changed the password"); // 200
-                    case -1:
-                        return BadRequest("User does not exist in the database"); // 400
-                    case 0:
-                        return NotFound("Token already expired"); // 404
-                    case -2:
-                        return StatusCode(600, "Concurrency update in the database! Rolling back the transaction");
-                    default:
-                        return StatusCode(500, "Unknown error occurred"); 
-                }
+                    1 => Ok("Successfully changed the password") // 200
+                    ,
+                    -1 => BadRequest("User does not exist in the database") // 400
+                    ,
+                    0 => NotFound("Token already expired") // 404
+                    ,
+                    -2 => StatusCode(515, "Concurrency update in the database! Rolling back the transaction"),
+                    _ => StatusCode(500, "Unknown error occurred")
+                };
             }
             catch (Exception e)
             {
@@ -349,16 +361,6 @@ namespace E_Commerce_BackEnd.Controllers
             }
         }
 
-        // DELETE: api/user/deleteUser/5
-        [HttpDelete("deleteUser/{id}")]
-        [Authorize]
-        public async Task<IActionResult> DeleteConturi(int id)
-        {
-            await _userService.RemoveAccountAsync(id);
-            
-            return NoContent();
-        }
-
         private async Task<bool> AccountExists(int id)
         {
             var account = await _userService.GetAccountByIdAsync(id);
@@ -370,29 +372,19 @@ namespace E_Commerce_BackEnd.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> Confirmare([FromRoute] string token)
         {
-           
             if (token.Length != 100 || token.IsNullOrEmpty())
             {
                 return BadRequest("Token is not present");
             }
             
-            Console.WriteLine("In controller confirmare");
-            
-            int response = await _userService.AccountConfirmationAsync(token);
-         
-            Console.WriteLine("In controller confirmar dupa responsee " + response);
-            if (response == 1)
-            {
-                return Ok();
-            }
+            var response = await _userService.AccountConfirmationAsync(token);
 
-            if (response == 3)
+            return response switch
             {
-                return NotFound("Token expired! Resend the activation link");
-            }
-
-            
-            return BadRequest("Something happened in the confirmation function / Go see UserService ");
+                1 => Ok(),
+                3 => NotFound("Token expired! Resend the activation link"),
+                _ => BadRequest("Something happened in the confirmation function / Go see UserService ")
+            };
         }
         
         [HttpPost("confirmare/{token}")]

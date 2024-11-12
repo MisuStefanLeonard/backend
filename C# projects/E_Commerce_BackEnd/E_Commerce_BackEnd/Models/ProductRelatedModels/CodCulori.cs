@@ -5,8 +5,7 @@ namespace E_Commerce_BackEnd.Models.ProductRelatedModels;
 
 public class CodCulori 
 {
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    
     public int IdCodCuloare { get; init; }
 
     public string? CodCuloare { get; init; }

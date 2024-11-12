@@ -1,8 +1,6 @@
 
-using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using E_Commerce_BackEnd.Models.UserRelatedModels;
 using RandomDataGenerator.FieldOptions;
 using RandomDataGenerator.Randomizers;
 
@@ -10,8 +8,9 @@ namespace E_Commerce_BackEnd.Services.Helpers.UserHelpers
 {
     public class UserHelpers
     {
-        private static readonly UserHelpers _userHelpers =  new UserHelpers();
-        
+        private const decimal RONtoEUR = (decimal)0.2;
+        private const decimal EURtoRON = (decimal)5;
+
         private UserHelpers()
         {
             
@@ -22,43 +21,39 @@ namespace E_Commerce_BackEnd.Services.Helpers.UserHelpers
             
         }
 
-        public static UserHelpers Instance
+        public static UserHelpers Instance { get; } = new ();
+
+        public static string Token(int size, int size2, string userEmail)
         {
-            get => _userHelpers;
-        }
-        
-        public string Token(int size, int size2, string userEmail)
-        {
-            DateTime dateTime = DateTime.Now;
-            int seed = GenerateSeed(userEmail);
-            Random generateRandom = new Random(seed);
+            var seed = GenerateSeed(userEmail);
+            var generateRandom = new Random(seed);
 
             const string chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-            StringBuilder builder = new StringBuilder();
+            var builder = new StringBuilder();
 
             
             for (int i = 0; i < size; i++)
             {
-                int index = generateRandom.Next(chars.Length);
+                var index = generateRandom.Next(chars.Length);
                 builder.Append(chars[index]);
             }
 
             while (builder.Length < 60)
             {
-                int nextNum = generateRandom.Next(size2);
+                var nextNum = generateRandom.Next(size2);
                 builder.Append(nextNum);
             }
             
            
             while (builder.Length < 100)
             {
-                int index = generateRandom.Next(chars.Length);
+                var index = generateRandom.Next(chars.Length);
                 builder.Append(chars[index]);
                 int nextNum = generateRandom.Next(size2);
                 builder.Append(nextNum);
             }
 
-             if (builder.Length > 100)
+            if (builder.Length > 100)
             {
                 builder.Length = 100; 
             }
@@ -67,26 +62,26 @@ namespace E_Commerce_BackEnd.Services.Helpers.UserHelpers
         }
 
 
-        private int GenerateSeed(string userEmail)
+        private static int GenerateSeed(string userEmail)
         {
             using var sha256 = SHA256.Create();
-            byte[] emailBytes = Encoding.UTF8.GetBytes(userEmail);
-            byte[] hashBytes = sha256.ComputeHash(emailBytes);
-            int hashInt = BitConverter.ToInt32(hashBytes, 0);
+            var emailBytes = Encoding.UTF8.GetBytes(userEmail);
+            var hashBytes = sha256.ComputeHash(emailBytes);
+            var hashInt = BitConverter.ToInt32(hashBytes, 0);
             return hashInt ^ DateTime.Now.Ticks.GetHashCode();
         }
 
-        public string CryptPassword(string uncryptedPassword)
+        public static string CryptPassword(string uncryptedPassword)
         {
             return BCrypt.Net.BCrypt.EnhancedHashPassword(uncryptedPassword, 13);
         }
 
-        public bool VerifyCryptedPassword(string plainTextPassword, string cryptedPassword)
+        public static bool VerifyCryptedPassword(string plainTextPassword, string cryptedPassword)
         {
             return BCrypt.Net.BCrypt.EnhancedVerify(plainTextPassword, cryptedPassword);
         }
 
-        public string GenerateRandomPassword()
+        public static string GenerateRandomPassword()
         {
             var randomizer = RandomizerFactory.GetRandomizer(new FieldOptionsText
             {
@@ -107,6 +102,27 @@ namespace E_Commerce_BackEnd.Services.Helpers.UserHelpers
             
             return randomPassword;
         }
+
+        /// <summary>
+        /// Conversion method from RON to EUR
+        /// Conversion method from EUR to RON
+        /// </summary>
+        /// <param name="currency1">First currency</param>
+        /// <param name="currency2">Second currency </param>
+        /// <param name="value1">First currency value</param>
+        /// <param name="value2">Second currency value</param>
+        /// <returns>The conversed value (double)</returns>>
+        /// <returns></returns>
+        public static decimal ConvertCurrency(string currency1, string currency2 , decimal value1 , decimal value2)
+        {
+            return currency1 switch
+            {
+                "RON" when currency2 == "EUR" => value1 * RONtoEUR,
+                "EUR" when currency2 == "RON" => value2 * EURtoRON,
+                _ => 0
+            };
+        }
+        
         
        
     }

@@ -1,10 +1,12 @@
 using E_Commerce_BackEnd.Models.DTO;
 using E_Commerce_BackEnd.Models.UserRelatedModels;
+using E_Commerce_BackEnd.Services.uAdminService;
 using E_Commerce_BackEnd.Services.uAdressService;
 using E_Commerce_BackEnd.Services.uService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
 
 namespace E_Commerce_BackEnd.Controllers;
@@ -17,20 +19,24 @@ public class UserController : ControllerBase
     private readonly IUserService _userService;
     private readonly IAdressService _adressService;
     private readonly ILogger<Adrese> _adreseLogger;
+    private readonly IAdminService _adminService;
+    private readonly IMemoryCache _cache;
     
 
-    public UserController(IUserService userService, IAdressService adressService, ILogger<Adrese> adreseLogger)
+    public UserController(IUserService userService, IAdressService adressService, 
+        ILogger<Adrese> adreseLogger, IAdminService adminService, IMemoryCache cache)
     {
         _userService = userService;
         _adressService = adressService;
         _adreseLogger = adreseLogger;
+        _adminService = adminService;
+        _cache = cache;
     }
     
     [HttpGet("profile")]
     [Authorize]
-    public async Task<IActionResult> Profile()
+    public IActionResult Profile()
     {
-        await Task.Delay(1);
         return Ok();
     }
 
@@ -88,27 +94,22 @@ public class UserController : ControllerBase
         {
             return BadRequest("Token is not present");
         }
-       
-
-        int response = await _userService.ModifyUserDataIfEmailHasChangedAsync(token, updatedDto);
-
-        switch (response)
+        
+        var response = await _userService.ModifyUserDataIfEmailHasChangedAsync(token, updatedDto);
+        // de innoit JWT Token-ul pe endpoint-ul asta
+        if (response == 1)
         {
-            case 1:
-            {
-                return Ok("Data has been changed succesfully!");
-            }
-            case -1:
-            {
-                return NotFound("No account found with this token / Token expired !");
-            }
-            case 0:
-            {
-                return BadRequest("Error when trying to acces the link");
-            }
+            var username = updatedDto.Username;
+            
         }
-
-        return BadRequest("General error");
+        
+        return response switch
+        {
+            1 => Ok("Data has been changed succesfully!"),
+            -1 => NotFound("No account found with this token / Token expired !"),
+            0 => BadRequest("Error when trying to acces the link"),
+            _ => BadRequest("General error")
+        };
     }
 
     [HttpGet("profile/addresses")]
@@ -156,13 +157,11 @@ public class UserController : ControllerBase
         return BadRequest("Error when saving the address");
     }
 
-    [HttpDelete("profile/addresses")]
+    [HttpPut("profile/addresses")]
     [Authorize]
     public async Task<IActionResult> DeleteAddress([FromBody] DeleteAddressDto deleteAddressDto)
     {
         var userId = int.Parse(HttpContext.User.FindFirst(claim => claim.Type == "user_id")!.Value);
-        
-        Console.WriteLine($" ALIASSSS => {deleteAddressDto.AddresToDeleteAliasDto}");
 
         var response = await _adressService.DeleteAddress(userId, deleteAddressDto.AddresToDeleteAliasDto!);
 
@@ -173,6 +172,28 @@ public class UserController : ControllerBase
 
         return BadRequest("Error when deleting the address");
 
+    }
+
+    [HttpGet("admin/emailChanged/{changeRequestId}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ChangeEmailByAdmin([FromRoute] string changeRequestId)
+    {
+        var cacheKey = $"Data_{changeRequestId}";
+        
+        if (!_cache.TryGetValue(cacheKey, out string? emailData))
+        {
+            return BadRequest("Invalid or expired link.");
+        }
+        
+        var responseFromEmailChangedByAdmin = await _adminService.EmailChangedByAdmin(emailData! , cacheKey);
+
+        return responseFromEmailChangedByAdmin switch
+        {
+            1 => Ok("Email verified succesfully!Email has been changed"),
+            -1 => NotFound("Exception catched!Error has occured"),
+            -2 => BadRequest("Expired link! Request a new one from the administrator!"),
+            _ => StatusCode(500, "Unknown server error! Contact administrator.")
+        };
     }
     
 }

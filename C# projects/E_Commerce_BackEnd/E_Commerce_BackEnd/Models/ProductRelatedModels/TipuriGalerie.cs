@@ -1,32 +1,23 @@
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+using Sqids;
 
 namespace E_Commerce_BackEnd.Models.ProductRelatedModels;
 
-public class TipuriGalerie
+public class TipuriGalerie 
 {
-   
-
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    
     public int IdTipGalerie { get; init; }
-
+    public string EncodedIdTipGalerie => SqidsEncoder.Encode(IdTipGalerie);
+    private static readonly SqidsEncoder<int> SqidsEncoder = new();
     [StringLength(30)] 
     public string NumeTipGalerie { get; init; } = null!;
-    
+    public decimal IncretireRejansa { get; init; }
     public decimal PretTipGalerie { get; init; }
-    
-    public ICollection<Manopere>? TipGalerieManopere { get; }
+    public bool IsDeleted { get; set; }
+    public bool SePrindeCuInele { get; set; }
+    [StringLength(100)] 
+    public string? CaleRelativa { get; set; }
 
-    public TipuriGalerie()
-    {
-        
-    }
-    
-    public TipuriGalerie(ICollection<Manopere>? tipGalerieManopere)
-    {
-        TipGalerieManopere = tipGalerieManopere;
-    }
-
+    public ICollection<Manopere>? TipGalerieManopere { get; } = new List<Manopere>();
     
 }

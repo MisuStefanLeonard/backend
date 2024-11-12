@@ -6,8 +6,6 @@ namespace E_Commerce_BackEnd.Models.ProductRelatedModels;
 public class TipuriPeProduse
 {
     // Attributes
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int IdTipPeProdus { get; set; }
     
     // Foreign Keys

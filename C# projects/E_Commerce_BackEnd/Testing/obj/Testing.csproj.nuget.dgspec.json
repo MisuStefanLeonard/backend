@@ -40,19 +40,27 @@
           "dependencies": {
             "AWSSDK.Core": {
               "target": "Package",
-              "version": "[3.7.400.3, )"
+              "version": "[4.0.0-preview.4, )"
+            },
+            "AWSSDK.ElastiCache": {
+              "target": "Package",
+              "version": "[4.0.0-preview.4, )"
+            },
+            "AWSSDK.Extensions.NETCore.Setup": {
+              "target": "Package",
+              "version": "[4.0.0-preview.4, )"
             },
             "AWSSDK.KeyManagementService": {
               "target": "Package",
-              "version": "[3.7.400.3, )"
+              "version": "[4.0.0-preview.4, )"
             },
             "AWSSDK.S3": {
               "target": "Package",
-              "version": "[3.7.400.3, )"
+              "version": "[4.0.0-preview.4, )"
             },
             "AWSSDK.SecretsManager": {
               "target": "Package",
-              "version": "[3.7.400.3, )"
+              "version": "[4.0.0-preview.4, )"
             },
             "AWSSDK.SecretsManager.Caching": {
               "target": "Package",
@@ -60,11 +68,11 @@
             },
             "AWSSDK.SimpleSystemsManagement": {
               "target": "Package",
-              "version": "[3.7.401.1, )"
+              "version": "[4.0.0-preview.4, )"
             },
             "Amazon.AspNetCore.DataProtection.SSM": {
               "target": "Package",
-              "version": "[3.2.1, )"
+              "version": "[4.0.0-preview.2, )"
             },
             "Amazon.CDK.AWS.SecretsManager": {
               "target": "Package",
@@ -81,6 +89,10 @@
             "GemBox.Spreadsheet": {
               "target": "Package",
               "version": "[49.0.1767, )"
+            },
+            "Google.Analytics.Data.V1Beta": {
+              "target": "Package",
+              "version": "[2.0.0-beta08, )"
             },
             "MailKit": {
               "target": "Package",
@@ -100,7 +112,7 @@
             },
             "Microsoft.AspNetCore.DataProtection.Extensions": {
               "target": "Package",
-              "version": "[8.0.7, )"
+              "version": "[8.0.10, )"
             },
             "Microsoft.AspNetCore.RateLimiting": {
               "target": "Package",
@@ -153,6 +165,10 @@
             "RandomDataGenerator.Net": {
               "target": "Package",
               "version": "[1.0.17, )"
+            },
+            "Sqids": {
+              "target": "Package",
+              "version": "[3.1.0, )"
             },
             "Swashbuckle.AspNetCore": {
               "target": "Package",

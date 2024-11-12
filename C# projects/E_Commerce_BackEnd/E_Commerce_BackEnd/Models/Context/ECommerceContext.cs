@@ -2,10 +2,9 @@ using E_Commerce_BackEnd.Models.OrderRelatedModels;
 using E_Commerce_BackEnd.Models.ProductRelatedModels;
 using E_Commerce_BackEnd.Models.ProductVouchersModels;
 using E_Commerce_BackEnd.Models.UserRelatedModels;
-using Microsoft.EntityFrameworkCore.Metadata;
-
-namespace E_Commerce_BackEnd.Models.Context;
 using Microsoft.EntityFrameworkCore;
+namespace E_Commerce_BackEnd.Models.Context;
+
 public class ECommerceContext : DbContext
 {
     
@@ -50,7 +49,7 @@ public class ECommerceContext : DbContext
     /// Vouchers and products related tables
     /// </summary>
     public  DbSet<Vouchere> DbVouchere { get; set; }
-    public  DbSet<ProduseCuVouchere> DbProduseCuVouchere { get; set; }
+   
 
     #endregion
    
@@ -62,11 +61,10 @@ public class ECommerceContext : DbContext
         {
             entity.ToTable("locatii");
             entity.HasKey(e => e.IdLocatie);
-            
+
             entity.Property(e => e.IdLocatie)
-                .HasColumnType("integer")
-                .HasColumnName("id_locatie")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
+                .HasColumnType("int(1)")
+                .HasColumnName("id_locatie");
 
             entity.Property(e => e.Oras)
                 .HasColumnType("varchar")
@@ -97,8 +95,8 @@ public class ECommerceContext : DbContext
 
             entity.Property(e => e.IdCont)
                 .HasColumnName("id_cont")
-                .HasColumnType("integer")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
+                .HasColumnType("int(1)");
+                
 
             entity.Property(e => e.Nume)
                 .HasMaxLength(10)
@@ -124,12 +122,20 @@ public class ECommerceContext : DbContext
                 .HasColumnType("varchar")
                 .HasMaxLength(15)
                 .IsRequired();
+
+            entity.HasIndex(e => e.Username)
+                .HasDatabaseName("INDEX_USERNAME")
+                .IsUnique();
             
             entity.Property(e => e.Email)
                 .HasColumnName("email")
                 .HasColumnType("varchar")
                 .HasMaxLength(50)
                 .IsRequired();
+            
+            entity.HasIndex(e => e.Email)
+                .HasDatabaseName("INDEX_EMAIL")
+                .IsUnique();
             
             entity.Property(e => e.Parola)
                 .HasColumnName("parola")
@@ -175,7 +181,47 @@ public class ECommerceContext : DbContext
                 .WithOne(e => e.Cont)
                 .HasForeignKey(e => e.IdCont)
                 .HasConstraintName("FK_Conturi")
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RememberUser>(entity =>
+        {
+            entity.ToTable("sesiuni");
+            entity.HasKey(e => e.IdSesiune);
+
+            entity.Property(e => e.IdSesiune)
+                .HasColumnName("id_sesiune")
+                .HasColumnType("int(1)");
+                
+
+            entity.Property(e => e.IdCont)
+                .HasColumnName("id_cont")
+                .HasColumnType("integer")
+                .IsRequired();
+
+            entity.Property(e => e.SessionToken)
+                .HasColumnType("varchar")
+                .HasColumnName("sesiune_stocata")
+                .HasMaxLength(255)
+                .IsRequired();
+
+            entity.Property(e => e.IssuedAt)
+                .HasColumnType("datetime")
+                .HasColumnName("issued_at")
+                .HasDefaultValueSql("NOW()")
+                .IsRequired();
+            
+            entity.Property(e => e.ExpiresAt)
+                .HasColumnType("datetime")
+                .HasColumnName("expires_at")
+                .HasDefaultValueSql("(NOW() + INTERVAL 30 DAY)")
+                .IsRequired();
+
+            entity.HasOne(e => e.CurrentUserSession)
+                .WithOne(c => c.RememberUserSession)
+                .HasForeignKey<RememberUser>(e => e.IdCont)
+                .IsRequired();
+
         });
         
         modelBuilder.Entity<Adrese>(entity =>
@@ -185,8 +231,8 @@ public class ECommerceContext : DbContext
 
             entity.Property(e => e.IdAdresa)
                 .HasColumnName("id_adresa")
-                .HasColumnType("integer")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
+                .HasColumnType("int(1)");
+                
 
             entity.Property(e => e.Alias)
                 .HasColumnName("alias")
@@ -223,10 +269,12 @@ public class ECommerceContext : DbContext
 
             entity.Property(e => e.IdCont)
                 .HasColumnName("id_cont")
+                .HasColumnType("integer")
                 .IsRequired();
             
             entity.Property(e => e.IdLocatie)
                 .HasColumnName("id_locatie")
+                .HasColumnType("integer")
                 .IsRequired();
 
             entity.Property(e => e.IsDeleted)
@@ -235,11 +283,22 @@ public class ECommerceContext : DbContext
                 .HasDefaultValue(false)
                 .IsRequired();
             
-            entity.HasMany(a => a.DetaliiFacturi)
-                .WithOne(df => df.Adrese)
-                .HasForeignKey(df => df.IdAdresa)
-                .HasConstraintName("FK_Adrese")
-                .OnDelete(DeleteBehavior.Restrict)
+            entity.Property(e => e.IdDetaliuFactura)
+                .HasColumnName("id_detaliu_factura")
+                .HasColumnType("integer");
+            
+            entity.HasMany(a => a.AdreseLivrarePeComanda)
+                .WithOne(c => c.CAdresaLivrare)
+                .HasForeignKey(c => c.IdAdresaLivrare)
+                .HasConstraintName("FK_Adresa_Livrare")
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired();
+            
+            entity.HasMany(a => a.AdreseFacturarePeComanda)
+                .WithOne(c => c.CAdresaFacturare)
+                .HasForeignKey(c => c.IdAdresaFacturare)
+                .HasConstraintName("FK_Adresa_Facturare")
+                .OnDelete(DeleteBehavior.Cascade)
                 .IsRequired();
 
         });
@@ -251,8 +310,8 @@ public class ECommerceContext : DbContext
 
             entity.Property(e => e.IdDetaliu)
                 .HasColumnName("id_detaliu")
-                .HasColumnType("integer")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
+                .HasColumnType("int(1)");
+                
 
             entity.Property(e => e.Cif)
                 .HasColumnType("varchar")
@@ -264,18 +323,12 @@ public class ECommerceContext : DbContext
                 .HasColumnName("nume_firma")
                 .HasMaxLength(50);
             
-            
-            entity.Property(e => e.IdAdresa)
-                .HasColumnType("integer")
-                .HasColumnName("id_adresa")
-                .IsRequired();
+            entity.HasMany(df => df.DfAdrese)
+                .WithOne(a => a.DetaliuFactura)
+                .HasForeignKey(a => a.IdDetaliuFactura)
+                .HasConstraintName("FK_DetaliiFactura_Adresa")
+                .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasMany(df => df.DComenzi)
-                .WithOne(com => com.CDetaliiFactura)
-                .HasForeignKey(com => com.IdDetaliu)
-                .HasConstraintName("FK_DetaliiFactura")
-                .OnDelete(DeleteBehavior.Restrict)
-                .IsRequired();
         });
 
         
@@ -285,15 +338,23 @@ public class ECommerceContext : DbContext
             entity.HasKey(e => e.IdComanda);
 
             entity.Property(e => e.IdComanda)
-                .HasColumnType("integer")
-                .HasColumnName("id_comanda")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
+                .HasColumnType("int(1)")
+                .HasColumnName("id_comanda");
 
          
-            entity.Property(e => e.IdDetaliu)
-                .HasColumnName("id_detaliu")
+            entity.Property(e => e.IdAdresaFacturare)
+                .HasColumnName("id_adresa_facturare")
                 .HasColumnType("integer")
                 .IsRequired();
+            
+            entity.Property(e => e.IdAdresaLivrare)
+                .HasColumnName("id_adresa_livrare")
+                .HasColumnType("integer")
+                .IsRequired();
+
+            entity.Property(e => e.IdVoucher)
+                .HasColumnName("id_voucher")
+                .HasColumnType("integer");
            
             entity.Property(e => e.DataEmitereComanda)
                 .HasColumnName("data_emitere_comanda")
@@ -311,6 +372,25 @@ public class ECommerceContext : DbContext
                 .HasConversion<string>()
                 .IsRequired();
             
+            entity.Property(e => e.AwbComanda)
+                .HasColumnName("awb_fan_courier")
+                .HasColumnType("varchar")
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.Property(e => e.IsCancelable)
+                .HasColumnType("is_cancelable")
+                .HasColumnType("tinyint")
+                .HasDefaultValue(true)
+                .IsRequired();
+                
+
+            entity.HasOne(e => e.VoucherPeComanda)
+                .WithMany(v => v.VVoucherePeComenzi)
+                .HasForeignKey(e => e.IdVoucher)
+                .HasConstraintName("FK_Voucher_Comanda");
+
+
         });
 
         modelBuilder.Entity<ProduseCuComenzi>(entity =>
@@ -320,8 +400,8 @@ public class ECommerceContext : DbContext
             
             entity.Property(e => e.IdProduseCuComenzi)
                 .HasColumnName("id_produse_cu_comenzi")
-                .HasColumnType("integer")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
+                .HasColumnType("int(1)");
+                
 
             entity.Property(e => e.IdComanda)
                 .HasColumnName("id_comanda")
@@ -333,16 +413,21 @@ public class ECommerceContext : DbContext
                 .HasColumnType("integer")
                 .IsRequired();
             
+            entity.Property(e => e.PretCumparat)
+                .HasColumnType("decimal")
+                .HasColumnName("pret_baza")
+                .HasPrecision(6, 2)
+                .IsRequired();
+            
             entity.Property(e => e.IdCuloare)
                 .HasColumnName("id_culoare")
                 .HasColumnType("integer")
                 .IsRequired();
-            
+
             entity.Property(e => e.IdDimensiune)
                 .HasColumnName("id_dimensiune")
-                .HasColumnType("integer")
-                .IsRequired();
-
+                .HasColumnType("integer");
+            
             entity.Property(e => e.IdManopera)
                 .HasColumnName("id_manopera")
                 .HasColumnType("integer");
@@ -352,19 +437,29 @@ public class ECommerceContext : DbContext
                 .HasColumnName("id_produs")
                 .HasColumnType("integer")
                 .IsRequired();
-            
+
             entity.HasOne(pc => pc.Produs)
                 .WithMany(p => p.ComenziProduse)
                 .HasForeignKey(pc => pc.IdProdus)
                 .HasConstraintName("FK_Produse_PC")
-                .OnDelete(DeleteBehavior.Restrict)
-                .IsRequired();
-
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.Property(e => e.IdSet)
+                .HasColumnName("id_set")
+                .HasColumnType("integer");
+            
+            entity.HasOne(pc => pc.Set)
+                .WithMany(s => s.CombinatieSetPeComanda)
+                .HasForeignKey(pc => pc.IdSet)
+                .HasConstraintName("FK_Produse_Set")
+                .OnDelete(DeleteBehavior.Cascade);
+            
+               // de rulat migrarea si de verificat dupa 
             entity.HasOne(pc => pc.Comanda)
                 .WithMany(c => c.PcComenzi)
                 .HasForeignKey(pc => pc.IdComanda)
                 .HasConstraintName("FK_Comenzi_PC")
-                .OnDelete(DeleteBehavior.Restrict)
+                .OnDelete(DeleteBehavior.Cascade)
                 .IsRequired();
         });
         
@@ -375,15 +470,16 @@ public class ECommerceContext : DbContext
             entity.HasKey(e => e.IdDimensiune);
 
             entity.Property(e => e.IdDimensiune)
-                .HasColumnType("integer")
                 .HasColumnName("id_dimensiune")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
+                .HasColumnType("int(1)");
+            
 
             entity.Property(e => e.Lungime)
                 .HasColumnType("varchar")
                 .HasColumnName("lungime")
                 .HasMaxLength(4)
                 .IsRequired();
+            
             
             entity.Property(e => e.RecomandarePat)
                 .HasColumnType("varchar")
@@ -396,6 +492,19 @@ public class ECommerceContext : DbContext
                 .HasMaxLength(4)
                 .IsRequired();
             
+           
+
+            entity.HasMany(e => e.DAsociereSeturi)
+                .WithOne(asoc => asoc.AsDimensiune)
+                .HasForeignKey(asoc => asoc.IdDimensiune)
+                .HasConstraintName("FK_Dimensiune_AsociereSeturi");
+
+            entity.HasMany(e => e.DProduseCuComenzi)
+                .WithOne(pc => pc.PcDimensiune)
+                .HasForeignKey(pc => pc.IdDimensiune)
+                .HasConstraintName("FK_Dimensiune_ProduseComenzi");
+
+
         });
         
         modelBuilder.Entity<Producatori>(entity =>
@@ -404,9 +513,8 @@ public class ECommerceContext : DbContext
             entity.HasKey(e => e.IdProducator);
 
             entity.Property(e => e.IdProducator)
-                .HasColumnType("integer")
                 .HasColumnName("id_producator")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
+                .HasColumnType("int(1)");
 
             entity.Property(e => e.NumeProducator)
                 .HasColumnType("varchar")
@@ -421,9 +529,8 @@ public class ECommerceContext : DbContext
             entity.HasKey(e => e.IdCodCuloare);
 
             entity.Property(e => e.IdCodCuloare)
-                .HasColumnType("integer")
-                .HasColumnName("id_cod_culoare")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
+                .HasColumnType("int(1)")
+                .HasColumnName("id_cod_culoare");
 
             entity.Property(e => e.CodCuloare)
                 .HasColumnName("cod_culoare")
@@ -444,9 +551,8 @@ public class ECommerceContext : DbContext
             entity.HasKey(e => e.IdCuloare);
 
             entity.Property(e => e.IdCuloare)
-                .HasColumnType("integer")
                 .HasColumnName("id_culoare")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
+                .HasColumnType("int(1)");
 
             entity.Property(e => e.NumeCuloare)
                 .HasColumnName("nume_culoare")
@@ -458,7 +564,19 @@ public class ECommerceContext : DbContext
                 .HasColumnName("id_cod_culoare")
                 .HasColumnType("integer")
                 .IsRequired();
+
+            entity.HasMany(e => e.CAsociereSeturi)
+                .WithOne(asoc => asoc.AsCuloare)
+                .HasForeignKey(asoc => asoc.IdCuloare)
+                .HasConstraintName("FK_Culoare_AsociereSeturi");
             
+            entity.HasMany(e => e.CProduseCuComenzi)
+                .WithOne(pc => pc.PcCuloare)
+                .HasForeignKey(pc => pc.IdCuloare)
+                .HasConstraintName("FK_Culoare_ProduseComenzoi")
+                .IsRequired();
+
+
         });
 
         modelBuilder.Entity<ProduseCuCulori>(entity =>
@@ -468,9 +586,8 @@ public class ECommerceContext : DbContext
             
             
             entity.Property(e => e.IdProdusCuCuloare)
-                .HasColumnType("integer")
                 .HasColumnName("id_produs_culoare")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
+                .HasColumnType("int(1)");
 
             entity.Property(e => e.IdProdus)
                 .HasColumnName("id_produs")
@@ -510,7 +627,7 @@ public class ECommerceContext : DbContext
 
             entity.Property(e => e.IdProdus)
                 .HasColumnName("id_produs")
-                .HasColumnType("integer");
+                .HasColumnType("int(1)");
 
             entity.Property(e => e.CodProdus)
                 .HasColumnName("cod_produs")
@@ -547,11 +664,7 @@ public class ECommerceContext : DbContext
                 .HasColumnName("ingrijire")
                 .HasMaxLength(150);
             
-            entity.Property(e => e.Greutate)
-                .HasColumnType("decimal(4,2)")
-                .HasColumnName("greutate")
-                .HasPrecision(4,2);
-
+            
             entity.Property(e => e.FataReversibila)
                 .HasColumnType("tinyint")
                 .HasColumnName("fata_reversbila");
@@ -572,20 +685,42 @@ public class ECommerceContext : DbContext
                 .HasDefaultValue(false)
                 .IsRequired();
             
+            entity.Property(e => e.PretDeBaza)
+                .HasColumnType("decimal")
+                .HasColumnName("pret_baza")
+                .HasPrecision(6, 2);
+            
+            entity.Property(e => e.PretDeBazaRedus)
+                .HasColumnType("decimal")
+                .HasColumnName("pret_baza_redus")
+                .HasPrecision(6, 2);
+            
             
             entity.Property(e => e.ActivInMagazin)
                 .HasColumnType("tinyint")
                 .HasColumnName("activ_in_magazin")
                 .HasDefaultValue(true)
                 .IsRequired();
+            
 
             entity.Property(e => e.IdProducator)
                 .HasColumnType("integer")
                 .HasColumnName("id_producator");
             
+            entity.Property(e => e.AfiseazaInNoutati)
+                .HasColumnType("tinyint")
+                .HasColumnName("afiseaza_in_noutati")
+                .HasDefaultValue(false)
+                .IsRequired();
+            
+            entity.Property(e => e.ProdusLimitat)
+                .HasColumnType("tinyint")
+                .HasColumnName("produs_limitat")
+                .HasDefaultValue(false)
+                .IsRequired();
+            
             // One-To-Many mappings 
-
-
+            
             entity.HasOne(p => p.Producator)
                 .WithMany(pp => pp.ProducatoriProduse)
                 .HasForeignKey(p => p.IdProducator)
@@ -600,24 +735,42 @@ public class ECommerceContext : DbContext
             entity.HasKey(e => e.IdSet);
 
             entity.Property(e => e.IdSet)
-                .HasColumnType("integer")
                 .HasColumnName("id_set")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
+                .HasColumnType("int(1)");
 
             entity.Property(e => e.NumeSet)
                 .HasColumnType("varchar")
                 .HasColumnName("nume_set")
-                .HasMaxLength(50)
+                .HasMaxLength(100)
                 .IsRequired();
             
             entity.Property(e => e.DescriereSet)
                 .HasColumnType("varchar")
                 .HasColumnName("descriere_set")
-                .HasMaxLength(50)
+                .HasMaxLength(150)
                 .IsRequired();
+
+            entity.Property(e => e.PretRedusSet)
+                .HasColumnType("decimal")
+                .HasColumnName("pret_set_redus")
+                .HasPrecision(6, 2);
             
-            
-            
+            entity.Property(e => e.PretSet)
+                .HasColumnType("decimal")
+                .HasColumnName("pret_set")
+                .HasPrecision(6, 2);
+
+            entity.Property(e => e.SetActivInMagazin)
+                .HasColumnType("tinyint")
+                .HasColumnName("set_activ")
+                .IsRequired();
+
+            entity.Property(e => e.IsDeleted)
+                .HasColumnName("isDeleted")
+                .HasColumnType("tinyint")
+                .HasDefaultValue(false)
+                .IsRequired();
+
         });
 
         modelBuilder.Entity<Imagini>(entity =>
@@ -626,9 +779,8 @@ public class ECommerceContext : DbContext
             entity.HasKey(e => e.IdImagine);
 
             entity.Property(e => e.IdImagine)
-                .HasColumnType("integer")
                 .HasColumnName("id_imagine")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
+                .HasColumnType("int(1)");
 
             entity.Property(e => e.IdProdusCuCuloare)
                 .HasColumnName("id_produs_culoare")
@@ -655,9 +807,8 @@ public class ECommerceContext : DbContext
             entity.HasKey(e => e.IdManopera);
 
             entity.Property(e => e.IdManopera)
-                .HasColumnType("integer")
                 .HasColumnName("id_manopera")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
+                .HasColumnType("int(1)");
 
             entity.Property(e => e.IdInelPrindere)
                 .HasColumnType("integer")
@@ -667,16 +818,34 @@ public class ECommerceContext : DbContext
                 .HasColumnType("integer")
                 .HasColumnName("id_tip_galerie")
                 .IsRequired();
-
-            entity.Property(e => e.IdMaterial)
-                .HasColumnType("integer")
-                .HasColumnName("id_material")
-                .IsRequired();
             
             entity.Property(e => e.IdTipLinie)
                 .HasColumnType("integer")
                 .HasColumnName("id_tip_linie")
                 .IsRequired();
+
+            entity.Property(e => e.PretCurentTipGalerie)
+                .HasColumnType("decimal")
+                .HasPrecision(6, 2)
+                .HasColumnName("pret_curent_rejansa")
+                .IsRequired();
+            
+            entity.Property(e => e.PretCurentTipLinie)
+                .HasColumnType("decimal")
+                .HasPrecision(6, 2)
+                .HasColumnName("pret_curent_tip_linie")
+                .IsRequired();
+            
+            entity.Property(e => e.MaterialFolosit)
+                .HasColumnType("decimal")
+                .HasPrecision(6, 2)
+                .HasColumnName("material_folosit")
+                .IsRequired();
+
+            entity.HasMany(e => e.ManopereCuComenzi)
+                .WithOne(pc => pc.PcManopera)
+                .HasForeignKey(pc => pc.IdManopera)
+                .HasConstraintName("FK_Manopera_ProduseComenzi");
 
         });
 
@@ -686,15 +855,8 @@ public class ECommerceContext : DbContext
             entity.HasKey(e => e.IdTipProdus);
 
             entity.Property(e => e.IdTipProdus)
-                .HasColumnType("integer")
                 .HasColumnName("id_tip_pe_produs")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
-
-            entity.Property(e => e.TipProdus)
-                .HasColumnType("varchar")
-                .HasColumnName("tip_produs")
-                .HasMaxLength(20)
-                .IsRequired();
+                .HasColumnType("int(1)");
             
             entity.Property(e => e.Categorie)
                 .HasColumnType("varchar")
@@ -711,9 +873,8 @@ public class ECommerceContext : DbContext
             entity.HasKey(e => e.IdTipPeProdus);
 
             entity.Property(e => e.IdTipPeProdus)
-                .HasColumnType("integer")
-                .HasColumnName("id_tip_pe_produs")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
+               .HasColumnName("id_tip_pe_produs")
+                .HasColumnType("int(1)");
 
             entity.Property(e => e.IdProdus)
                 .HasColumnName("id_produs")
@@ -744,9 +905,8 @@ public class ECommerceContext : DbContext
             entity.HasKey(e => e.IdAsociereSet);
 
             entity.Property(e => e.IdAsociereSet)
-                .HasColumnType("integer")
                 .HasColumnName("id_asociere_set")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
+                .HasColumnType("int(1)");
             
             entity.Property(e => e.IdProdus)
                 .HasColumnName("id_produs")
@@ -757,6 +917,14 @@ public class ECommerceContext : DbContext
                 .HasColumnType("integer")
                 .HasColumnName("id_set")
                 .IsRequired();
+
+            entity.Property(e => e.IdDimensiune)
+                .HasColumnType("integer")
+                .HasColumnName("id_dimensiune");
+
+            entity.Property(e => e.IdCuloare)
+                .HasColumnType("integer")
+                .HasColumnName("id_culoare");
 
             entity.HasOne(asoc => asoc.Produs)
                 .WithMany(prod => prod.PAsociereSeturi)
@@ -777,9 +945,8 @@ public class ECommerceContext : DbContext
             entity.HasKey(e => e.IdVoucher);
 
             entity.Property(e => e.IdVoucher)
-                .HasColumnType("integer")
                 .HasColumnName("id_voucher")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
+                .HasColumnType("int(1)");
             
             entity.Property(e => e.Reducere)
                 .HasColumnType("decimal(2,2)")
@@ -799,53 +966,24 @@ public class ECommerceContext : DbContext
                 .HasColumnName("data_expirare")
                 .IsRequired();
             
+            entity.Property(e => e.IsDeleted)
+                .HasColumnName("isDeleted")
+                .HasColumnType("tinyint")
+                .HasDefaultValue(false)
+                .IsRequired();
+            
             
         });
         
-        modelBuilder.Entity<ProduseCuVouchere>(entity =>
-        {
-            entity.ToTable("produse_cu_vouchere");
-            entity.HasKey(e => e.IdProdusCuVoucher);
-
-            entity.Property(e => e.IdProdusCuVoucher)
-                .HasColumnType("integer")
-                .HasColumnName("id_produs_cu_voucher")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
-            
-            entity.Property(e => e.IdProdus)
-                .HasColumnName("id_produs")
-                .HasColumnType("integer")
-                .IsRequired();
-            
-            entity.Property(e => e.IdVoucher)
-                .HasColumnType("integer")
-                .HasColumnName("id_voucher");
-
-            entity.HasOne(pv => pv.PvProdus)
-                .WithMany(p => p.PvProduse)
-                .HasForeignKey(pv => pv.IdProdus)
-                .HasConstraintName("FK_Produse_PV")
-                .IsRequired();
-
-            entity.HasOne(pv => pv.PvVoucher)
-                .WithMany(p => p.VProduse)
-                .HasForeignKey(pv => pv.IdVoucher)
-                .HasConstraintName("FK_Vouchere_PV")
-                .IsRequired();
-
-
-        });
-
-
+       
         modelBuilder.Entity<ProduseCuDimensiuni>(entity =>
         {
             entity.ToTable("dimensiuni_produse");
             entity.HasKey(e => e.IdProdusCuDimensiune);
             
             entity.Property(e => e.IdProdusCuDimensiune)
-                .HasColumnType("integer")
                 .HasColumnName("id_produs_cu_dimensiune")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
+                .HasColumnType("int(1)");
             
             entity.Property(e => e.IdProdus)
                 .HasColumnName("id_produs")
@@ -886,20 +1024,25 @@ public class ECommerceContext : DbContext
             entity.HasKey(e => e.IdInel);
             
             entity.Property(e => e.IdInel)
-                .HasColumnType("integer")
                 .HasColumnName("id_inel_prindere")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
+                .HasColumnType("int(1)");
             
             entity.Property(e => e.CuloareInel)
                 .HasColumnType("varchar")
                 .HasColumnName("culoare_inel")
                 .HasMaxLength(20)
                 .IsRequired();
+
+            entity.Property(e => e.CaleRelativa)
+                .HasColumnType("varchar")
+                .HasColumnName("cale_relativa")
+                .HasMaxLength(100);
             
-            entity.Property(e => e.PretPerMetruInele)
-                .HasColumnType("decimal")
-                .HasColumnName("pret_metru_inele")
-                .HasPrecision(5,2)
+            
+            entity.Property(e => e.IsDeleted)
+                .HasColumnName("isDeleted")
+                .HasColumnType("tinyint")
+                .HasDefaultValue(false)
                 .IsRequired();
 
             entity.HasMany(ip => ip.InelPeManopere)
@@ -917,20 +1060,43 @@ public class ECommerceContext : DbContext
             entity.HasKey(e => e.IdTipGalerie);
             
             entity.Property(e => e.IdTipGalerie)
-                .HasColumnType("integer")
                 .HasColumnName("id_tip_galerie")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
+                .HasColumnType("int(1)");
             
             entity.Property(e => e.NumeTipGalerie)
                 .HasColumnType("varchar")
                 .HasColumnName("nume_galerie")
                 .HasMaxLength(30)
                 .IsRequired();
+
+            entity.Property(e => e.CaleRelativa)
+                .HasColumnType("varchar")
+                .HasColumnName("cale_relativa")
+                .HasMaxLength(100);
             
             entity.Property(e => e.PretTipGalerie)
                 .HasColumnType("decimal")
                 .HasColumnName("pret_metru_galerie")
                 .HasPrecision(5,2)
+                .IsRequired();
+            
+            entity.Property(e => e.IncretireRejansa)
+                .HasColumnType("decimal")
+                .HasColumnName("incretire")
+                .HasPrecision(5,2)
+                .IsRequired();
+
+            
+            entity.Property(e => e.IsDeleted)
+                .HasColumnName("isDeleted")
+                .HasColumnType("tinyint")
+                .HasDefaultValue(false)
+                .IsRequired();
+            
+            entity.Property(e => e.SePrindeCuInele)
+                .HasColumnName("prindere_inele")
+                .HasColumnType("tinyint")
+                .HasDefaultValue(false)
                 .IsRequired();
 
             entity.HasMany(tg => tg.TipGalerieManopere)
@@ -947,20 +1113,30 @@ public class ECommerceContext : DbContext
             entity.HasKey(e => e.IdTipLinie);
             
             entity.Property(e => e.IdTipLinie)
-                .HasColumnType("integer")
                 .HasColumnName("id_tip_linie")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
+                .HasColumnType("int(1)");
             
             entity.Property(e => e.NumeTipLinie)
                 .HasColumnType("varchar")
                 .HasColumnName("nume_tip_linie")
                 .HasMaxLength(30)
                 .IsRequired();
+
+            entity.Property(e => e.CaleRelativa)
+                .HasColumnType("varchar")
+                .HasColumnName("cale_relativa")
+                .HasMaxLength(100);
             
             entity.Property(e => e.PretPeTipLinie)
                 .HasColumnType("decimal")
                 .HasColumnName("pret_metru_linie")
                 .HasPrecision(5,2)
+                .IsRequired();
+            
+            entity.Property(e => e.IsDeleted)
+                .HasColumnName("isDeleted")
+                .HasColumnType("tinyint")
+                .HasDefaultValue(false)
                 .IsRequired();
             
             entity.HasMany(tl => tl.TipLiniePeManopere)
@@ -971,43 +1147,132 @@ public class ECommerceContext : DbContext
             
         });
         
-        modelBuilder.Entity<Materiale>(entity =>
+        modelBuilder.Entity<CosCumparaturi>(entity =>
         {
-            entity.ToTable("materiale");
-            entity.HasKey(e => e.IdMaterial);
+            entity.ToTable("cos_cumparaturi");
+            entity.HasKey(e => e.IdProdusInCos);
             
-            entity.Property(e => e.IdMaterial)
+            entity.Property(e => e.IdProdusInCos)
+                .HasColumnName("id_produs_in_cos")
+                .HasColumnType("int(1)");
+            
+            entity.Property(e => e.CantitateProdus)
+                .HasColumnType("int")
+                .HasColumnName("cantitate_produs")
+                .IsRequired();
+            
+            entity.Property(e => e.PretProdus)
+                .HasColumnType("decimal")
+                .HasColumnName("pret_produs")
+                .HasPrecision(6,2)
+                .IsRequired();
+            
+            entity.Property(e => e.IdCont)
+                .HasColumnType("int")
+                .HasColumnName("id_cont")
+                .IsRequired();
+        
+            entity.Property(e => e.IdDimensiune)
+                .HasColumnType("int")
+                .HasColumnName("id_dimensiune")
+                .IsRequired();
+        
+            entity.Property(e => e.IdCuloare)
+                .HasColumnType("int")
+                .HasColumnName("id_culoare")
+                .IsRequired();
+
+            entity.Property(e => e.IdManopera)
+                .HasColumnType("int")
+                .HasColumnName("id_manopera");
+            
+            entity.Property(e => e.IdSet)
+                .HasColumnType("int")
+                .HasColumnName("id_set");
+            
+             entity.Property(e => e.IdProdus)
+                .HasColumnType("int")
+                .HasColumnName("id_produs")
+                .IsRequired();
+
+             entity.HasOne(cont => cont.Cont)
+                 .WithMany(cont => cont.ProduseInCosPeCont)
+                 .HasForeignKey(cosCump => cosCump.IdCont)
+                 .IsRequired();
+             
+             entity.HasOne(cosCump => cosCump.Produs)
+                 .WithMany(produs => produs.ProduseInCos)
+                 .HasForeignKey(cosCump => cosCump.IdProdus)
+                 .IsRequired();
+             
+             entity.HasOne(cosCump => cosCump.Culoare)
+                 .WithMany(culoare => culoare.CuloriPeCosCumparaturi)
+                 .HasForeignKey(cosCump => cosCump.IdCuloare)
+                 .IsRequired();
+            
+             entity.HasOne(cosCump => cosCump.Dimensiune)
+                 .WithMany(dimensiune => dimensiune.DPeCosCumparaturi)
+                 .HasForeignKey(cosCump => cosCump.IdDimensiune)
+                 .IsRequired();
+
+             entity.HasOne(cosCump => cosCump.Set)
+                 .WithMany(set => set.SeturiPeCos)
+                 .HasForeignKey(cosCump => cosCump.IdSet);
+             
+             entity.HasOne(cosCump => cosCump.Manopera)
+                 .WithMany(manopera => manopera.ManoperePeCos)
+                 .HasForeignKey(cosCump => cosCump.IdManopera);
+        });
+
+        modelBuilder.Entity<Reviews>(entity =>
+        {
+            entity.ToTable("reviews");
+            entity.HasKey(e => e.IdRecenzie);
+
+            entity.Property(e => e.IdRecenzie)
+                .HasColumnName("id_review")
+                .HasColumnType("int(1)");
+
+            entity.Property(e => e.IdCont)
+                .HasColumnName("id_cont")
                 .HasColumnType("integer")
-                .HasColumnName("id_material")
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn);
+                .IsRequired();
+
+            entity.Property(e => e.IdProdus)
+                .HasColumnName("id_produs")
+                .HasColumnType("integer");
+
+
+            entity.Property(e => e.IdSet)
+                .HasColumnName("id_set")
+                .HasColumnType("integer");
+
+            entity.Property(e => e.NumarStele)
+                .HasColumnName("numar_stele")
+                .HasColumnType("integer")
+                .IsRequired();
             
-            entity.Property(e => e.NumeMaterial)
+            entity.Property(e => e.TextRecenzie)
+                .HasColumnName("text_recenzie")
                 .HasColumnType("varchar")
-                .HasColumnName("nume_material")
-                .HasMaxLength(50)
+                .HasMaxLength(150)
                 .IsRequired();
+
+
+            entity.HasOne(r => r.Cont)
+                .WithMany(acc => acc.ReviewsProduse)
+                .HasForeignKey(r => r.IdCont)
+                .IsRequired();
+
+            entity.HasOne(r => r.Produs)
+                .WithMany(acc => acc.ProductReviews)
+                .HasForeignKey(r => r.IdProdus);
             
-            entity.Property(e => e.PretMaterial)
-                .HasColumnType("decimal")
-                .HasColumnName("pret_metru_material")
-                .HasPrecision(5,2)
-                .IsRequired();
-            
-            entity.Property(e => e.PretMaterialRedus)
-                .HasColumnType("decimal")
-                .HasColumnName("pret_metru_material_redus")
-                .HasPrecision(5,2)
-                .HasDefaultValue(0m)
-                .IsRequired();
-            
-            entity.HasMany(mat => mat.MaterialPeManopere)
-                .WithOne(man => man.MaterialLaManopere)
-                .HasForeignKey(man => man.IdMaterial)
-                .HasConstraintName("FK_Materiale")
-                .IsRequired();
+            entity.HasOne(r => r.Set)
+                .WithMany(s => s.ReviewPeSet)
+                .HasForeignKey(r => r.IdSet);
             
         });
-        
-        // de rulat migrarea , de modificat procesarea documentului excel.
+
     }
 }

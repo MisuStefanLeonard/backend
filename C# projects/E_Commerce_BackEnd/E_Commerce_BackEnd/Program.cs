@@ -4,7 +4,6 @@ using System.Threading.RateLimiting;
 using Amazon.Extensions.NETCore.Setup;
 using Amazon.SecretsManager;
 using Amazon.KeyManagementService;
-using AutoMapper;
 using E_Commerce_BackEnd.MIddleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -20,10 +19,18 @@ using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
 using E_Commerce_BackEnd.Services.Helpers.Resolvers;
 using E_Commerce_BackEnd.Services.uAdminService;
 using E_Commerce_BackEnd.Services.uAdressService;
+using E_Commerce_BackEnd.Services.uBucketService;
+using E_Commerce_BackEnd.Services.uInelePrindereService;
 using E_Commerce_BackEnd.Services.uProductsService;
+using E_Commerce_BackEnd.Services.uReviewService;
+using E_Commerce_BackEnd.Services.uSeturiService;
+using E_Commerce_BackEnd.Services.uTipuriGalerieService;
+using E_Commerce_BackEnd.Services.uTipuriLinieService;
+using E_Commerce_BackEnd.Services.uVoucherService;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.RateLimiting;
+using Sqids;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -40,20 +47,19 @@ builder.Services.AddDefaultAWSOptions(awsOptions);
 
 
 // Add AWS services
-builder.Services.AddSingleton<IAmazonSecretsManager>(sp =>
-{
-    
+builder.Services.AddSingleton<IAmazonSecretsManager>
+    (sp => new AmazonSecretsManagerClient(awsOptions.Credentials, awsOptions.Region));
 
-    var client = new AmazonSecretsManagerClient(awsOptions.Credentials,awsOptions.Region);
-    return client;
-    
-});
+builder.Services.AddSingleton<IAmazonKeyManagementService>
+    (sp => new AmazonKeyManagementServiceClient(awsOptions.Credentials, awsOptions.Region));
 
-builder.Services.AddSingleton<IAmazonKeyManagementService>(sp =>
-{
-    var client = new AmazonKeyManagementServiceClient(awsOptions.Credentials,awsOptions.Region);
-    return client;
-});
+
+// builder.Services.AddSingleton<IAmazonKeyManagementService>(sp =>
+//     {
+//     var client = new AmazonKeyManagementServiceClient(awsOptions.Credentials,awsOptions.Region);
+//     return client;
+//         }
+// );
 
 // user-secrets
 builder.Configuration.AddUserSecrets<Program>();
@@ -75,16 +81,14 @@ var loggerFactory = DbContextInjection.MyLoggerFactory;
 builder.Services.M_DbContextInjection<ECommerceContext>(connectionString, loggerFactory);
 
 // Mapper configuration
-builder.Services.AddAutoMapper(typeof(Program));
-builder.Services.AddSingleton<IMapper>(sp =>
+builder.Services.AddAutoMapper((serviceProvider, cfg) =>
 {
-    var mapperConfig = new MapperConfiguration(cfg =>
-    {
-        cfg.AddProfile(new MappersProfile());
-        
-    });
-    return new Mapper(mapperConfig);
-});
+    // Add your mapping profiles here
+    cfg.AddProfile<MappersProfile>();
+
+    // Use the DI container to resolve services
+    cfg.ConstructServicesUsing(serviceProvider.GetService);
+},typeof(Program));
 // Resolver for mapper
 builder.Services.AddScoped<ProducatorValueResolver>();
 
@@ -94,7 +98,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowVueApp",
         policy =>
         {
-            policy.WithOrigins("http://localhost:8080")
+            policy.WithOrigins("http://localhost:3000")
                 .AllowAnyHeader()
                 .AllowAnyMethod()
                 .AllowCredentials();
@@ -112,11 +116,20 @@ builder.Services.AddScoped<IAdressService, AdressService>();
 builder.Services.AddTransient<ITokenService, TokenService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<ISeturiService, SeturiService>();
+builder.Services.AddScoped<IInelePrindereService, InelePrindereService>();
+builder.Services.AddScoped<IVoucherService, VoucherService>();
 builder.Services.AddScoped<IBucketAcces, BucketAccess>();
+builder.Services.AddScoped<IBucketService, BucketService>();
+builder.Services.AddScoped<IReviewService, ReviewService>();
 
+builder.Services.AddScoped<ITipuriGalerieService, TipuriGalerieService>();
+builder.Services.AddScoped<ITipuriLinieService, TipuriLinieService>();
 builder.Services.AddTransient<JwtTokenMiddlewareFactory>();
 builder.Services.AddTransient<AdminMiddleware>();
 builder.Services.AddScoped<DocumentProcessing>();
+
+builder.Services.AddSingleton<SqidsEncoder<int>>();
 
 builder.Services.AddMemoryCache();
 

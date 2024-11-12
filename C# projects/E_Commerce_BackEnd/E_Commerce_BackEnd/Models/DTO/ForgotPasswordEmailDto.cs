@@ -4,7 +4,5 @@ namespace E_Commerce_BackEnd.Models.DTO;
 
 public class ForgotPasswordEmailDto
 {
-    private string Email;
-
-    public string EmailProp { get; set; }
+    public string EmailProp { get; set; } = null!;
 }

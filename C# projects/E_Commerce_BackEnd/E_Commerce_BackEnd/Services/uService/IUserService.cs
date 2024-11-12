@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using E_Commerce_BackEnd.Models.DTO;
+using E_Commerce_BackEnd.Models.DTO.AdminRelatedDtos.Accounts;
 using E_Commerce_BackEnd.Models.OrderRelatedModels;
 using E_Commerce_BackEnd.Models.UserRelatedModels;
 
@@ -75,7 +76,14 @@ public interface IUserService
     public Task<Conturi?> GetAccountByIdAsync(int id);
     
     public Task<Conturi?> GetAccountByEmailAsync(string email);
-   
+    public Task<Conturi?> GetAccountByUsernameAsync(string username);
     #endregion
-   
+
+    #region Admin
+    public Task<IList<ConturiDisplayDto>?> GetAccountForAdmin();
+    public Task<ConturiDtoForModification?> GetAccountData(int accountId);
+
+
+    #endregion
+
 }

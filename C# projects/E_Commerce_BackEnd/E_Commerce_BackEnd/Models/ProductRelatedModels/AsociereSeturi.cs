@@ -2,22 +2,25 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using E_Commerce_BackEnd.Models.OrderRelatedModels;
 
 namespace E_Commerce_BackEnd.Models.ProductRelatedModels;
 
 public class AsociereSeturi
 {
     // Attributes
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public int IdAsociereSet { get; set; }
+    public int IdAsociereSet { get; init; }
     
     // Foreign Keys
-    public int IdProdus { get; set; }
-    public  Produse Produs { get; set; } = null!;
+    public int IdProdus { get; init; }
+    public  Produse Produs { get; init; } = null!;
     
-    public int IdSet { get; set; }
-    public  Seturi Set { get; set; } = null!;
+    public int IdSet { get; init; }
+    public  Seturi Set { get; init; } = null!;
     
+    public int? IdCuloare { get; init; }
+    public Culori? AsCuloare { get; init; } 
+    public int? IdDimensiune { get; init; }
+    public Dimensiuni? AsDimensiune { get; init; } 
     
 }

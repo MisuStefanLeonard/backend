@@ -5,7 +5,6 @@ namespace E_Commerce_BackEnd.Repositories;
 public interface IRepository<TEntity> where TEntity : class
 {
     Task<TEntity?> GetByIdAsync(int id);
-    Task<TEntity?> GetByIdAsync(string id);
 
     Task<IList<TEntity>?> GetAllAsync();
     IQueryable<TEntity> FindQueryable(Expression<Func<TEntity, bool>> expression,
@@ -23,7 +22,7 @@ public interface IRepository<TEntity> where TEntity : class
 
     Task DeleteRangeAsync(IList<TEntity> listOfEntities);
     Task AddRangeAsync(IList<TEntity> listOfEntities);
-
+    Task UpdateRangeAsync(IList<TEntity> listOfEntities);
     Task DeleteEntityWhere(Expression<Func<TEntity, bool>> expression);
 
 }

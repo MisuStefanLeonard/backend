@@ -1,21 +1,20 @@
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using E_Commerce_BackEnd.Models.OrderRelatedModels;
+using Sqids;
 
 namespace E_Commerce_BackEnd.Models.ProductRelatedModels;
 
-public class InelePrindere
+public class InelePrindere 
 {
-    
-
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+   
     public int IdInel { get; init; }
-
+    public string EncodedIdInel => SqidsEncoder.Encode(IdInel);
+    private static readonly SqidsEncoder<int> SqidsEncoder = new();
     [StringLength(20)] 
     public string CuloareInel { get; init; } = null!;
     
-    public decimal PretPerMetruInele { get; init; } 
+    [StringLength(100)] 
+    public string? CaleRelativa { get; set; }
+    public bool IsDeleted { get; set; }
     
     public ICollection<Manopere>? InelPeManopere { get; }
 

@@ -5,8 +5,7 @@ namespace E_Commerce_BackEnd.Models.ProductRelatedModels;
 
 public class ProduseCuCulori
 {
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    
     public int IdProdusCuCuloare { get; init; }
     public int IdProdus { get; set; } 
     public Produse Produse { get; set; } = null!;

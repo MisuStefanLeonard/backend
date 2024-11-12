@@ -3,6 +3,9 @@ using E_Commerce_BackEnd.Models.ProductRelatedModels;
 using E_Commerce_BackEnd.Services.uProductsService;
 using E_Commerce_BackEnd.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.IdentityModel.Tokens;
+
 
 namespace E_Commerce_BackEnd.Services.Helpers.adminHelpers;
 using GemBox.Spreadsheet;
@@ -20,11 +23,12 @@ public class DocumentProcessing
         _docsLogger = docsLogger;
         _unitOfWork = unitOfWork;
         _productService = productService;
+        
     }
 
     private async Task ProcessDimensions(string[] dimensions, string[]? recomandari , IList<int> dimensionsIdList)
     {
-        for (int i = 0; i < dimensions.Length; i++)
+        for (var i = 0; i < dimensions.Length; i++)
         {
             var dimensiuniRepository = _unitOfWork.Repository<Dimensiuni>();
             var currentDimensions = dimensions[i].Split("x");
@@ -43,43 +47,23 @@ public class DocumentProcessing
                 await _unitOfWork.CommitAsync();
                 isDimensionInDatabase = newDimension;
                 _docsLogger.LogInformation($"Dimensiune({latime}x{lungime}) saved successfully");
-                if (recomandare != null)
-                {
-                    _docsLogger.LogInformation($"{recomandare} was linked with {latime}x{lungime} dimension");
-                }
-                else
-                {
-                    _docsLogger.LogInformation("No recomandare pat was linked with this dimension");
-                }
+                _docsLogger.LogInformation(recomandare != null
+                    ? $"{recomandare} was linked with {latime}x{lungime} dimension"
+                    : "No recomandare pat was linked with this dimension");
             }
             dimensionsIdList.Add(isDimensionInDatabase.IdDimensiune);
         }
     }
-
-
-    private void HandleEmptyDimensions(string productType)
-    {
-        if (string.Equals(productType, "cuvertura"))
-        {
-            _docsLogger.LogError("Dimensiuni section cannot be empty!");
-            throw new Exception("Dimensiuni section cannot be empty! Rolling back transactions");
-        }
-        else if (string.Equals(productType, "perdea"))
-        {
-            _docsLogger.LogWarning($"{productType} was the type of the product! Dimensions section is empty");
-        }
-        else
-        {
-            _docsLogger.LogError($"{productType} unknown type of product");
-            throw new Exception($"{productType} unknown type of product. Rolling back transactions");
-        }
-    }
     
-    private bool IsRowEmpty(ExcelRow row)
+    
+    private static bool IsRowEmpty(ExcelRow row)
     {
+        // check all the cells
         foreach (var cell in row.AllocatedCells)
         {
-            if (!string.IsNullOrWhiteSpace(cell.StringValue))
+            // if we find something return false
+           
+            if (cell.Value is not null)
             {
                 return false; 
             }
@@ -87,18 +71,17 @@ public class DocumentProcessing
         return true; 
     }
     
-    public async Task ReadProductsExcel(Stream stream)
+    public async Task<ExcelProcessingResult> ReadProductsExcel(Stream stream)
     {
         SpreadsheetInfo.SetLicense(_freeKey);
         var producatoriRepository = _unitOfWork.Repository<Producatori>();
         var culoriRepository = _unitOfWork.Repository<Culori>();
         var codCuloriRepository = _unitOfWork.Repository<CodCulori>();
         var tipuriProduseRepository = _unitOfWork.Repository<TipuriProduse>();
-        var materialeRepository = _unitOfWork.Repository<Materiale>();
         
-        ExcelFile workbook = ExcelFile.Load(stream);
-
-        await using var dbContextTransaction = await _unitOfWork.BeginTransactionAsync();
+        var workbook = ExcelFile.Load(stream);
+        IDbContextTransaction? dbContextTransaction = null;
+        dbContextTransaction  = await _unitOfWork.BeginTransactionAsync();
         try
         {
 
@@ -113,7 +96,7 @@ public class DocumentProcessing
                     IList<int> tipuriProduseIdList = [];
                     IList<int> colorIdList = [];
 
-                    int idProducator = 0;
+                    var idProducator = 0;
                     var row = worksheet.Rows[i];
                     _docsLogger.LogInformation($"Row : {row}");
                     
@@ -122,14 +105,23 @@ public class DocumentProcessing
                         _docsLogger.LogInformation($"Skipping empty row {i + 1}");
                         continue;
                     }
-
-                    var tipProdus = row.Cells[15].StringValue.ToLower().Trim();
-
                     var codProdus = row.Cells[0].StringValue.Trim().ToUpper();
+                    if (string.IsNullOrEmpty(codProdus))
+                    {
+                        throw new Exception($"Codul produsului nu poate fi gol. Vezi linia {row.Name} in fisierul excel.");
+                    }
 
 
+                    var tipProdus = row.Cells[14].StringValue.ToLower().Trim();
+                    
+                    
                     var descriereProdus = row.Cells[1].StringValue.Trim();
                     var numeProdus = row.Cells[2].StringValue.Trim();
+                    if (numeProdus.IsNullOrEmpty())
+                    {
+                        throw new Exception(
+                            $"Numele produsului nu poate fi gol! Vezi linia {row.Name} in fisierul excel.");
+                    }
                     var compozitieProdus = row.Cells[3].StringValue.Trim();
                     // processing the prices
                     var pretProdusString = row.Cells[4].StringValue.Trim();
@@ -152,27 +144,19 @@ public class DocumentProcessing
 
                     //--
                     var ingrijireProdus = row.Cells[6].StringValue.Trim();
-
-                    // greutate processing
-                    var greutateProdusString = row.Cells[7].StringValue.Trim();
-                    decimal greutateProdus = 0;
-                    if (!string.Equals(greutateProdusString, "-") && !string.IsNullOrEmpty(greutateProdusString))
-                    {
-                        greutateProdus = decimal.Parse(greutateProdusString);
-                    }
-
+                    
                     // fata reversibila
-                    var fataReversibila = row.Cells[8].StringValue.ToUpper().Trim() == "TRUE";
+                    var fataReversibila = row.Cells[7].StringValue.ToUpper().Trim() == "TRUE";
                   
                     // stoc produs
-                    var stocProdusString = row.Cells[9].StringValue.Trim();
+                    var stocProdusString = row.Cells[8].StringValue.Trim();
                     ushort stocProdus = 0;
                     if (!string.Equals(stocProdusString, "-") && !string.IsNullOrEmpty(stocProdusString))
                     {
                         stocProdus = ushort.Parse(stocProdusString);
                     }
 
-                    var numeProducator = row.Cells[10].StringValue.ToUpper().Trim();
+                    var numeProducator = row.Cells[9].StringValue.ToUpper().Trim();
 
                     // producatorul ( Reig Marti)
                     if (!string.Equals(numeProducator, "-") && !string.IsNullOrEmpty(numeProducator))
@@ -209,10 +193,14 @@ public class DocumentProcessing
                     }
 
                     // Recomandare pat processing and  DIMENSION PROCESSING
-                    var dimensiuniFromExcel = row.Cells[11].StringValue.Trim();
-                    var recomandarePatFromExcelRow = row.Cells[12].StringValue.Trim();
+                    var dimensiuniFromExcel = row.Cells[10].StringValue.Trim();
+                    var recomandarePatFromExcelRow = row.Cells[11].StringValue.Trim();
 
-                    var recomandarePatArrayValues = recomandarePatFromExcelRow.Split(",");
+                    string[] recomandarePatArrayValues = [];
+                    if (!recomandarePatFromExcelRow.IsNullOrEmpty() && !string.Equals(recomandarePatFromExcelRow, "-"))
+                    {
+                        recomandarePatArrayValues = recomandarePatFromExcelRow.Split(",");
+                    }
                     var dimensiuniArray = dimensiuniFromExcel.Split(",");
 
                   
@@ -225,7 +213,7 @@ public class DocumentProcessing
                         }
                         else
                         {
-                            HandleEmptyDimensions(tipProdus);
+                            _docsLogger.LogInformation("Nicio dimensiune pentru produsul curent!_____1");
                         }
                     }
                     else
@@ -240,12 +228,13 @@ public class DocumentProcessing
                             else
                             {
                                 _docsLogger.LogError("Mismatch between dimensions and recomandare pat arrays.");
-                                throw new Exception("Mismatch between dimensions and recomandare pat arrays.");
+                                throw new Exception("Diferenta intre dimensiuni si recomandare pat(trebuie sa coincida 1:1 (dimensiune:recomandare_pat))." +
+                                                    $"Vezi linia {row.Name} in excel");
                             }
                         }
                         else
                         {
-                            HandleEmptyDimensions(tipProdus);
+                            _docsLogger.LogInformation("Nicio dimensiune pentru produsul curent!______2");
                         }
                     }
                     
@@ -258,17 +247,20 @@ public class DocumentProcessing
                         _docsLogger.LogError(
                             "Prices , dimensions and recomandare pat values are not equal in length");
                         throw new Exception(
-                            "Prices , dimensions and recomandare pat values are not equal in length");
+                            "Preturile , dimensiunile si recomandarile de pat nu sunt de acceasi dimensiune!" +
+                            $"Vezi randul {row.Name} in excel.");
                     }
+                    
 
                     // PROCESAREA CULORILOR DIN EXCEL
                     // initial -> grey-03,blue-08
-                    var culoriString = row.Cells[13].StringValue.ToLower().Trim();
+                    var culoriString = row.Cells[12].StringValue.ToLower().Trim();
 
                     if (string.Equals(culoriString, "-") && string.IsNullOrEmpty(culoriString))
                     {
-                        _docsLogger.LogError("Culori section cannot be empty ");
-                        throw new Exception("Culori section cannot be empty. Rolling back transactions!");
+                        _docsLogger.LogError("EROARE! Sectiunea de culori nu poate fi goala! ");
+                        throw new Exception("EROARE! Sectiunea de culori nu poate fi goala! Vezi" +
+                                            $"randul {i-1} pe coloana 13");
                     }
 
                     var culoriArray = culoriString.Split(","); // will be parsed !
@@ -333,11 +325,11 @@ public class DocumentProcessing
                     }
 
                     // processing the category of the products
-                    var categoriiProdus = row.Cells[14].StringValue.ToUpper().Trim();
+                    var categoriiProdus = row.Cells[13].StringValue.ToUpper().Trim();
 
                     if (string.Equals(categoriiProdus, "-") && string.IsNullOrEmpty(categoriiProdus))
                     {
-                        _docsLogger.LogError("Category cannot be null.");
+                        _docsLogger.LogError($"Categoria produsului nu poate fi goala! Vezi randul {row.Name} in excelcoloana 14");
                         throw new Exception("Category cannot be null. Rolling back transactions");
                     }
 
@@ -351,7 +343,10 @@ public class DocumentProcessing
                         if (isCategorieInDatabase is null)
                         {
 
-                            var newCategorie = new TipuriProduse(tipProdus.ToUpper(), categorie, null);
+                            var newCategorie = new TipuriProduse
+                            {
+                                Categorie = categorie
+                            };
                             await tipuriProduseRepository.AddAsync(newCategorie);
                             await _unitOfWork.CommitAsync();
                             _docsLogger.LogInformation("Categorie (cuvertura/perdea) added in the database");
@@ -361,66 +356,43 @@ public class DocumentProcessing
 
                         tipuriProduseIdList.Add(isCategorieInDatabase.IdTipProdus);
                     }
-
-
-                    if (string.Equals(tipProdus, "perdea"))
-                    {
-                        var pretLaMetru = row.Cells[16].StringValue.Trim();
-
-                        if (string.Equals(pretLaMetru, "-") && string.IsNullOrEmpty(pretLaMetru))
-                        {
-                            _docsLogger.LogError("Price for the meter of manopera cannot be null");
-                            throw new Exception("Price for the meter cannot be null. Rolling back transactions");
-                        }
-
-                        var material = row.Cells[17].StringValue.ToLower();
-
-                        if (string.Equals(material, "-") && string.IsNullOrEmpty(material))
-                        {
-                            _docsLogger.LogError("Material cannot be null");
-                            throw new Exception("Material cannot be null. Rolling back transactions");
-                        }
-
-                        // parsing the strings to DB data types
-
-                        var pretLaMetruInt = int.Parse(pretLaMetru);
-
-                        var isMaterialInDb = await materialeRepository
-                            .FindQueryable(mat => mat.NumeMaterial == material
-                                                  && mat.PretMaterial == pretLaMetruInt)
-                            .FirstOrDefaultAsync();
-
-                        if (isMaterialInDb is null)
-                        {
-                            var newMaterial = new Materiale
-                            {
-                                NumeMaterial = material,
-                                PretMaterial = pretLaMetruInt
-                            };
-
-                            await materialeRepository.AddAsync(newMaterial);
-                            await _unitOfWork.CommitAsync();
-                            isMaterialInDb = newMaterial;
-                            _docsLogger.LogInformation(
-                                $"Added material:{isMaterialInDb.NumeMaterial} with price {isMaterialInDb.PretMaterial}");
-                        }
-                    }
-
-
-
+                    
+                    var folderName = row.Cells[16].StringValue.ToLower().Trim();
                     // images processing
-                    var relativePathOfImagesString = row.Cells[18].StringValue;
+                    var relativePathOfImagesString = row.Cells[15].StringValue;
                     string[] relativePathOfImagesArray = [];
 
+                    var checkEqualWithOrEmpty = string.Equals(folderName, "-") && string.IsNullOrEmpty(folderName);
+                    
+                    if(relativePathOfImagesArray.Length != 0 && checkEqualWithOrEmpty)
+                    {
+                        throw new Exception($"Nu ati selectat niciun fisier in care sa puneti imaginea " +
+                                            $"Va rog, selectati un fisier .Vezi randul {row.Name} in excel ");
+                    }
+                    
+                    
+                    
                     if (!string.Equals(relativePathOfImagesString, "-") &&
                         !string.IsNullOrEmpty(relativePathOfImagesString))
                     {
                         relativePathOfImagesArray = relativePathOfImagesString.Split(',');
                     }
-                    else
+                    
+                    
+                    var productBasePrice = row.Cells[17].StringValue.Trim(); // case we have a perdea/draperie
+                    decimal productBasePriceDecimal = 0;
+                    var isDigits = productBasePrice.All(char.IsDigit);
+                    if (isDigits)
                     {
-                        _docsLogger.LogInformation($"No images were chosen for product: {codProdus} \n" +
-                                                   $"See line {row.Name}");
+                        productBasePriceDecimal = decimal.Parse(productBasePrice);
+                    }
+                    
+                    var productBasePriceDiscounted = row.Cells[18].StringValue.Trim(); // case we have a perdea/draperie
+                    decimal productBasePriceDiscountedDecimal = 0;
+                    var isDigitsDiscounted = productBasePriceDiscounted.All(char.IsDigit);
+                    if (isDigitsDiscounted)
+                    {
+                        productBasePriceDiscountedDecimal = decimal.Parse(productBasePriceDiscounted);
                     }
 
                     var newProdusDto = new ProduseDto
@@ -431,48 +403,42 @@ public class DocumentProcessing
                         CompozitieDto = compozitieProdus,
                         TvaDto = tvaProdus,
                         IngrijireDto = ingrijireProdus,
-                        GreutateDto = greutateProdus,
+                        PretBazaDto = productBasePriceDecimal,
+                        PretBazaRedusDto = productBasePriceDiscountedDecimal,
                         FataReversibilaDto = fataReversibila,
                         StocDto = stocProdus,
                         IsDeletedDto = false,
                         ActivInMagazinDto = false,
-                        TipProdusDto = tipProdus
+                        TipProdusDto = tipProdus,
+                        ProdusLimitatDto = false,
+                        ActiveazaInNoutati = false
+                        
                     };
-
-                    var folderName = row.Cells[19].StringValue.ToLower().Trim();
                     
                     var responseAddProduct = await _productService.AddOrEditProductFromExcel(newProdusDto, dimensionsIdList,
                         relativePathOfImagesArray, tipuriProduseIdList, colorIdList,
                         pretProdusArray, idProducator, tipProdus, folderName);
 
-                    if (responseAddProduct == 1)
+                    switch (responseAddProduct)
                     {
-                        _docsLogger.LogInformation($"Product with id: {codProdus} was succesfully added");
-
-                    }else if (responseAddProduct == 2)
-                    {
-                        _docsLogger.LogInformation($"Product with id: {codProdus} has been updated");
+                        case 1:
+                            _docsLogger.LogInformation($"Product with id: {codProdus} was succesfully added");
+                            break;
+                        case 2:
+                            _docsLogger.LogInformation($"Product with id: {codProdus} has been updated");
+                            break;
                     }
-                    else
-                    {
-                        _docsLogger.LogError($"Error when processing product: {codProdus}");
-                        throw new Exception($"Error when processing product: {codProdus}");
-                    }
-
+                    
                 }
             }
 
             await _unitOfWork.CommitTransactionAsync(dbContextTransaction);
+            return ExcelProcessingResult.SuccessResult("Products were successfully added from the Excel file.");
         }
         catch (Exception e)
-        {
-            if (dbContextTransaction == null)
-            {
-                _docsLogger.LogInformation($"Rolling back transaction!");
-                await _unitOfWork.RollBackTransactionAsync(dbContextTransaction!);
-            }
-            _docsLogger.LogDebug("Error : " + e.Message);
-            throw;
+        { 
+            await _unitOfWork.RollBackTransactionAsync(dbContextTransaction);
+            return ExcelProcessingResult.ErrorResult($"Error: {e.Message}");
         }
     }
 }

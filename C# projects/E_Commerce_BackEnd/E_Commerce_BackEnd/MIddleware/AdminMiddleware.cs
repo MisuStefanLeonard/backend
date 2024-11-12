@@ -1,91 +1,99 @@
 namespace E_Commerce_BackEnd.MIddleware
 {
     public class AdminMiddleware : IMiddleware
+{
+    private readonly ILogger<AdminMiddleware> _logger;
+
+    public AdminMiddleware(ILogger<AdminMiddleware> logger)
     {
-        private readonly ILogger<AdminMiddleware> _logger;
+        _logger = logger;
+    }
 
-        public AdminMiddleware(ILogger<AdminMiddleware> logger)
+    public async Task InvokeAsync(HttpContext context, RequestDelegate next)
+    {
+        try
         {
-            _logger = logger;
-        }
+            _logger.LogInformation("Executing admin middleware");
 
-        public async Task InvokeAsync(HttpContext context, RequestDelegate next)
-        {
-            try
+            var path = context.Request.Path;
+
+            if (path.StartsWithSegments("/api/admin"))
             {
-                _logger.LogInformation("Executing admin middleware");
+                _logger.LogInformation("PATH IN ADMIN " + path);
 
-                var path = context.Request.Path;
-
-                if (path.StartsWithSegments("/api/admin"))
-                {
-                    _logger.LogInformation("PATH IN ADMIN " + path);
-
-                    if (IsValidAdminRequest(context, path))
-                    {
-                        await next(context);
-                    }
-                    else
-                    {
-                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                        await context.Response.WriteAsync(GetUnauthorizedMessage(context, path));
-                    }
-                }
-                else
+                if (IsValidAdminRequest(context, path))
                 {
                     await next(context);
                 }
+                else
+                {
+                    _logger.LogInformation("Unauthorized access attempt in admin path: " + path);
+
+                    // Set the response code and short-circuit the pipeline
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+
+                    // Write response and end request processing
+                    await context.Response.WriteAsync(GetUnauthorizedMessage(context, path));
+                    
+                    return; // Prevent further middleware from running
+                }
             }
-            catch (Exception e)
+            else
             {
-                _logger.LogError("Error in the admin middleware");
-                _logger.LogInformation($"Error -> {e.Message}");
-                throw;
+                _logger.LogInformation("Not an admin path");
+                await next(context);
             }
         }
-
-        private bool IsValidAdminRequest(HttpContext context, PathString path)
+        catch (Exception e)
         {
-            bool isLoggedIn = context.Request.Cookies.TryGetValue("userLoggedIn", out var isLoggedInString) && isLoggedInString == "1";
-            bool isAdmin = context.Request.Cookies.TryGetValue("admin", out var adminString) && adminString == "1";
-            bool isAdminLoggedIn = context.Request.Cookies.TryGetValue("adminLoggedIn", out var adminLoggedInString) && adminLoggedInString == "1";
+            _logger.LogError("Error in the admin middleware: " + e.Message);
+            throw; // Rethrow the exception after logging
+        }
+    }
 
-            if (!isLoggedIn)
-            {
-                _logger.LogWarning("User is not logged in (middleware)");
-                return false;
-            }
+    private bool IsValidAdminRequest(HttpContext context, PathString path)
+    {
+        var isLoggedIn = context.Request.Cookies.TryGetValue("userLoggedIn", out var isLoggedInString) && isLoggedInString == "1";
+        var isAdmin = context.Request.Cookies.TryGetValue("admin", out var adminString) && adminString == "1";
+        var isAdminLoggedIn = context.Request.Cookies.TryGetValue("adminLoggedIn", out var adminLoggedInString) && adminLoggedInString == "1";
 
-            if (path.StartsWithSegments("/api/admin/login"))
-            {
-                if (isAdmin)
-                {
-                    return true;
-                }
-                _logger.LogWarning($"Non-admin tried to access -> {path}");
-                return false;
-            }
-
-            if (isAdmin && isAdminLoggedIn)
-            {
-                return true;
-            }
-
-            _logger.LogWarning($"Non-admin tried to access/ Or invalid validation for the adminLoggedIn cookie -> {path}");
+        if (!isLoggedIn)
+        {
+            _logger.LogWarning("User is not logged in (middleware)");
             return false;
         }
 
-        private string GetUnauthorizedMessage(HttpContext context, PathString path)
+        if (path.StartsWithSegments("/api/admin/login"))
         {
-            if (!context.Request.Cookies.ContainsKey("userLoggedIn"))
+            if (isAdmin)
             {
-                return "User is not logged in";
+                return true;
             }
-            if (!context.Request.Cookies.ContainsKey("admin"))
-            {
-                return "Admin cookie not present";
-            }
-            return "You are not allowed here!";
+            _logger.LogWarning($"Non-admin tried to access -> {path}");
+            return false;
         }
+
+        if (isAdmin && isAdminLoggedIn)
+        {
+            return true;
+        }
+
+        _logger.LogWarning($"Non-admin tried to access/ Or invalid validation for the adminLoggedIn cookie -> {path}");
+        return false;
     }
+
+    private static string GetUnauthorizedMessage(HttpContext context, PathString path)
+    {
+        if (!context.Request.Cookies.ContainsKey("userLoggedIn"))
+        {
+            return "User is not logged in";
+        }
+        if (!context.Request.Cookies.ContainsKey("admin"))
+        {
+            return "Admin cookie not present";
+        }
+        return "You are not allowed here!";
+    }
+}
+
 }

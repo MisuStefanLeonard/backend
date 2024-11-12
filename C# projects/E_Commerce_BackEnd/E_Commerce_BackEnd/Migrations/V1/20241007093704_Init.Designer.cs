@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace E_Commerce_BackEnd.Migrations.V1
 {
     [DbContext(typeof(ECommerceContext))]
-    [Migration("20240813082503_V1")]
-    partial class V1
+    [Migration("20241007093704_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -29,10 +29,16 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 {
                     b.Property<int>("IdComanda")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(1)")
                         .HasColumnName("id_comanda");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdComanda"));
+
+                    b.Property<string>("AwbComanda")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar")
+                        .HasColumnName("awb_fan_courier");
 
                     b.Property<DateTime>("DataEmitereComanda")
                         .ValueGeneratedOnAdd()
@@ -40,9 +46,22 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnName("data_emitere_comanda")
                         .HasDefaultValueSql("NOW()");
 
-                    b.Property<int>("IdDetaliu")
+                    b.Property<int>("IdAdresaFacturare")
                         .HasColumnType("integer")
-                        .HasColumnName("id_detaliu");
+                        .HasColumnName("id_adresa_facturare");
+
+                    b.Property<int>("IdAdresaLivrare")
+                        .HasColumnType("integer")
+                        .HasColumnName("id_adresa_livrare");
+
+                    b.Property<int?>("IdVoucher")
+                        .HasColumnType("integer")
+                        .HasColumnName("id_voucher");
+
+                    b.Property<sbyte>("IsCancelable")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)1);
 
                     b.Property<string>("StatusComanda")
                         .IsRequired()
@@ -56,7 +75,11 @@ namespace E_Commerce_BackEnd.Migrations.V1
 
                     b.HasKey("IdComanda");
 
-                    b.HasIndex("IdDetaliu");
+                    b.HasIndex("IdAdresaFacturare");
+
+                    b.HasIndex("IdAdresaLivrare");
+
+                    b.HasIndex("IdVoucher");
 
                     b.ToTable("comenzi", (string)null);
                 });
@@ -65,7 +88,7 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 {
                     b.Property<int>("IdLocatie")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(1)")
                         .HasColumnName("id_locatie");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdLocatie"));
@@ -94,13 +117,10 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 {
                     b.Property<int>("IdProduseCuComenzi")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(1)")
                         .HasColumnName("id_produse_cu_comenzi");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdProduseCuComenzi"));
-
-                    b.Property<int?>("CuloriIdCuloare")
-                        .HasColumnType("integer");
 
                     b.Property<int>("IdComanda")
                         .HasColumnType("integer")
@@ -110,7 +130,7 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnType("integer")
                         .HasColumnName("id_culoare");
 
-                    b.Property<int>("IdDimensiune")
+                    b.Property<int?>("IdDimensiune")
                         .HasColumnType("integer")
                         .HasColumnName("id_dimensiune");
 
@@ -122,17 +142,32 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnType("integer")
                         .HasColumnName("id_produs");
 
+                    b.Property<int?>("IdSet")
+                        .HasColumnType("integer")
+                        .HasColumnName("id_set");
+
                     b.Property<int>("NrBucati")
                         .HasColumnType("integer")
                         .HasColumnName("nr_buc");
 
-                    b.HasKey("IdProduseCuComenzi");
+                    b.Property<decimal>("PretCumparat")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("decimal")
+                        .HasColumnName("pret_baza");
 
-                    b.HasIndex("CuloriIdCuloare");
+                    b.HasKey("IdProduseCuComenzi");
 
                     b.HasIndex("IdComanda");
 
+                    b.HasIndex("IdCuloare");
+
+                    b.HasIndex("IdDimensiune");
+
+                    b.HasIndex("IdManopera");
+
                     b.HasIndex("IdProdus");
+
+                    b.HasIndex("IdSet");
 
                     b.ToTable("produse_cu_comenzi", (string)null);
                 });
@@ -141,10 +176,18 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 {
                     b.Property<int>("IdAsociereSet")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(1)")
                         .HasColumnName("id_asociere_set");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdAsociereSet"));
+
+                    b.Property<int?>("IdCuloare")
+                        .HasColumnType("integer")
+                        .HasColumnName("id_culoare");
+
+                    b.Property<int?>("IdDimensiune")
+                        .HasColumnType("integer")
+                        .HasColumnName("id_dimensiune");
 
                     b.Property<int>("IdProdus")
                         .HasColumnType("integer")
@@ -155,6 +198,10 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnName("id_set");
 
                     b.HasKey("IdAsociereSet");
+
+                    b.HasIndex("IdCuloare");
+
+                    b.HasIndex("IdDimensiune");
 
                     b.HasIndex("IdProdus");
 
@@ -167,7 +214,7 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 {
                     b.Property<int>("IdCodCuloare")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(1)")
                         .HasColumnName("id_cod_culoare");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdCodCuloare"));
@@ -186,7 +233,7 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 {
                     b.Property<int>("IdCuloare")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(1)")
                         .HasColumnName("id_culoare");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdCuloare"));
@@ -212,7 +259,7 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 {
                     b.Property<int>("IdDimensiune")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(1)")
                         .HasColumnName("id_dimensiune");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdDimensiune"));
@@ -246,7 +293,7 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 {
                     b.Property<int>("IdImagine")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(1)")
                         .HasColumnName("id_imagine");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdImagine"));
@@ -255,6 +302,12 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasMaxLength(100)
                         .HasColumnType("varchar")
                         .HasColumnName("cale_imagine");
+
+                    b.Property<string>("FisierInBucket")
+                        .IsRequired()
+                        .HasMaxLength(70)
+                        .HasColumnType("varchar")
+                        .HasColumnName("bucket_directory");
 
                     b.Property<int>("IdProdusCuCuloare")
                         .HasColumnType("integer")
@@ -271,16 +324,27 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 {
                     b.Property<int>("IdInel")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(1)")
                         .HasColumnName("id_inel_prindere");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdInel"));
+
+                    b.Property<string>("CaleRelativa")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar")
+                        .HasColumnName("cale_relativa");
 
                     b.Property<string>("CuloareInel")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("varchar")
                         .HasColumnName("culoare_inel");
+
+                    b.Property<sbyte>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("isDeleted");
 
                     b.Property<decimal>("PretPerMetruInele")
                         .HasPrecision(5, 2)
@@ -296,7 +360,7 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 {
                     b.Property<int>("IdManopera")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(1)")
                         .HasColumnName("id_manopera");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdManopera"));
@@ -304,10 +368,6 @@ namespace E_Commerce_BackEnd.Migrations.V1
                     b.Property<int?>("IdInelPrindere")
                         .HasColumnType("integer")
                         .HasColumnName("id_inel_prindere");
-
-                    b.Property<int>("IdMaterial")
-                        .HasColumnType("integer")
-                        .HasColumnName("id_material");
 
                     b.Property<int>("IdTipGalerie")
                         .HasColumnType("integer")
@@ -317,11 +377,24 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnType("integer")
                         .HasColumnName("id_tip_linie");
 
+                    b.Property<decimal?>("PretCurentInelePrindere")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("decimal")
+                        .HasColumnName("pret_curent_inele_prindere");
+
+                    b.Property<decimal>("PretCurentTipGalerie")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("decimal")
+                        .HasColumnName("pret_curent_rejansa");
+
+                    b.Property<decimal>("PretCurentTipLinie")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("decimal")
+                        .HasColumnName("pret_curent_tip_linie");
+
                     b.HasKey("IdManopera");
 
                     b.HasIndex("IdInelPrindere");
-
-                    b.HasIndex("IdMaterial");
 
                     b.HasIndex("IdTipGalerie");
 
@@ -330,42 +403,17 @@ namespace E_Commerce_BackEnd.Migrations.V1
                     b.ToTable("manopere", (string)null);
                 });
 
-            modelBuilder.Entity("E_Commerce_BackEnd.Models.ProductRelatedModels.Materiale", b =>
-                {
-                    b.Property<int>("IdMaterial")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id_material");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdMaterial"));
-
-                    b.Property<string>("NumeMaterial")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar")
-                        .HasColumnName("nume_material");
-
-                    b.Property<decimal>("PretMaterial")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("decimal")
-                        .HasColumnName("pret_metru_material");
-
-                    b.HasKey("IdMaterial");
-
-                    b.ToTable("materiale", (string)null);
-                });
-
             modelBuilder.Entity("E_Commerce_BackEnd.Models.ProductRelatedModels.Producatori", b =>
                 {
                     b.Property<int>("IdProducator")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(1)")
                         .HasColumnName("id_producator");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdProducator"));
 
                     b.Property<string>("NumeProducator")
-                        .HasMaxLength(5)
+                        .HasMaxLength(30)
                         .HasColumnType("varchar")
                         .HasColumnName("nume_producator");
 
@@ -378,7 +426,7 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 {
                     b.Property<int>("IdProdus")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(1)")
                         .HasColumnName("id_produs");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdProdus"));
@@ -396,12 +444,12 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnName("cod_produs");
 
                     b.Property<string>("Compozitie")
-                        .HasMaxLength(30)
+                        .HasMaxLength(50)
                         .HasColumnType("varchar")
                         .HasColumnName("compozitie");
 
                     b.Property<string>("Descriere")
-                        .HasMaxLength(50)
+                        .HasMaxLength(150)
                         .HasColumnType("varchar")
                         .HasColumnName("descriere");
 
@@ -419,7 +467,7 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnName("id_producator");
 
                     b.Property<string>("Ingrijire")
-                        .HasMaxLength(50)
+                        .HasMaxLength(150)
                         .HasColumnType("varchar")
                         .HasColumnName("ingrijire");
 
@@ -434,9 +482,25 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnType("varchar")
                         .HasColumnName("nume_produs");
 
+                    b.Property<decimal>("PretDeBaza")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("decimal")
+                        .HasColumnName("pret_baza");
+
+                    b.Property<decimal>("PretDeBazaRedus")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("decimal")
+                        .HasColumnName("pret_baza_redus");
+
                     b.Property<ushort?>("Stoc")
                         .HasColumnType("smallint unsigned")
                         .HasColumnName("stoc");
+
+                    b.Property<string>("TipulProdusului")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar")
+                        .HasColumnName("tip_produs");
 
                     b.Property<byte>("Tva")
                         .HasColumnType("tinyint unsigned")
@@ -457,12 +521,12 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 {
                     b.Property<int>("IdProdusCuCuloare")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(1)")
                         .HasColumnName("id_produs_culoare");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdProdusCuCuloare"));
 
-                    b.Property<int?>("IdCuloare")
+                    b.Property<int>("IdCuloare")
                         .HasColumnType("integer")
                         .HasColumnName("id_culoare");
 
@@ -483,13 +547,12 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 {
                     b.Property<int>("IdProdusCuDimensiune")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(1)")
                         .HasColumnName("id_produs_cu_dimensiune");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdProdusCuDimensiune"));
 
                     b.Property<int?>("IdDimensiune")
-                        .IsRequired()
                         .HasColumnType("integer")
                         .HasColumnName("id_dimensiune");
 
@@ -501,6 +564,13 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasPrecision(6, 2)
                         .HasColumnType("decimal(6,2)")
                         .HasColumnName("pret");
+
+                    b.Property<decimal>("PretRedus")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(6, 2)
+                        .HasColumnType("decimal")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("pret_redus");
 
                     b.HasKey("IdProdusCuDimensiune");
 
@@ -515,22 +585,42 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 {
                     b.Property<int>("IdSet")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(1)")
                         .HasColumnName("id_set");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdSet"));
 
                     b.Property<string>("DescriereSet")
                         .IsRequired()
-                        .HasMaxLength(50)
+                        .HasMaxLength(150)
                         .HasColumnType("varchar")
                         .HasColumnName("descriere_set");
 
+                    b.Property<sbyte>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("isDeleted");
+
                     b.Property<string>("NumeSet")
                         .IsRequired()
-                        .HasMaxLength(50)
+                        .HasMaxLength(100)
                         .HasColumnType("varchar")
                         .HasColumnName("nume_set");
+
+                    b.Property<decimal>("PretRedusSet")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("decimal")
+                        .HasColumnName("pret_set_redus");
+
+                    b.Property<decimal>("PretSet")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("decimal")
+                        .HasColumnName("pret_set");
+
+                    b.Property<sbyte>("SetActivInMagazin")
+                        .HasColumnType("tinyint")
+                        .HasColumnName("set_activ");
 
                     b.HasKey("IdSet");
 
@@ -541,10 +631,21 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 {
                     b.Property<int>("IdTipGalerie")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(1)")
                         .HasColumnName("id_tip_galerie");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdTipGalerie"));
+
+                    b.Property<string>("CaleRelativa")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar")
+                        .HasColumnName("cale_relativa");
+
+                    b.Property<sbyte>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("isDeleted");
 
                     b.Property<string>("NumeTipGalerie")
                         .IsRequired()
@@ -566,10 +667,21 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 {
                     b.Property<int>("IdTipLinie")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(1)")
                         .HasColumnName("id_tip_linie");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdTipLinie"));
+
+                    b.Property<string>("CaleRelativa")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar")
+                        .HasColumnName("cale_relativa");
+
+                    b.Property<sbyte>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("isDeleted");
 
                     b.Property<string>("NumeTipLinie")
                         .IsRequired()
@@ -591,7 +703,7 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 {
                     b.Property<int>("IdTipPeProdus")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(1)")
                         .HasColumnName("id_tip_pe_produs");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdTipPeProdus"));
@@ -617,7 +729,7 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 {
                     b.Property<int>("IdTipProdus")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(1)")
                         .HasColumnName("id_tip_pe_produs");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdTipProdus"));
@@ -628,48 +740,16 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnType("varchar")
                         .HasColumnName("categorie");
 
-                    b.Property<string>("TipProdus")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar")
-                        .HasColumnName("tip_produs");
-
                     b.HasKey("IdTipProdus");
 
                     b.ToTable("tipuri_produse", (string)null);
-                });
-
-            modelBuilder.Entity("E_Commerce_BackEnd.Models.ProductVouchersModels.ProduseCuVouchere", b =>
-                {
-                    b.Property<int>("IdProdusCuVoucher")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id_produs_cu_voucher");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdProdusCuVoucher"));
-
-                    b.Property<int>("IdProdus")
-                        .HasColumnType("integer")
-                        .HasColumnName("id_produs");
-
-                    b.Property<int?>("IdVoucher")
-                        .HasColumnType("integer")
-                        .HasColumnName("id_voucher");
-
-                    b.HasKey("IdProdusCuVoucher");
-
-                    b.HasIndex("IdProdus");
-
-                    b.HasIndex("IdVoucher");
-
-                    b.ToTable("produse_cu_vouchere", (string)null);
                 });
 
             modelBuilder.Entity("E_Commerce_BackEnd.Models.ProductVouchersModels.Vouchere", b =>
                 {
                     b.Property<int>("IdVoucher")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(1)")
                         .HasColumnName("id_voucher");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdVoucher"));
@@ -679,6 +759,16 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasMaxLength(10)
                         .HasColumnType("varchar")
                         .HasColumnName("cod_voucher");
+
+                    b.Property<DateTime>("DataExpirare")
+                        .HasColumnType("date")
+                        .HasColumnName("data_expirare");
+
+                    b.Property<sbyte>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("isDeleted");
 
                     b.Property<decimal>("Reducere")
                         .HasPrecision(2, 2)
@@ -694,7 +784,7 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 {
                     b.Property<int>("IdAdresa")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(1)")
                         .HasColumnName("id_adresa");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdAdresa"));
@@ -713,6 +803,10 @@ namespace E_Commerce_BackEnd.Migrations.V1
                     b.Property<int>("IdCont")
                         .HasColumnType("integer")
                         .HasColumnName("id_cont");
+
+                    b.Property<int?>("IdDetaliuFactura")
+                        .HasColumnType("integer")
+                        .HasColumnName("id_detaliu_factura");
 
                     b.Property<int>("IdLocatie")
                         .HasColumnType("integer")
@@ -750,6 +844,8 @@ namespace E_Commerce_BackEnd.Migrations.V1
 
                     b.HasIndex("IdCont");
 
+                    b.HasIndex("IdDetaliuFactura");
+
                     b.HasIndex("IdLocatie");
 
                     b.ToTable("adrese", (string)null);
@@ -759,7 +855,7 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 {
                     b.Property<int>("IdCont")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(1)")
                         .HasColumnName("id_cont");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdCont"));
@@ -785,6 +881,12 @@ namespace E_Commerce_BackEnd.Migrations.V1
                     b.Property<sbyte?>("Gen")
                         .HasColumnType("tinyint")
                         .HasColumnName("gen");
+
+                    b.Property<sbyte>("IsGuest")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("guest");
 
                     b.Property<string>("NrTelefon")
                         .HasMaxLength(10)
@@ -838,7 +940,7 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 {
                     b.Property<int>("IdDetaliu")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(1)")
                         .HasColumnName("id_detaliu");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdDetaliu"));
@@ -848,10 +950,6 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnType("varchar")
                         .HasColumnName("CIF");
 
-                    b.Property<int>("IdAdresa")
-                        .HasColumnType("integer")
-                        .HasColumnName("id_adresa");
-
                     b.Property<string>("NumeFirma")
                         .HasMaxLength(50)
                         .HasColumnType("varchar")
@@ -859,50 +957,140 @@ namespace E_Commerce_BackEnd.Migrations.V1
 
                     b.HasKey("IdDetaliu");
 
-                    b.HasIndex("IdAdresa");
-
                     b.ToTable("detalii_factura", (string)null);
+                });
+
+            modelBuilder.Entity("E_Commerce_BackEnd.Models.UserRelatedModels.RememberUser", b =>
+                {
+                    b.Property<int>("IdSesiune")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int(1)")
+                        .HasColumnName("id_sesiune");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdSesiune"));
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasColumnName("expires_at")
+                        .HasDefaultValueSql("(NOW() + INTERVAL 30 DAY)");
+
+                    b.Property<int>("IdCont")
+                        .HasColumnType("integer")
+                        .HasColumnName("id_cont");
+
+                    b.Property<DateTime>("IssuedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasColumnName("issued_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<string>("SessionToken")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar")
+                        .HasColumnName("sesiune_stocata");
+
+                    b.HasKey("IdSesiune");
+
+                    b.HasIndex("IdCont")
+                        .IsUnique();
+
+                    b.ToTable("sesiuni", (string)null);
                 });
 
             modelBuilder.Entity("E_Commerce_BackEnd.Models.OrderRelatedModels.Comenzi", b =>
                 {
-                    b.HasOne("E_Commerce_BackEnd.Models.UserRelatedModels.DetaliiFactura", "CDetaliiFactura")
-                        .WithMany("DComenzi")
-                        .HasForeignKey("IdDetaliu")
-                        .OnDelete(DeleteBehavior.Restrict)
+                    b.HasOne("E_Commerce_BackEnd.Models.UserRelatedModels.Adrese", "CAdresaFacturare")
+                        .WithMany("AdreseFacturarePeComanda")
+                        .HasForeignKey("IdAdresaFacturare")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("FK_DetaliiFactura");
+                        .HasConstraintName("FK_Adresa_Facturare");
 
-                    b.Navigation("CDetaliiFactura");
+                    b.HasOne("E_Commerce_BackEnd.Models.UserRelatedModels.Adrese", "CAdresaLivrare")
+                        .WithMany("AdreseLivrarePeComanda")
+                        .HasForeignKey("IdAdresaLivrare")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_Adresa_Livrare");
+
+                    b.HasOne("E_Commerce_BackEnd.Models.ProductVouchersModels.Vouchere", "VoucherPeComanda")
+                        .WithMany("VVoucherePeComenzi")
+                        .HasForeignKey("IdVoucher")
+                        .HasConstraintName("FK_Voucher_Comanda");
+
+                    b.Navigation("CAdresaFacturare");
+
+                    b.Navigation("CAdresaLivrare");
+
+                    b.Navigation("VoucherPeComanda");
                 });
 
             modelBuilder.Entity("E_Commerce_BackEnd.Models.OrderRelatedModels.ProduseCuComenzi", b =>
                 {
-                    b.HasOne("E_Commerce_BackEnd.Models.ProductRelatedModels.Culori", null)
-                        .WithMany("CuloarePeComanda")
-                        .HasForeignKey("CuloriIdCuloare");
-
                     b.HasOne("E_Commerce_BackEnd.Models.OrderRelatedModels.Comenzi", "Comanda")
                         .WithMany("PcComenzi")
                         .HasForeignKey("IdComanda")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK_Comenzi_PC");
+
+                    b.HasOne("E_Commerce_BackEnd.Models.ProductRelatedModels.Culori", "PcCuloare")
+                        .WithMany("CProduseCuComenzi")
+                        .HasForeignKey("IdCuloare")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_Culoare_ProduseComenzoi");
+
+                    b.HasOne("E_Commerce_BackEnd.Models.ProductRelatedModels.Dimensiuni", "PcDimensiune")
+                        .WithMany("DProduseCuComenzi")
+                        .HasForeignKey("IdDimensiune")
+                        .HasConstraintName("FK_Dimensiune_ProduseComenzi");
+
+                    b.HasOne("E_Commerce_BackEnd.Models.ProductRelatedModels.Manopere", "PcManopera")
+                        .WithMany("ManopereCuComenzi")
+                        .HasForeignKey("IdManopera")
+                        .HasConstraintName("FK_Manopera_ProduseComenzi");
 
                     b.HasOne("E_Commerce_BackEnd.Models.ProductRelatedModels.Produse", "Produs")
                         .WithMany("ComenziProduse")
                         .HasForeignKey("IdProdus")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK_Produse_PC");
 
+                    b.HasOne("E_Commerce_BackEnd.Models.ProductRelatedModels.Seturi", "Set")
+                        .WithMany("CombinatieSetPeComanda")
+                        .HasForeignKey("IdSet")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("FK_Produse_Set");
+
                     b.Navigation("Comanda");
 
+                    b.Navigation("PcCuloare");
+
+                    b.Navigation("PcDimensiune");
+
+                    b.Navigation("PcManopera");
+
                     b.Navigation("Produs");
+
+                    b.Navigation("Set");
                 });
 
             modelBuilder.Entity("E_Commerce_BackEnd.Models.ProductRelatedModels.AsociereSeturi", b =>
                 {
+                    b.HasOne("E_Commerce_BackEnd.Models.ProductRelatedModels.Culori", "AsCuloare")
+                        .WithMany("CAsociereSeturi")
+                        .HasForeignKey("IdCuloare")
+                        .HasConstraintName("FK_Culoare_AsociereSeturi");
+
+                    b.HasOne("E_Commerce_BackEnd.Models.ProductRelatedModels.Dimensiuni", "AsDimensiune")
+                        .WithMany("DAsociereSeturi")
+                        .HasForeignKey("IdDimensiune")
+                        .HasConstraintName("FK_Dimensiune_AsociereSeturi");
+
                     b.HasOne("E_Commerce_BackEnd.Models.ProductRelatedModels.Produse", "Produs")
                         .WithMany("PAsociereSeturi")
                         .HasForeignKey("IdProdus")
@@ -916,6 +1104,10 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK_Seturi_AS");
+
+                    b.Navigation("AsCuloare");
+
+                    b.Navigation("AsDimensiune");
 
                     b.Navigation("Produs");
 
@@ -953,13 +1145,6 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasForeignKey("IdInelPrindere")
                         .HasConstraintName("FK_Inele_Prindere");
 
-                    b.HasOne("E_Commerce_BackEnd.Models.ProductRelatedModels.Materiale", "MaterialLaManopere")
-                        .WithMany("MaterialPeManopere")
-                        .HasForeignKey("IdMaterial")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_Materiale");
-
                     b.HasOne("E_Commerce_BackEnd.Models.ProductRelatedModels.TipuriGalerie", "TipGalerieLaManopera")
                         .WithMany("TipGalerieManopere")
                         .HasForeignKey("IdTipGalerie")
@@ -975,8 +1160,6 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasConstraintName("FK_Tip_Linie");
 
                     b.Navigation("InelPrindereLaManopera");
-
-                    b.Navigation("MaterialLaManopere");
 
                     b.Navigation("TipGalerieLaManopera");
 
@@ -999,7 +1182,8 @@ namespace E_Commerce_BackEnd.Migrations.V1
                     b.HasOne("E_Commerce_BackEnd.Models.ProductRelatedModels.Culori", "Culoare")
                         .WithMany("CProduseCuCulori")
                         .HasForeignKey("IdCuloare")
-                        .OnDelete(DeleteBehavior.SetNull)
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
                         .HasConstraintName("FK_Culori_ProduseCuCulori");
 
                     b.HasOne("E_Commerce_BackEnd.Models.ProductRelatedModels.Produse", "Produse")
@@ -1020,7 +1204,6 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .WithMany("DProduseCuDimensiuni")
                         .HasForeignKey("IdDimensiune")
                         .OnDelete(DeleteBehavior.SetNull)
-                        .IsRequired()
                         .HasConstraintName("FK_Dimensiuni_PD");
 
                     b.HasOne("E_Commerce_BackEnd.Models.ProductRelatedModels.Produse", "PdProduse")
@@ -1056,34 +1239,20 @@ namespace E_Commerce_BackEnd.Migrations.V1
                     b.Navigation("TppTipProdus");
                 });
 
-            modelBuilder.Entity("E_Commerce_BackEnd.Models.ProductVouchersModels.ProduseCuVouchere", b =>
-                {
-                    b.HasOne("E_Commerce_BackEnd.Models.ProductRelatedModels.Produse", "PvProdus")
-                        .WithMany("PvProduse")
-                        .HasForeignKey("IdProdus")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_Produse_PV");
-
-                    b.HasOne("E_Commerce_BackEnd.Models.ProductVouchersModels.Vouchere", "PvVoucher")
-                        .WithMany("VProduse")
-                        .HasForeignKey("IdVoucher")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("FK_Vouchere_PV");
-
-                    b.Navigation("PvProdus");
-
-                    b.Navigation("PvVoucher");
-                });
-
             modelBuilder.Entity("E_Commerce_BackEnd.Models.UserRelatedModels.Adrese", b =>
                 {
                     b.HasOne("E_Commerce_BackEnd.Models.UserRelatedModels.Conturi", "Cont")
                         .WithMany("AdreseConturi")
                         .HasForeignKey("IdCont")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK_Conturi");
+
+                    b.HasOne("E_Commerce_BackEnd.Models.UserRelatedModels.DetaliiFactura", "DetaliuFactura")
+                        .WithMany("DfAdrese")
+                        .HasForeignKey("IdDetaliuFactura")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("FK_DetaliiFactura_Adresa");
 
                     b.HasOne("E_Commerce_BackEnd.Models.OrderRelatedModels.Locatii", "Locatie")
                         .WithMany("AdreseLocatii")
@@ -1094,19 +1263,20 @@ namespace E_Commerce_BackEnd.Migrations.V1
 
                     b.Navigation("Cont");
 
+                    b.Navigation("DetaliuFactura");
+
                     b.Navigation("Locatie");
                 });
 
-            modelBuilder.Entity("E_Commerce_BackEnd.Models.UserRelatedModels.DetaliiFactura", b =>
+            modelBuilder.Entity("E_Commerce_BackEnd.Models.UserRelatedModels.RememberUser", b =>
                 {
-                    b.HasOne("E_Commerce_BackEnd.Models.UserRelatedModels.Adrese", "Adrese")
-                        .WithMany("DetaliiFacturi")
-                        .HasForeignKey("IdAdresa")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("FK_Adrese");
+                    b.HasOne("E_Commerce_BackEnd.Models.UserRelatedModels.Conturi", "CurrentUserSession")
+                        .WithOne("RememberUserSession")
+                        .HasForeignKey("E_Commerce_BackEnd.Models.UserRelatedModels.RememberUser", "IdCont")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.Navigation("Adrese");
+                    b.Navigation("CurrentUserSession");
                 });
 
             modelBuilder.Entity("E_Commerce_BackEnd.Models.OrderRelatedModels.Comenzi", b =>
@@ -1126,13 +1296,19 @@ namespace E_Commerce_BackEnd.Migrations.V1
 
             modelBuilder.Entity("E_Commerce_BackEnd.Models.ProductRelatedModels.Culori", b =>
                 {
-                    b.Navigation("CProduseCuCulori");
+                    b.Navigation("CAsociereSeturi");
 
-                    b.Navigation("CuloarePeComanda");
+                    b.Navigation("CProduseCuComenzi");
+
+                    b.Navigation("CProduseCuCulori");
                 });
 
             modelBuilder.Entity("E_Commerce_BackEnd.Models.ProductRelatedModels.Dimensiuni", b =>
                 {
+                    b.Navigation("DAsociereSeturi");
+
+                    b.Navigation("DProduseCuComenzi");
+
                     b.Navigation("DProduseCuDimensiuni");
                 });
 
@@ -1141,9 +1317,9 @@ namespace E_Commerce_BackEnd.Migrations.V1
                     b.Navigation("InelPeManopere");
                 });
 
-            modelBuilder.Entity("E_Commerce_BackEnd.Models.ProductRelatedModels.Materiale", b =>
+            modelBuilder.Entity("E_Commerce_BackEnd.Models.ProductRelatedModels.Manopere", b =>
                 {
-                    b.Navigation("MaterialPeManopere");
+                    b.Navigation("ManopereCuComenzi");
                 });
 
             modelBuilder.Entity("E_Commerce_BackEnd.Models.ProductRelatedModels.Producatori", b =>
@@ -1162,8 +1338,6 @@ namespace E_Commerce_BackEnd.Migrations.V1
                     b.Navigation("PProduseCuDimensiuni");
 
                     b.Navigation("PTipuriPeProduse");
-
-                    b.Navigation("PvProduse");
                 });
 
             modelBuilder.Entity("E_Commerce_BackEnd.Models.ProductRelatedModels.ProduseCuCulori", b =>
@@ -1173,6 +1347,8 @@ namespace E_Commerce_BackEnd.Migrations.V1
 
             modelBuilder.Entity("E_Commerce_BackEnd.Models.ProductRelatedModels.Seturi", b =>
                 {
+                    b.Navigation("CombinatieSetPeComanda");
+
                     b.Navigation("SAsociereSeturi");
                 });
 
@@ -1193,22 +1369,26 @@ namespace E_Commerce_BackEnd.Migrations.V1
 
             modelBuilder.Entity("E_Commerce_BackEnd.Models.ProductVouchersModels.Vouchere", b =>
                 {
-                    b.Navigation("VProduse");
+                    b.Navigation("VVoucherePeComenzi");
                 });
 
             modelBuilder.Entity("E_Commerce_BackEnd.Models.UserRelatedModels.Adrese", b =>
                 {
-                    b.Navigation("DetaliiFacturi");
+                    b.Navigation("AdreseFacturarePeComanda");
+
+                    b.Navigation("AdreseLivrarePeComanda");
                 });
 
             modelBuilder.Entity("E_Commerce_BackEnd.Models.UserRelatedModels.Conturi", b =>
                 {
                     b.Navigation("AdreseConturi");
+
+                    b.Navigation("RememberUserSession");
                 });
 
             modelBuilder.Entity("E_Commerce_BackEnd.Models.UserRelatedModels.DetaliiFactura", b =>
                 {
-                    b.Navigation("DComenzi");
+                    b.Navigation("DfAdrese");
                 });
 #pragma warning restore 612, 618
         }

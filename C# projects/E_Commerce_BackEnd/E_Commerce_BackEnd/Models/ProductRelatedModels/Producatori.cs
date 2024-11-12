@@ -8,8 +8,7 @@ namespace E_Commerce_BackEnd.Models.ProductRelatedModels;
 public class Producatori 
 {
     // Attributes
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    
     public int IdProducator { get; init; }
     
     [StringLength(30)]

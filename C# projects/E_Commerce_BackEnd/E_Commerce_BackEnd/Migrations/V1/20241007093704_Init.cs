@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace E_Commerce_BackEnd.Migrations.V1
 {
     /// <inheritdoc />
-    public partial class V1 : Migration
+    public partial class Init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -19,7 +19,7 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 name: "cod_culori",
                 columns: table => new
                 {
-                    id_cod_culoare = table.Column<int>(type: "integer", nullable: false)
+                    id_cod_culoare = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     cod_culoare = table.Column<string>(type: "varchar(5)", maxLength: 5, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4")
@@ -29,14 +29,12 @@ namespace E_Commerce_BackEnd.Migrations.V1
                     table.PrimaryKey("PK_cod_culori", x => x.id_cod_culoare);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
-            
-            migrationBuilder.Sql("ALTER TABLE `cod_culori` MODIFY COLUMN `id_cod_culoare` INT NOT NULL AUTO_INCREMENT;");
 
             migrationBuilder.CreateTable(
                 name: "conturi",
                 columns: table => new
                 {
-                    id_cont = table.Column<int>(type: "integer", nullable: false)
+                    id_cont = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     nume = table.Column<string>(type: "varchar(10)", maxLength: 10, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -45,17 +43,17 @@ namespace E_Commerce_BackEnd.Migrations.V1
                     gen = table.Column<sbyte>(type: "tinyint", nullable: true),
                     nr_telefon = table.Column<string>(type: "varchar(10)", maxLength: 10, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    username = table.Column<string>(type: "varchar(15)", maxLength: 15, nullable: true)
+                    username = table.Column<string>(type: "varchar(15)", maxLength: 15, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    email = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true)
+                    email = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    parola = table.Column<string>(type: "varchar(150)", maxLength: 150, nullable: true)
+                    parola = table.Column<string>(type: "varchar(150)", maxLength: 150, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     data_creare = table.Column<DateTime>(type: "datetime", nullable: true, defaultValueSql: "NOW()"),
                     cod_activare = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     verificat = table.Column<sbyte>(type: "tinyint", nullable: false),
-                    guest = table.Column<sbyte>(type: "tinyint" , nullable: false, defaultValue: (sbyte)0),
+                    guest = table.Column<sbyte>(type: "tinyint", nullable: false, defaultValue: (sbyte)0),
                     rol = table.Column<string>(type: "varchar(15)", maxLength: 15, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     ora_link = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "NOW()")
@@ -65,15 +63,29 @@ namespace E_Commerce_BackEnd.Migrations.V1
                     table.PrimaryKey("PK_conturi", x => x.id_cont);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
-            
-            migrationBuilder.Sql("ALTER TABLE `conturi` MODIFY COLUMN `id_cont` INT NOT NULL AUTO_INCREMENT;");
 
+            migrationBuilder.CreateTable(
+                name: "detalii_factura",
+                columns: table => new
+                {
+                    id_detaliu = table.Column<int>(type: "int(1)", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    CIF = table.Column<string>(type: "varchar(12)", maxLength: 12, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    nume_firma = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_detalii_factura", x => x.id_detaliu);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "dimensiuni",
                 columns: table => new
                 {
-                    id_dimensiune = table.Column<int>(type: "integer", nullable: false)
+                    id_dimensiune = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     lungime = table.Column<string>(type: "varchar(4)", maxLength: 4, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -88,34 +100,31 @@ namespace E_Commerce_BackEnd.Migrations.V1
                     table.PrimaryKey("PK_dimensiuni", x => x.id_dimensiune);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
-            
-            migrationBuilder.Sql("ALTER TABLE `dimensiuni` MODIFY COLUMN `id_dimensiune` INT NOT NULL AUTO_INCREMENT;");
-
 
             migrationBuilder.CreateTable(
                 name: "inele_prindere",
                 columns: table => new
                 {
-                    id_inel_prindere = table.Column<int>(type: "integer", nullable: false)
+                    id_inel_prindere = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     culoare_inel = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    pret_metru_inele = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false)
+                    pret_metru_inele = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false),
+                    cale_relativa = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    isDeleted = table.Column<sbyte>(type: "tinyint", nullable: false, defaultValue: (sbyte)0)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_inele_prindere", x => x.id_inel_prindere);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
-            
-            migrationBuilder.Sql("ALTER TABLE `inele_prindere` MODIFY COLUMN `id_inel_prindere` INT NOT NULL AUTO_INCREMENT;");
-
 
             migrationBuilder.CreateTable(
                 name: "locatii",
                 columns: table => new
                 {
-                    id_locatie = table.Column<int>(type: "integer", nullable: false)
+                    id_locatie = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     oras = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -129,36 +138,12 @@ namespace E_Commerce_BackEnd.Migrations.V1
                     table.PrimaryKey("PK_locatii", x => x.id_locatie);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
-            
-            migrationBuilder.Sql("ALTER TABLE `locatii` MODIFY COLUMN `id_locatie` INT NOT NULL AUTO_INCREMENT;");
-
-
-            migrationBuilder.CreateTable(
-                name: "materiale",
-                columns: table => new
-                {
-                    id_material = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    nume_material = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    pret_metru_material = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false),
-                    pret_metru_material_redus = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false,defaultValue:0m)
-
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_materiale", x => x.id_material);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-            
-            migrationBuilder.Sql("ALTER TABLE `materiale` MODIFY COLUMN `id_material` INT NOT NULL AUTO_INCREMENT;");
-
 
             migrationBuilder.CreateTable(
                 name: "producatori",
                 columns: table => new
                 {
-                    id_producator = table.Column<int>(type: "integer", nullable: false)
+                    id_producator = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     nume_producator = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4")
@@ -168,76 +153,72 @@ namespace E_Commerce_BackEnd.Migrations.V1
                     table.PrimaryKey("PK_producatori", x => x.id_producator);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
-            
-            migrationBuilder.Sql("ALTER TABLE `producatori` MODIFY COLUMN `id_producator` INT NOT NULL AUTO_INCREMENT;");
-
 
             migrationBuilder.CreateTable(
                 name: "seturi",
                 columns: table => new
                 {
-                    id_set = table.Column<int>(type: "integer", nullable: false)
+                    id_set = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    nume_set = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    nume_set = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    descriere_set = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4")
+                    descriere_set = table.Column<string>(type: "varchar(150)", maxLength: 150, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    pret_set = table.Column<decimal>(type: "decimal(6,2)", precision: 6, scale: 2, nullable: false),
+                    pret_set_redus = table.Column<decimal>(type: "decimal(6,2)", precision: 6, scale: 2, nullable: false),
+                    set_activ = table.Column<sbyte>(type: "tinyint", nullable: false),
+                    isDeleted = table.Column<sbyte>(type: "tinyint", nullable: false, defaultValue: (sbyte)0)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_seturi", x => x.id_set);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
-            
-            migrationBuilder.Sql("ALTER TABLE `seturi` MODIFY COLUMN `id_set` INT NOT NULL AUTO_INCREMENT;");
-
 
             migrationBuilder.CreateTable(
                 name: "tipuri_galerie",
                 columns: table => new
                 {
-                    id_tip_galerie = table.Column<int>(type: "integer", nullable: false)
+                    id_tip_galerie = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     nume_galerie = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    pret_metru_galerie = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false)
+                    pret_metru_galerie = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false),
+                    isDeleted = table.Column<sbyte>(type: "tinyint", nullable: false, defaultValue: (sbyte)0),
+                    cale_relativa = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4")
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_tipuri_galerie", x => x.id_tip_galerie);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
-            
-            migrationBuilder.Sql("ALTER TABLE `tipuri_galerie` MODIFY COLUMN `id_tip_galerie` INT NOT NULL AUTO_INCREMENT;");
-
 
             migrationBuilder.CreateTable(
                 name: "tipuri_linie",
                 columns: table => new
                 {
-                    id_tip_linie = table.Column<int>(type: "integer", nullable: false)
+                    id_tip_linie = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     nume_tip_linie = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    pret_metru_linie = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false)
+                    pret_metru_linie = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false),
+                    cale_relativa = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    isDeleted = table.Column<sbyte>(type: "tinyint", nullable: false, defaultValue: (sbyte)0)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_tipuri_linie", x => x.id_tip_linie);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
-            
-            migrationBuilder.Sql("ALTER TABLE `tipuri_linie` MODIFY COLUMN `id_tip_linie` INT NOT NULL AUTO_INCREMENT;");
-
 
             migrationBuilder.CreateTable(
                 name: "tipuri_produse",
                 columns: table => new
                 {
-                    id_tip_pe_produs = table.Column<int>(type: "integer", nullable: false)
+                    id_tip_pe_produs = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    tip_produs = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
                     categorie = table.Column<string>(type: "varchar(40)", maxLength: 40, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4")
                 },
@@ -246,20 +227,18 @@ namespace E_Commerce_BackEnd.Migrations.V1
                     table.PrimaryKey("PK_tipuri_produse", x => x.id_tip_pe_produs);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
-            
-            migrationBuilder.Sql("ALTER TABLE `tipuri_produse` MODIFY COLUMN `id_tip_pe_produs` INT NOT NULL AUTO_INCREMENT;");
-
 
             migrationBuilder.CreateTable(
                 name: "vouchere",
                 columns: table => new
                 {
-                    id_voucher = table.Column<int>(type: "integer", nullable: false)
+                    id_voucher = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     cod_voucher = table.Column<string>(type: "varchar(10)", maxLength: 10, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    reducere = table.Column<decimal>(type: "decimal(2,2)", precision: 2, scale: 2, nullable: false),
                     data_expirare = table.Column<DateTime>(type: "date", nullable: false),
-                    reducere = table.Column<decimal>(type: "decimal(2,2)", precision: 2, scale: 2, nullable: false)
+                    isDeleted = table.Column<sbyte>(type: "tinyint", nullable: false, defaultValue: (sbyte)0)
                 },
                 constraints: table =>
                 {
@@ -267,14 +246,11 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.Sql("ALTER TABLE `vouchere` MODIFY COLUMN `id_voucher` INT NOT NULL AUTO_INCREMENT;");
-
-            
             migrationBuilder.CreateTable(
                 name: "culori",
                 columns: table => new
                 {
-                    id_culoare = table.Column<int>(type: "integer", nullable: false)
+                    id_culoare = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     nume_culoare = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -291,15 +267,36 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
-            
-            migrationBuilder.Sql("ALTER TABLE `culori` MODIFY COLUMN `id_culoare` INT NOT NULL AUTO_INCREMENT;");
 
+            migrationBuilder.CreateTable(
+                name: "sesiuni",
+                columns: table => new
+                {
+                    id_sesiune = table.Column<int>(type: "int(1)", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    id_cont = table.Column<int>(type: "integer", nullable: false),
+                    sesiune_stocata = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    issued_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "NOW()"),
+                    expires_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "(NOW() + INTERVAL 30 DAY)")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_sesiuni", x => x.id_sesiune);
+                    table.ForeignKey(
+                        name: "FK_sesiuni_conturi_id_cont",
+                        column: x => x.id_cont,
+                        principalTable: "conturi",
+                        principalColumn: "id_cont",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "adrese",
                 columns: table => new
                 {
-                    id_adresa = table.Column<int>(type: "integer", nullable: false)
+                    id_adresa = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     alias = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -315,7 +312,8 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     isDeleted = table.Column<sbyte>(type: "tinyint", nullable: false, defaultValue: (sbyte)0),
                     id_locatie = table.Column<int>(type: "integer", nullable: false),
-                    id_cont = table.Column<int>(type: "integer", nullable: true)
+                    id_cont = table.Column<int>(type: "integer", nullable: false),
+                    id_detaliu_factura = table.Column<int>(type: "integer", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -325,7 +323,13 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         column: x => x.id_cont,
                         principalTable: "conturi",
                         principalColumn: "id_cont",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_DetaliiFactura_Adresa",
+                        column: x => x.id_detaliu_factura,
+                        principalTable: "detalii_factura",
+                        principalColumn: "id_detaliu",
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_Locatii",
                         column: x => x.id_locatie,
@@ -334,15 +338,12 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
-            
-            migrationBuilder.Sql("ALTER TABLE `adrese` MODIFY COLUMN `id_adresa` INT NOT NULL AUTO_INCREMENT;");
-
 
             migrationBuilder.CreateTable(
                 name: "produse",
                 columns: table => new
                 {
-                    id_produs = table.Column<int>(type: "integer", nullable: false)
+                    id_produs = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     cod_produs = table.Column<string>(type: "varchar(40)", maxLength: 40, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -358,9 +359,12 @@ namespace E_Commerce_BackEnd.Migrations.V1
                     greutate = table.Column<decimal>(type: "decimal(4,2)", precision: 4, scale: 2, nullable: false),
                     fata_reversbila = table.Column<sbyte>(type: "tinyint", nullable: true),
                     stoc = table.Column<ushort>(type: "smallint unsigned", nullable: true),
-                    tip_produs = table.Column<string>(type: "varchar(20)",maxLength:20 ,nullable: false),
+                    tip_produs = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     isDeleted = table.Column<sbyte>(type: "tinyint", nullable: false, defaultValue: (sbyte)0),
                     activ_in_magazin = table.Column<sbyte>(type: "tinyint", nullable: false, defaultValue: (sbyte)1),
+                    pret_baza = table.Column<decimal>(type: "decimal(6,2)", precision: 6, scale: 2, nullable: false),
+                    pret_baza_redus = table.Column<decimal>(type: "decimal(6,2)", precision: 6, scale: 2, nullable: false),
                     id_producator = table.Column<int>(type: "integer", nullable: true)
                 },
                 constraints: table =>
@@ -374,20 +378,19 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         onDelete: ReferentialAction.SetNull);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
-            
-            migrationBuilder.Sql("ALTER TABLE `produse` MODIFY COLUMN `id_produs` INT NOT NULL AUTO_INCREMENT;");
-
 
             migrationBuilder.CreateTable(
                 name: "manopere",
                 columns: table => new
                 {
-                    id_manopera = table.Column<int>(type: "integer", nullable: false)
+                    id_manopera = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    id_material = table.Column<int>(type: "integer", nullable: false),
                     id_inel_prindere = table.Column<int>(type: "integer", nullable: true),
                     id_tip_linie = table.Column<int>(type: "integer", nullable: false),
-                    id_tip_galerie = table.Column<int>(type: "integer", nullable: false)
+                    id_tip_galerie = table.Column<int>(type: "integer", nullable: false),
+                    pret_curent_inele_prindere = table.Column<decimal>(type: "decimal(6,2)", precision: 6, scale: 2, nullable: true),
+                    pret_curent_tip_linie = table.Column<decimal>(type: "decimal(6,2)", precision: 6, scale: 2, nullable: false),
+                    pret_curent_rejansa = table.Column<decimal>(type: "decimal(6,2)", precision: 6, scale: 2, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -397,12 +400,6 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         column: x => x.id_inel_prindere,
                         principalTable: "inele_prindere",
                         principalColumn: "id_inel_prindere");
-                    table.ForeignKey(
-                        name: "FK_Materiale",
-                        column: x => x.id_material,
-                        principalTable: "materiale",
-                        principalColumn: "id_material",
-                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_Tip_Galerie",
                         column: x => x.id_tip_galerie,
@@ -417,49 +414,72 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
-            
-            migrationBuilder.Sql("ALTER TABLE `manopere` MODIFY COLUMN `id_manopera` INT NOT NULL AUTO_INCREMENT;");
-
 
             migrationBuilder.CreateTable(
-                name: "detalii_factura",
+                name: "comenzi",
                 columns: table => new
                 {
-                    id_detaliu = table.Column<int>(type: "integer", nullable: false)
+                    id_comanda = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    CIF = table.Column<string>(type: "varchar(12)", maxLength: 12, nullable: true)
+                    data_emitere_comanda = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "NOW()"),
+                    status_comanda = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    nume_firma = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true)
+                    tip_plata = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    id_adresa = table.Column<int>(type: "integer", nullable: false)
+                    awb_fan_courier = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsCancelable = table.Column<sbyte>(type: "tinyint", nullable: false, defaultValue: (sbyte)1),
+                    id_adresa_livrare = table.Column<int>(type: "integer", nullable: false),
+                    id_adresa_facturare = table.Column<int>(type: "integer", nullable: false),
+                    id_voucher = table.Column<int>(type: "integer", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_detalii_factura", x => x.id_detaliu);
+                    table.PrimaryKey("PK_comenzi", x => x.id_comanda);
                     table.ForeignKey(
-                        name: "FK_Adrese",
-                        column: x => x.id_adresa,
+                        name: "FK_Adresa_Facturare",
+                        column: x => x.id_adresa_facturare,
                         principalTable: "adrese",
                         principalColumn: "id_adresa",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Adresa_Livrare",
+                        column: x => x.id_adresa_livrare,
+                        principalTable: "adrese",
+                        principalColumn: "id_adresa",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Voucher_Comanda",
+                        column: x => x.id_voucher,
+                        principalTable: "vouchere",
+                        principalColumn: "id_voucher");
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
-            
-            migrationBuilder.Sql("ALTER TABLE `detalii_factura` MODIFY COLUMN `id_detaliu` INT NOT NULL AUTO_INCREMENT;");
-
 
             migrationBuilder.CreateTable(
                 name: "asociere_seturi",
                 columns: table => new
                 {
-                    id_asociere_set = table.Column<int>(type: "integer", nullable: false)
+                    id_asociere_set = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     id_produs = table.Column<int>(type: "integer", nullable: false),
-                    id_set = table.Column<int>(type: "integer", nullable: false)
+                    id_set = table.Column<int>(type: "integer", nullable: false),
+                    id_culoare = table.Column<int>(type: "integer", nullable: true),
+                    id_dimensiune = table.Column<int>(type: "integer", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_asociere_seturi", x => x.id_asociere_set);
+                    table.ForeignKey(
+                        name: "FK_Culoare_AsociereSeturi",
+                        column: x => x.id_culoare,
+                        principalTable: "culori",
+                        principalColumn: "id_culoare");
+                    table.ForeignKey(
+                        name: "FK_Dimensiune_AsociereSeturi",
+                        column: x => x.id_dimensiune,
+                        principalTable: "dimensiuni",
+                        principalColumn: "id_dimensiune");
                     table.ForeignKey(
                         name: "FK_Produse_AS",
                         column: x => x.id_produs,
@@ -474,15 +494,12 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
-            
-            migrationBuilder.Sql("ALTER TABLE `asociere_seturi` MODIFY COLUMN `id_asociere_set` INT NOT NULL AUTO_INCREMENT;");
-
 
             migrationBuilder.CreateTable(
                 name: "culori_produse",
                 columns: table => new
                 {
-                    id_produs_culoare = table.Column<int>(type: "integer", nullable: false)
+                    id_produs_culoare = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     id_produs = table.Column<int>(type: "integer", nullable: false),
                     id_culoare = table.Column<int>(type: "integer", nullable: false)
@@ -504,18 +521,15 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
-            
-            migrationBuilder.Sql("ALTER TABLE `culori_produse` MODIFY COLUMN `id_produs_culoare` INT NOT NULL AUTO_INCREMENT;");
-
 
             migrationBuilder.CreateTable(
                 name: "dimensiuni_produse",
                 columns: table => new
                 {
-                    id_produs_cu_dimensiune = table.Column<int>(type: "integer", nullable: false)
+                    id_produs_cu_dimensiune = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     pret = table.Column<decimal>(type: "decimal(6,2)", precision: 6, scale: 2, nullable: false),
-                    pret_redus = table.Column<decimal>(type: "decimal(6,2)", precision: 6, scale: 2, nullable: false, defaultValue:0m),
+                    pret_redus = table.Column<decimal>(type: "decimal(6,2)", precision: 6, scale: 2, nullable: false, defaultValue: 0m),
                     id_dimensiune = table.Column<int>(type: "integer", nullable: true),
                     id_produs = table.Column<int>(type: "integer", nullable: false)
                 },
@@ -536,45 +550,12 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
-            
-            migrationBuilder.Sql("ALTER TABLE `dimensiuni_produse` MODIFY COLUMN `id_produs_cu_dimensiune` INT NOT NULL AUTO_INCREMENT;");
-
-
-            migrationBuilder.CreateTable(
-                name: "produse_cu_vouchere",
-                columns: table => new
-                {
-                    id_produs_cu_voucher = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    id_produs = table.Column<int>(type: "integer", nullable: false),
-                    id_voucher = table.Column<int>(type: "integer", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_produse_cu_vouchere", x => x.id_produs_cu_voucher);
-                    table.ForeignKey(
-                        name: "FK_Produse_PV",
-                        column: x => x.id_produs,
-                        principalTable: "produse",
-                        principalColumn: "id_produs",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_Vouchere_PV",
-                        column: x => x.id_voucher,
-                        principalTable: "vouchere",
-                        principalColumn: "id_voucher",
-                        onDelete: ReferentialAction.Cascade);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-            
-            migrationBuilder.Sql("ALTER TABLE `produse_cu_vouchere` MODIFY COLUMN `id_produs_cu_voucher` INT NOT NULL AUTO_INCREMENT;");
-
 
             migrationBuilder.CreateTable(
                 name: "tipuri_pe_produse",
                 columns: table => new
                 {
-                    id_tip_pe_produs = table.Column<int>(type: "integer", nullable: false)
+                    id_tip_pe_produs = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     id_tip_produs = table.Column<int>(type: "integer", nullable: false),
                     id_produs = table.Column<int>(type: "integer", nullable: false)
@@ -597,46 +578,70 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.Sql("ALTER TABLE `tipuri_pe_produse` MODIFY COLUMN `id_tip_pe_produs` INT NOT NULL AUTO_INCREMENT;");
-
-            
             migrationBuilder.CreateTable(
-                name: "comenzi",
+                name: "produse_cu_comenzi",
                 columns: table => new
                 {
-                    id_comanda = table.Column<int>(type: "integer", nullable: false)
+                    id_produse_cu_comenzi = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    data_emitere_comanda = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "NOW()"),
-                    status_comanda = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    tip_plata = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    id_detaliu = table.Column<int>(type: "integer", nullable: false)
+                    nr_buc = table.Column<int>(type: "integer", nullable: false),
+                    pret_baza = table.Column<decimal>(type: "decimal(6,2)", precision: 6, scale: 2, nullable: false),
+                    id_set = table.Column<int>(type: "integer", nullable: true),
+                    id_produs = table.Column<int>(type: "integer", nullable: false),
+                    id_comanda = table.Column<int>(type: "integer", nullable: false),
+                    id_culoare = table.Column<int>(type: "integer", nullable: false),
+                    id_dimensiune = table.Column<int>(type: "integer", nullable: true),
+                    id_manopera = table.Column<int>(type: "integer", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_comenzi", x => x.id_comanda);
+                    table.PrimaryKey("PK_produse_cu_comenzi", x => x.id_produse_cu_comenzi);
                     table.ForeignKey(
-                        name: "FK_DetaliiFactura",
-                        column: x => x.id_detaliu,
-                        principalTable: "detalii_factura",
-                        principalColumn: "id_detaliu",
-                        onDelete: ReferentialAction.Restrict);
+                        name: "FK_Comenzi_PC",
+                        column: x => x.id_comanda,
+                        principalTable: "comenzi",
+                        principalColumn: "id_comanda",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Culoare_ProduseComenzoi",
+                        column: x => x.id_culoare,
+                        principalTable: "culori",
+                        principalColumn: "id_culoare",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Dimensiune_ProduseComenzi",
+                        column: x => x.id_dimensiune,
+                        principalTable: "dimensiuni",
+                        principalColumn: "id_dimensiune");
+                    table.ForeignKey(
+                        name: "FK_Manopera_ProduseComenzi",
+                        column: x => x.id_manopera,
+                        principalTable: "manopere",
+                        principalColumn: "id_manopera");
+                    table.ForeignKey(
+                        name: "FK_Produse_PC",
+                        column: x => x.id_produs,
+                        principalTable: "produse",
+                        principalColumn: "id_produs",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Produse_Set",
+                        column: x => x.id_set,
+                        principalTable: "seturi",
+                        principalColumn: "id_set",
+                        onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
-            
-            migrationBuilder.Sql("ALTER TABLE `comenzi` MODIFY COLUMN `id_comanda` INT NOT NULL AUTO_INCREMENT;");
-
 
             migrationBuilder.CreateTable(
                 name: "imagini",
                 columns: table => new
                 {
-                    id_imagine = table.Column<int>(type: "integer", nullable: false)
+                    id_imagine = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     cale_imagine = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    bucket_directory = table.Column<string>(type: "varchar(70)", maxLength: 70, nullable: true)
+                    bucket_directory = table.Column<string>(type: "varchar(70)", maxLength: 70, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     id_produs_culoare = table.Column<int>(type: "integer", nullable: false)
                 },
@@ -651,43 +656,6 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
-            
-            migrationBuilder.Sql("ALTER TABLE `imagini` MODIFY COLUMN `id_imagine` INT NOT NULL AUTO_INCREMENT;");
-
-
-            migrationBuilder.CreateTable(
-                name: "produse_cu_comenzi",
-                columns: table => new
-                {
-                    id_produse_cu_comenzi = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    nr_buc = table.Column<int>(type: "integer", nullable: false),
-                    id_produs = table.Column<int>(type: "integer", nullable: false),
-                    id_comanda = table.Column<int>(type: "integer", nullable: false),
-                    id_dimensiune = table.Column<int>(type: "integer", nullable: true),
-                    id_culoare = table.Column<int>(type: "integer", nullable: false),
-                    id_manopera = table.Column<int>(type: "integer", nullable: true),
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_produse_cu_comenzi", x => x.id_produse_cu_comenzi);
-                    table.ForeignKey(
-                        name: "FK_Comenzi_PC",
-                        column: x => x.id_comanda,
-                        principalTable: "comenzi",
-                        principalColumn: "id_comanda",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_Produse_PC",
-                        column: x => x.id_produs,
-                        principalTable: "produse",
-                        principalColumn: "id_produs",
-                        onDelete: ReferentialAction.Restrict);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-            
-            migrationBuilder.Sql("ALTER TABLE `produse_cu_comenzi` MODIFY COLUMN `id_produse_cu_comenzi` INT NOT NULL AUTO_INCREMENT;");
-
 
             migrationBuilder.CreateIndex(
                 name: "IX_adrese_id_cont",
@@ -695,9 +663,24 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 column: "id_cont");
 
             migrationBuilder.CreateIndex(
+                name: "IX_adrese_id_detaliu_factura",
+                table: "adrese",
+                column: "id_detaliu_factura");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_adrese_id_locatie",
                 table: "adrese",
                 column: "id_locatie");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_asociere_seturi_id_culoare",
+                table: "asociere_seturi",
+                column: "id_culoare");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_asociere_seturi_id_dimensiune",
+                table: "asociere_seturi",
+                column: "id_dimensiune");
 
             migrationBuilder.CreateIndex(
                 name: "IX_asociere_seturi_id_produs",
@@ -710,9 +693,19 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 column: "id_set");
 
             migrationBuilder.CreateIndex(
-                name: "IX_comenzi_id_detaliu",
+                name: "IX_comenzi_id_adresa_facturare",
                 table: "comenzi",
-                column: "id_detaliu");
+                column: "id_adresa_facturare");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_comenzi_id_adresa_livrare",
+                table: "comenzi",
+                column: "id_adresa_livrare");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_comenzi_id_voucher",
+                table: "comenzi",
+                column: "id_voucher");
 
             migrationBuilder.CreateIndex(
                 name: "IX_culori_id_cod_culoare",
@@ -728,11 +721,6 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 name: "IX_culori_produse_id_produs",
                 table: "culori_produse",
                 column: "id_produs");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_detalii_factura_id_adresa",
-                table: "detalii_factura",
-                column: "id_adresa");
 
             migrationBuilder.CreateIndex(
                 name: "IX_dimensiuni_produse_id_dimensiune",
@@ -755,11 +743,6 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 column: "id_inel_prindere");
 
             migrationBuilder.CreateIndex(
-                name: "IX_manopere_id_material",
-                table: "manopere",
-                column: "id_material");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_manopere_id_tip_galerie",
                 table: "manopere",
                 column: "id_tip_galerie");
@@ -779,11 +762,26 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 name: "IX_produse_id_producator",
                 table: "produse",
                 column: "id_producator");
-            
+
             migrationBuilder.CreateIndex(
                 name: "IX_produse_cu_comenzi_id_comanda",
                 table: "produse_cu_comenzi",
                 column: "id_comanda");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_produse_cu_comenzi_id_culoare",
+                table: "produse_cu_comenzi",
+                column: "id_culoare");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_produse_cu_comenzi_id_dimensiune",
+                table: "produse_cu_comenzi",
+                column: "id_dimensiune");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_produse_cu_comenzi_id_manopera",
+                table: "produse_cu_comenzi",
+                column: "id_manopera");
 
             migrationBuilder.CreateIndex(
                 name: "IX_produse_cu_comenzi_id_produs",
@@ -791,14 +789,15 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 column: "id_produs");
 
             migrationBuilder.CreateIndex(
-                name: "IX_produse_cu_vouchere_id_produs",
-                table: "produse_cu_vouchere",
-                column: "id_produs");
+                name: "IX_produse_cu_comenzi_id_set",
+                table: "produse_cu_comenzi",
+                column: "id_set");
 
             migrationBuilder.CreateIndex(
-                name: "IX_produse_cu_vouchere_id_voucher",
-                table: "produse_cu_vouchere",
-                column: "id_voucher");
+                name: "IX_sesiuni_id_cont",
+                table: "sesiuni",
+                column: "id_cont",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_tipuri_pe_produse_id_produs",
@@ -824,43 +823,28 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 name: "imagini");
 
             migrationBuilder.DropTable(
-                name: "manopere");
-
-            migrationBuilder.DropTable(
                 name: "produse_cu_comenzi");
 
             migrationBuilder.DropTable(
-                name: "produse_cu_vouchere");
+                name: "sesiuni");
 
             migrationBuilder.DropTable(
                 name: "tipuri_pe_produse");
 
             migrationBuilder.DropTable(
-                name: "seturi");
-
-            migrationBuilder.DropTable(
-                name: "dimensiuni");
-
-            migrationBuilder.DropTable(
                 name: "culori_produse");
-
-            migrationBuilder.DropTable(
-                name: "inele_prindere");
-
-            migrationBuilder.DropTable(
-                name: "materiale");
-
-            migrationBuilder.DropTable(
-                name: "tipuri_galerie");
-
-            migrationBuilder.DropTable(
-                name: "tipuri_linie");
 
             migrationBuilder.DropTable(
                 name: "comenzi");
 
             migrationBuilder.DropTable(
-                name: "vouchere");
+                name: "dimensiuni");
+
+            migrationBuilder.DropTable(
+                name: "manopere");
+
+            migrationBuilder.DropTable(
+                name: "seturi");
 
             migrationBuilder.DropTable(
                 name: "tipuri_produse");
@@ -872,7 +856,19 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 name: "produse");
 
             migrationBuilder.DropTable(
-                name: "detalii_factura");
+                name: "adrese");
+
+            migrationBuilder.DropTable(
+                name: "vouchere");
+
+            migrationBuilder.DropTable(
+                name: "inele_prindere");
+
+            migrationBuilder.DropTable(
+                name: "tipuri_galerie");
+
+            migrationBuilder.DropTable(
+                name: "tipuri_linie");
 
             migrationBuilder.DropTable(
                 name: "cod_culori");
@@ -881,10 +877,10 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 name: "producatori");
 
             migrationBuilder.DropTable(
-                name: "adrese");
+                name: "conturi");
 
             migrationBuilder.DropTable(
-                name: "conturi");
+                name: "detalii_factura");
 
             migrationBuilder.DropTable(
                 name: "locatii");

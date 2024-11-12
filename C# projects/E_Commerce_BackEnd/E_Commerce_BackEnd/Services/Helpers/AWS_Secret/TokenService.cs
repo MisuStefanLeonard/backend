@@ -53,7 +53,7 @@ public class TokenService : ITokenService
             // Retrieve the secret value from cache
             // 
            
-            string secret = await _cache!.GetSecretString(secretName);
+            var secret = await _cache!.GetSecretString(secretName);
             var keyValuePairJson = JsonDocument.Parse(secret);
             var rootElement = keyValuePairJson.RootElement;
 
@@ -94,8 +94,8 @@ public class TokenService : ITokenService
 
         var claims = new List<Claim>
         {
-            new Claim(JwtRegisteredClaimNames.Sub , currentLogIn.Username),
-            new Claim(JwtRegisteredClaimNames.Email , currentLogIn.Email),
+            new Claim("username" , currentLogIn.Username!),
+            new Claim(Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.Email , currentLogIn.Email!),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new Claim(ClaimTypes.Role , currentLogIn.Rol),
             new Claim("user_id" , currentLogIn.IdCont.ToString())
@@ -106,7 +106,7 @@ public class TokenService : ITokenService
             issuer: jwtSettings["Issuer"],
             audience: jwtSettings["Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(2),
+            expires: DateTime.UtcNow.AddHours(24),
             signingCredentials: credentials
         );
 
@@ -147,7 +147,7 @@ public class TokenService : ITokenService
             var validationParameters = await GetValidationParameters();
             
             var claimsPrincipal =  tokenHandler.ValidateToken(token, validationParameters, 
-                out SecurityToken validatedToken);
+                out var validatedToken);
             return claimsPrincipal;
         }
         catch (SecurityTokenValidationException e)
