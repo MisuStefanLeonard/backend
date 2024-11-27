@@ -5,6 +5,6 @@ public class ReviewReceivedDto
     public string TextReview { get; set; } = null!;
     public int StarsReview { get; set; }
     public string CodProdus { get; set; } = null!;
-    public int? IdSet { get; set; }
+    public string? IdSet { get; set; }
 
 }

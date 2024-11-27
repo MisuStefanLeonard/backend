@@ -4,6 +4,7 @@ using E_Commerce_BackEnd.Models.DTO.AdminRelatedDtos.Accounts;
 using E_Commerce_BackEnd.Models.DTO.AdminRelatedDtos.OrdersDto;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.InelePrindereDtos;
+using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ManopereDto.ManoperaModification;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductOptionsDto;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.ProductPage;
@@ -309,8 +310,6 @@ public class MappersProfile : Profile
             .ForMember(dest => dest.NumeTipRejansa, opt => opt.MapFrom(src => src.NumeTipGalerie))
             .ForMember(dest => dest.IncretireRejansa, opt => opt.MapFrom(src => src.IncretireRejansa))
             .ForMember(dest => dest.CaleRelativa, opt => opt.MapFrom(src => src.CaleRelativa));
-
-        
         
         CreateMap<TipuriLinie, TipLinieDto>()
             .ForMember(dest => dest.NumeTipCusaturaColt, opt => opt.MapFrom(src => src.NumeTipLinie))
@@ -323,7 +322,11 @@ public class MappersProfile : Profile
             .ForMember(dest => dest.CaleRelativa, opt => opt.MapFrom(src => src.CaleRelativa));
 
 
-
+        CreateMap<ManoperaPageModification, Manopere>()
+            .ForMember(dest => dest.IdManopera, opt => opt.Ignore())
+            .ForMember(dest => dest.NumeManopera, opt => opt.MapFrom(src => src.NumeManopera))
+            .ForMember(dest => dest.MaterialFolosit, opt => opt.MapFrom(src => src.MetruTotalFolosit));
 
     }
+    
 }

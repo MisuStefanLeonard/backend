@@ -1,13 +1,16 @@
-using System.Text.RegularExpressions;
+
 using AutoMapper;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.BulkOperationsDto;
+using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ManopereDto.ManoperaForSet;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductOptionsDto;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.Options;
+using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.ProductPage;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.ProductPage.OptionsForCurtain;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.SeturiDtos;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.SeturiDtos.DtoForProductOptions;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.SeturiDtos.User;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.SeturiDtos.User.SetPage;
+using E_Commerce_BackEnd.Models.Enums;
 using E_Commerce_BackEnd.Models.ProductRelatedModels;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
 using E_Commerce_BackEnd.Services.Helpers.UserHelpers;
@@ -19,12 +22,9 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace E_Commerce_BackEnd.Services.uSeturiService;
 
-public partial class SeturiService : ISeturiService
+public class SeturiService : ISeturiService
 {
-    [GeneratedRegex("^[a-z-0-9A-Z]+$")]
-    private static partial Regex ValidateQueryParams();
-    [GeneratedRegex("^[0-9]+$")]
-    private static partial Regex ValidateNumberesOnly();
+    
     private const int PageSize = 10;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
@@ -54,15 +54,123 @@ public partial class SeturiService : ISeturiService
         return listToDto;
 
     }
+    
+    
+    // Helper method to add colors to a product
+    private void AddColorsToProduct(ProductForSetDto productDto, Produse product, List<AsociereSeturi> listOfProductsOnSets)
+    {
+        foreach (var colorLink in product.PProduseCuCulori!)
+        {
+            var mappedColor = _mapper.Map<CuloriDto>(colorLink.Culoare);
+           
+            if (productDto.ProductOptions.ColorsVariaties.All(c => c.CodCuloareDto != mappedColor.CodCuloareDto))
+            {
+                mappedColor!.JustAdded = listOfProductsOnSets.Any(asoc => 
+                    asoc.IdProdus == product.IdProdus && asoc.IdCuloare == colorLink.IdCuloare);
+                productDto.ProductOptions.ColorsVariaties.Add(mappedColor);
+                
+            }
+        }
+    }
 
+    // Helper method to add dimensions to a product
+    private  void AddDimensionsToProduct(ProductForSetDto productDto, Produse product, List<AsociereSeturi> listOfProductsOnSets)
+    {
+        foreach (var dimensionLink in product.PProduseCuDimensiuni!)
+        {
+            var mappedDimension = _mapper.Map<DimensiuniDto>(dimensionLink.PdDimensiune,opt => 
+            {
+                opt.Items["Product"] = product;  // Pass the product in the mapping context
+            });
+           
+
+            if (!productDto.ProductOptions.DimensionVariaties.Any(d =>
+                d.LungimeDto == mappedDimension.LungimeDto && d.LatimeDto == mappedDimension.LatimeDto))
+            {
+                mappedDimension.JustAdded = listOfProductsOnSets.Any(asoc =>
+                    asoc.IdProdus == product.IdProdus && asoc.IdDimensiune == dimensionLink.IdDimensiune);
+                productDto.ProductOptions.DimensionVariaties.Add(mappedDimension);
+            }
+        }
+    }
+
+    // Helper method to add manopere to a product
+    private async Task AddManopereToProduct(ProductForSetDto productDto, Produse product, List<AsociereSeturi> listOfProductsOnSets,List<Manopere> standardManopere)
+    {
+        if (product.TipulProdusului != "perdea" && product.TipulProdusului != "draperie")
+            return;
+        
+        foreach (var manopera in standardManopere)
+        {
+            if (productDto.ProductOptions.StandardManopere!.Any(m => m.NumeManopera == manopera.NumeManopera))
+            {
+                _logger.LogInformation($"Manopera '{manopera.NumeManopera}' already exists in StandardManopere. Skipping...");
+                continue;
+            }
+
+            var mappedManopera = new StandardManopereOnSet
+            {
+                NumeManopera = manopera.NumeManopera!,
+                MetruTotalFolosit = manopera.MaterialFolosit,
+                TipInel = manopera.InelPrindereLaManopera != null ? new TipIneleDto
+                {
+                    NumeTipInel = manopera.InelPrindereLaManopera?.CuloareInel,
+                    CaleRelativa = manopera.InelPrindereLaManopera?.CaleRelativa,
+                    PresignedUrl = "empty"
+                } : null ,
+                TipGalerie = new TipRejansaDto
+                {
+                    NumeTipRejansa = manopera.TipGalerieLaManopera.NumeTipGalerie,
+                    PretTipRejansa = manopera.TipGalerieLaManopera.PretTipGalerie,
+                    IncretireRejansa = manopera.TipGalerieLaManopera.IncretireRejansa,
+                    CaleRelativa = manopera.TipGalerieLaManopera.CaleRelativa,
+                    PresignedUrl = "empty",
+                    SePrindeCuInele = manopera.TipGalerieLaManopera.SePrindeCuInele
+                },
+                TipLinie = new TipLinieDto
+                {
+                    NumeTipCusaturaColt = manopera.TipLinieLaManopera.NumeTipLinie,
+                    PretTipCusaturaColt = manopera.TipLinieLaManopera.PretPeTipLinie,
+                    CaleRelativa = manopera.TipLinieLaManopera.CaleRelativa,
+                    PresignedUrl = null
+                }
+            };
+
+            if (mappedManopera.TipInel?.CaleRelativa != null)
+            {
+                mappedManopera.TipInel.PresignedUrl =
+                    await _bucketAcces.GenerateUrl(mappedManopera.TipInel.CaleRelativa, "inele_prindere");
+            }
+
+            if (mappedManopera.TipGalerie.CaleRelativa != null)
+            {
+                mappedManopera.TipGalerie.PresignedUrl =
+                    await _bucketAcces.GenerateUrl(mappedManopera.TipGalerie.CaleRelativa, "tipuri_galerie");
+            }
+            
+            if (mappedManopera.TipLinie.CaleRelativa != null)
+            {
+                mappedManopera.TipLinie.PresignedUrl =
+                    await _bucketAcces.GenerateUrl(mappedManopera.TipLinie.CaleRelativa, "tipuri_linie");
+            }
+
+            productDto.ProductOptions.StandardManopere!.Add(mappedManopera);
+        }
+
+        foreach (var asoc in listOfProductsOnSets.Where(a => a.IdProdus == product.IdProdus && a.Manopera != null))
+        {
+            if (productDto.SelectedManopere.Contains(asoc.Manopera!.NumeManopera!))
+                continue;
+            productDto.SelectedManopere.Add(asoc.Manopera!.NumeManopera!);
+        }
+    }
+    
     public async Task<SetModificationDto?> GetSetPage(int idSet)
     {
         var productWithSetsRepository = _unitOfWork.Repository<AsociereSeturi>();
         var seturiRepository = _unitOfWork.Repository<Seturi>();
         var productsRepository = _unitOfWork.Repository<Produse>();
-        var colorsWithProductRepository = _unitOfWork.Repository<ProduseCuCulori>();
-        var dimensionsWithProductRepository = _unitOfWork.Repository<ProduseCuDimensiuni>();
-        
+
         // Retrieve the set
         var currentSet = await seturiRepository
             .FindQueryable(s => s.IdSet == idSet)
@@ -72,149 +180,63 @@ public partial class SeturiService : ISeturiService
         {
             return null;
         }
-        
-        _logger.LogInformation($"SET ID {idSet}");
-        
+
         // Retrieve all products associated with the set
         var listOfProductsOnSets = await productWithSetsRepository
             .FindQueryable(asoc => asoc.IdSet == idSet)
             .Include(c => c.AsCuloare)
                 .ThenInclude(cc => cc!.CodCuloare)
             .Include(d => d.AsDimensiune)
+            .Include(m => m.Manopera)
+                .ThenInclude(tg => tg!.TipGalerieLaManopera)
+            .Include(m => m.Manopera)
+                .ThenInclude(ip => ip!.InelPrindereLaManopera)
+            .Include(m => m.Manopera)
+                .ThenInclude(tl => tl!.TipLinieLaManopera)
             .AsSplitQuery()
+            .ToListAsync();
+
+        var standardManopere = await _unitOfWork.Repository<Manopere>()
+            .GetSimpleQueryable()
+            .Where(m => m.TipManopera == TipManopere.Standard)
+            .Include(tg => tg.TipGalerieLaManopera)
+            .Include(ip => ip.InelPrindereLaManopera)
+            .Include(tl => tl.TipLinieLaManopera)
             .ToListAsync();
         
 
         var listOfProductVariaties = new List<ProductForSetDto>();
-        if (listOfProductsOnSets.IsNullOrEmpty())
-        {
-            _logger.LogError("EMPTY LIST OF PRODUCTS");
-        }
-        foreach (var it in listOfProductsOnSets)
-        {
-            _logger.LogError($"id produs {it.IdProdus} : id culoare {it.IdCuloare}");
-        }
+
         foreach (var setIterator in listOfProductsOnSets)
         {
             var currentProductOnSet = await productsRepository
                 .FindQueryable(p => p.IdProdus == setIterator.IdProdus)
-                .FirstOrDefaultAsync();
-
-            if (currentProductOnSet is null)
-            {
-                return null;
-            }
+                .Include(c => c.PProduseCuCulori!)
+                    .ThenInclude(c => c.Culoare)
+                .ThenInclude(cc => cc.CodCuloare)
+                .Include(d => d.PProduseCuDimensiuni!)
+                    .ThenInclude(d => d.PdDimensiune)
+                .FirstAsync();
 
             // Check if the product is already in the list
             var existingProduct = listOfProductVariaties.FirstOrDefault(p => p.CodProdusDto == currentProductOnSet.CodProdus);
 
-            // If the product does not exist, create a new entry for it
             if (existingProduct == null)
             {
+               
                 var mappedProduct = _mapper.Map<ProductForSetDto>(currentProductOnSet);
-                _logger.LogInformation($"Mapped product -> {mappedProduct.CodProdusDto}");
-                // Retrieve all colors linked with the product
-                var allColorsForProduct = await colorsWithProductRepository
-                    .FindQueryable(pc => pc.IdProdus == currentProductOnSet.IdProdus)
-                    .Include(c => c.Culoare)
-                    .ThenInclude(cc => cc.CodCuloare)
-                    .ToListAsync();
+                AddColorsToProduct(mappedProduct, currentProductOnSet, listOfProductsOnSets);
+                AddDimensionsToProduct(mappedProduct, currentProductOnSet, listOfProductsOnSets);
+                await AddManopereToProduct(mappedProduct, currentProductOnSet, listOfProductsOnSets,standardManopere);
 
-                // Retrieve all dimensions linked with the product
-                var allDimensionsForProduct = await dimensionsWithProductRepository
-                    .FindQueryable(pd => pd.IdProdus == currentProductOnSet.IdProdus)
-                    .Include(d => d.PdDimensiune)
-                    .ToListAsync();
-
-                // Prepare to track selected items (already linked to the set)
-                foreach (var colorProductLink in allColorsForProduct)
-                {
-                    var mappedColorToDto = _mapper.Map<CuloriDto>(colorProductLink.Culoare);
-                    _logger.LogInformation($"mapped color -> {mappedColorToDto.NumeCuloareDto}");
-                    // Check if this color is already linked in the set
-                    var isColorSelectedInSet = listOfProductsOnSets.Any(asoc => 
-                        asoc.IdProdus == currentProductOnSet.IdProdus &&
-                        asoc.IdCuloare == colorProductLink.IdCuloare);
-                    
-                    mappedColorToDto.JustAdded = isColorSelectedInSet;
-
-                    // Add color to product options
-                    mappedProduct.ProductOptions.ColorsVariaties.Add(mappedColorToDto);
-                }
-
-                foreach (var dimensionProductLink in allDimensionsForProduct)
-                {
-                    var mappedDimensionToDto = _mapper.Map<DimensiuniDto>(dimensionProductLink.PdDimensiune, opt => 
-                    {
-                        opt.Items["Product"] = currentProductOnSet;  // Pass the product in the mapping context
-                    });
-
-                    // Check if this dimension is already linked in the set
-                    var isDimensionSelectedInSet = listOfProductsOnSets.Any(asoc => 
-                        asoc.IdProdus == currentProductOnSet.IdProdus &&
-                        asoc.IdDimensiune == dimensionProductLink.IdDimensiune);
-                    
-                    mappedDimensionToDto.JustAdded = isDimensionSelectedInSet;
-
-                    // Add dimension to product options
-                    mappedProduct.ProductOptions.DimensionVariaties.Add(mappedDimensionToDto);
-                }
-
-                // Add the product to the list of variations
                 listOfProductVariaties.Add(mappedProduct);
             }
             else
             {
-                // If the product already exists, merge the color and dimension variations
-                var allColorsForProduct = await colorsWithProductRepository
-                    .FindQueryable(pc => pc.IdProdus == currentProductOnSet.IdProdus)
-                    .Include(c => c.Culoare)
-                    .ThenInclude(cc => cc.CodCuloare)
-                    .ToListAsync();
-
-                foreach (var colorProductLink in allColorsForProduct)
-                {
-                    var mappedColorToDto = _mapper.Map<CuloriDto>(colorProductLink.Culoare);
-
-                    var isColorSelectedInSet = listOfProductsOnSets.Any(asoc => 
-                        asoc.IdProdus == currentProductOnSet.IdProdus &&
-                        asoc.IdCuloare == colorProductLink.IdCuloare);
-
-                    mappedColorToDto.JustAdded = isColorSelectedInSet;
-
-                    // Avoid duplicate color entries
-                    if (existingProduct.ProductOptions.ColorsVariaties.All(c => c.CodCuloareDto != mappedColorToDto.CodCuloareDto))
-                    {
-                        existingProduct.ProductOptions.ColorsVariaties.Add(mappedColorToDto);
-                    }
-                }
-
-                var allDimensionsForProduct = await dimensionsWithProductRepository
-                    .FindQueryable(pd => pd.IdProdus == currentProductOnSet.IdProdus)
-                    .Include(d => d.PdDimensiune)
-                    .ToListAsync();
-
-                foreach (var dimensionProductLink in allDimensionsForProduct)
-                {
-                    var mappedDimensionToDto = _mapper.Map<DimensiuniDto>(dimensionProductLink.PdDimensiune, opt => 
-                    {
-                        opt.Items["Product"] = currentProductOnSet;
-                    });
-
-                    var isDimensionSelectedInSet = listOfProductsOnSets.Any(asoc => 
-                        asoc.IdProdus == currentProductOnSet.IdProdus &&
-                        asoc.IdDimensiune == dimensionProductLink.IdDimensiune);
-
-                    mappedDimensionToDto.JustAdded = isDimensionSelectedInSet;
-
-                    // Avoid duplicate dimension entries
-                    if (!existingProduct.ProductOptions.DimensionVariaties.Any(d => 
-                        d.LungimeDto == mappedDimensionToDto.LungimeDto && 
-                        d.LatimeDto == mappedDimensionToDto.LatimeDto))
-                    {
-                        existingProduct.ProductOptions.DimensionVariaties.Add(mappedDimensionToDto);
-                    }
-                }
+                // Merge variations into the existing product
+                AddColorsToProduct(existingProduct, currentProductOnSet, listOfProductsOnSets);
+                AddDimensionsToProduct(existingProduct, currentProductOnSet, listOfProductsOnSets);
+                await AddManopereToProduct(existingProduct, currentProductOnSet, listOfProductsOnSets,standardManopere);
             }
         }
 
@@ -228,27 +250,15 @@ public partial class SeturiService : ISeturiService
             PretRedusSetDto = currentSet.PretRedusSet
         };
 
-        foreach (var productOnSet in setModificationDto.ProductsOnSet)
-        {
-            _logger.LogInformation($"{productOnSet.CodProdusDto} ");
-            foreach (var selColor in productOnSet.SelectedColors)
-            {
-                _logger.LogInformation($"Selected color {selColor}");
-            }
-            foreach (var seldim in productOnSet.SelectedDimensions)
-            {
-                _logger.LogInformation($"Selected dimension {seldim}");
-            }
-        }
-
         return setModificationDto;
     }
+    
 
     public async Task<IList<SelectProducts>> GetProductCodes()
     {
         var productsRepository = _unitOfWork.Repository<Produse>();
         
-        IList<SelectProducts> listOfProductCodes = await productsRepository
+        var listOfProductCodes = await productsRepository
             .GetSimpleQueryable()
             .GroupBy(p => p.TipulProdusului)
             .Select(group => new SelectProducts
@@ -515,7 +525,7 @@ public partial class SeturiService : ISeturiService
         }
     }
 
-    public async Task<int> ModifyOrUpdateSet(SetModificationDto modifiedSet, int idSet,bool isAdding)
+    public async Task<int> AddOrUpdateSet(SetModificationDto modifiedSet, int idSet,bool isAdding)
     {
         IDbContextTransaction? updateOrAddTransaction = null;
         try
@@ -523,87 +533,79 @@ public partial class SeturiService : ISeturiService
             updateOrAddTransaction = await _unitOfWork.BeginTransactionAsync();
             var seturiRepository = _unitOfWork.Repository<Seturi>();
             var colorsRepository = _unitOfWork.Repository<Culori>();
-            var colorCodesRepository = _unitOfWork.Repository<CodCulori>();
             var dimensionsRepository = _unitOfWork.Repository<Dimensiuni>();
+            var manopereRepository = _unitOfWork.Repository<Manopere>();
             var asociereSeturiRepository = _unitOfWork.Repository<AsociereSeturi>();
-
+            _logger.LogInformation("INAINTE DE VREO OPERATIE ");
+            foreach (var product in modifiedSet.ProductsOnSet)
+            {
+                _logger.LogInformation($"Nume produs : {product.NumeProdusDto} - {product.TipProdusDto} ");
+            }
+            
             if (!isAdding)
             {
                 var listOfNewOptions = new List<AsociereSeturi>();
-                var listOfOptionsToRemove = new List<AsociereSeturi>();
-                
+
                 var oldOptions = await asociereSeturiRepository
                     .FindQueryable(asoc => asoc.IdSet == idSet)
                     .ToListAsync();
-                
+
                 foreach (var productOnSet in modifiedSet.ProductsOnSet)
                 {
                     // blue-08 , grey-03
                     var selectedColors = productOnSet.SelectedColors;
                     // 200x190 , 200x140
                     var selectedDimensions = productOnSet.SelectedDimensions;
-                    if (selectedColors.Count != 0 && selectedDimensions.Count != 0)
+                    // nume manopera (test)
+                    var selectedManopere = productOnSet.SelectedManopere;
+
+                    if (productOnSet.TipProdusDto is "perdea" or "draperie")
                     {
                         foreach (var color in selectedColors)
                         {
                             var splitColorByCode = color.Split('-');
                             var colorName = splitColorByCode[0];
                             var colorCode = splitColorByCode[1];
-                      
-
-                            var colorCodeInDb = await colorCodesRepository
-                                .FindQueryable(cc => cc.CodCuloare == colorCode)
-                                .FirstAsync();
-                        
-                            var colorInDb = await colorsRepository
-                                .FindQueryable(c => c.NumeCuloare == colorName &&
-                                                    c.IdCodCuloare == colorCodeInDb.IdCodCuloare)
-                                .FirstAsync();
-                       
-                            foreach (var selectedDimension in selectedDimensions)
-                            {
-                                // lungime190xlatime200-recomandarePat140x200
-                                var splitDimensionFromRecomandarePat = selectedDimension.Split('-');
-                                var dimensions = splitDimensionFromRecomandarePat[0].Split('x');
-                          
-
-                                var lungime = dimensions[0];
-                                var latime = dimensions[1];
-                                var recomandarePat = splitDimensionFromRecomandarePat[1];
-                                var dimensionInDb = await dimensionsRepository
-                                    .FindQueryable(d => d.Lungime == lungime &&
-                                                        d.Latime == latime &&
-                                                        d.RecomandarePat == recomandarePat)
-                                    .FirstAsync();
-                           
-
-                                var isVariationInDb = oldOptions
-                                    .FirstOrDefault(asoc => asoc.IdProdus == productOnSet.IdProdusDto &&
-                                                            asoc.IdSet == idSet &&
-                                                            asoc.IdCuloare == colorInDb.IdCuloare &&
-                                                            asoc.IdDimensiune == dimensionInDb.IdDimensiune);
-
-                                if (isVariationInDb is null)
-                                {
                             
+
+                            var colorInDb = await colorsRepository
+                                .GetSimpleQueryable()
+                                .Where(c => c.NumeCuloare == colorName
+                                            && c.CodCuloare.CodCuloare == colorCode)
+                                .FirstAsync();
+
+                            foreach (var manopera in selectedManopere)
+                            {
+                                var findManoperaInDb = await manopereRepository
+                                    .GetSimpleQueryable()
+                                    .Where(m => m.NumeManopera == manopera)
+                                    .FirstAsync();
+
+                                var isManoperaVariantionInDb = oldOptions
+                                    .FirstOrDefault(asoc => asoc.IdProdus == productOnSet.IdProdusDto
+                                                            && asoc.IdManopera == findManoperaInDb.IdManopera &&
+                                                            asoc.IdCuloare == colorInDb.IdCuloare);
+
+                                if (isManoperaVariantionInDb is null)
+                                {
                                     var newProductOptionOnSet = new AsociereSeturi
                                     {
                                         IdProdus = productOnSet.IdProdusDto,
                                         IdSet = idSet,
                                         IdCuloare = colorInDb.IdCuloare,
-                                        IdDimensiune = dimensionInDb.IdDimensiune,
+                                        IdDimensiune = null,
+                                        IdManopera = findManoperaInDb.IdManopera
                                     };
                                     listOfNewOptions.Add(newProductOptionOnSet);
-
                                 }
                                 else
                                 {
-                                    oldOptions.Remove(isVariationInDb);
+                                    oldOptions.Remove(isManoperaVariantionInDb);
                                 }
-
                             }
                         }
-                    }else if (selectedColors.Count != 0 && selectedDimensions.Count == 0)
+                    }
+                    else
                     {
                         foreach (var color in selectedColors)
                         {
@@ -611,85 +613,86 @@ public partial class SeturiService : ISeturiService
                             var colorName = splitColorByCode[0];
                             var colorCode = splitColorByCode[1];
 
-                            var colorCodeInDb = await colorCodesRepository
-                                .FindQueryable(cc => cc.CodCuloare == colorCode)
-                                .FirstAsync();
-
                             var colorInDb = await colorsRepository
-                                .FindQueryable(c => c.NumeCuloare == colorName &&
-                                                    c.IdCodCuloare == colorCodeInDb.IdCodCuloare)
+                                .GetSimpleQueryable()
+                                .Where(c => c.NumeCuloare == colorName
+                                            && c.CodCuloare.CodCuloare == colorCode)
                                 .FirstAsync();
 
-                            var isVariationInDb = oldOptions
-                                .FirstOrDefault(asoc => asoc.IdProdus == productOnSet.IdProdusDto &&
-                                                        asoc.IdSet == idSet &&
-                                                        asoc.IdCuloare == colorInDb.IdCuloare &&
-                                                        asoc.IdDimensiune == null);
-
-                            if (isVariationInDb is null)
+                            if (selectedDimensions.Count != 0)
                             {
-                                var newProductOptionOnSet = new AsociereSeturi
+                                foreach (var selectedDimension in selectedDimensions)
                                 {
-                                    IdProdus = productOnSet.IdProdusDto,
-                                    IdSet = idSet,
-                                    IdCuloare = colorInDb.IdCuloare,
-                                    IdDimensiune = null,
-                                };
-                                listOfNewOptions.Add(newProductOptionOnSet);
+                                    var splitDimensionFromRecomandarePat = selectedDimension.Split('-');
+                                    var dimensions = splitDimensionFromRecomandarePat[0].Split('x');
+
+
+                                    var lungime = dimensions[0];
+                                    var latime = dimensions[1];
+                                    var recomandarePat = splitDimensionFromRecomandarePat[1];
+                                    var dimensionInDb = await dimensionsRepository
+                                        .FindQueryable(d => d.Lungime == lungime &&
+                                                            d.Latime == latime &&
+                                                            d.RecomandarePat == recomandarePat)
+                                        .FirstAsync();
+
+
+                                    var isVariationInDb = oldOptions
+                                        .FirstOrDefault(asoc => asoc.IdProdus == productOnSet.IdProdusDto &&
+                                                                asoc.IdSet == idSet &&
+                                                                asoc.IdCuloare == colorInDb.IdCuloare &&
+                                                                asoc.IdDimensiune == dimensionInDb.IdDimensiune);
+
+                                    if (isVariationInDb is null)
+                                    {
+
+                                        var newProductOptionOnSet = new AsociereSeturi
+                                        {
+                                            IdProdus = productOnSet.IdProdusDto,
+                                            IdSet = idSet,
+                                            IdCuloare = colorInDb.IdCuloare,
+                                            IdDimensiune = dimensionInDb.IdDimensiune,
+                                        };
+                                        listOfNewOptions.Add(newProductOptionOnSet);
+
+                                    }
+                                    else
+                                    {
+                                        oldOptions.Remove(isVariationInDb);
+                                    }
+                                }
                             }
                             else
                             {
-                                oldOptions.Remove(isVariationInDb);
-                            }
-                        }
-                    }
-                    else if (selectedColors.Count == 0 && selectedDimensions.Count != 0)
-                    {
-                        foreach (var selectedDimension in selectedDimensions)
-                        {
-                            var splitDimensionFromRecomandarePat = selectedDimension.Split('-');
-                            var dimensions = splitDimensionFromRecomandarePat[0].Split('x');
+                                var isVariationInDb = oldOptions
+                                    .FirstOrDefault(asoc => asoc.IdProdus == productOnSet.IdProdusDto &&
+                                                            asoc.IdSet == idSet &&
+                                                            asoc.IdCuloare == colorInDb.IdCuloare &&
+                                                            asoc.IdDimensiune == null);
 
-                            var lungime = dimensions[0];
-                            var latime = dimensions[1];
-                            var recomandarePat = splitDimensionFromRecomandarePat[1];
-                            var dimensionInDb = await dimensionsRepository
-                                .FindQueryable(d => d.Lungime == lungime &&
-                                                    d.Latime == latime &&
-                                                    d.RecomandarePat == recomandarePat)
-                                .FirstAsync();
-
-                            var isVariationInDb = oldOptions
-                                .FirstOrDefault(asoc => asoc.IdProdus == productOnSet.IdProdusDto &&
-                                                        asoc.IdSet == idSet &&
-                                                        asoc.IdCuloare == null &&
-                                                        asoc.IdDimensiune == dimensionInDb.IdDimensiune);
-
-                            if (isVariationInDb is null)
-                            {
-                                var newProductOptionOnSet = new AsociereSeturi
+                                if (isVariationInDb is null)
                                 {
-                                    IdProdus = productOnSet.IdProdusDto,
-                                    IdSet = idSet,
-                                    IdCuloare = null,
-                                    IdDimensiune = dimensionInDb.IdDimensiune,
-                                };
-                                listOfNewOptions.Add(newProductOptionOnSet);
+                                    var newProductOptionOnSet = new AsociereSeturi
+                                    {
+                                        IdProdus = productOnSet.IdProdusDto,
+                                        IdSet = idSet,
+                                        IdCuloare = colorInDb.IdCuloare,
+                                        IdDimensiune = null,
+                                    };
+                                    listOfNewOptions.Add(newProductOptionOnSet);
+                                }
+                                else
+                                {
+                                    oldOptions.Remove(isVariationInDb);
+                                }
                             }
-                            else
-                            {
-                                oldOptions.Remove(isVariationInDb);
-                            }
+
+
                         }
                     }
-                    else
-                    {
-                        _logger.LogInformation($"No colors or dimensions were chosen for the product {productOnSet.CodProdusDto}");
-                    }
-                    
+
+                  
                 }
-                    
-                listOfOptionsToRemove = oldOptions;
 
                 // Perform the database operations
                 if (listOfNewOptions.Count > 0)
@@ -697,19 +700,19 @@ public partial class SeturiService : ISeturiService
                     await asociereSeturiRepository.AddRangeAsync(listOfNewOptions);
                 }
 
-                if (listOfOptionsToRemove.Count > 0)
+                if (oldOptions.Count > 0)
                 {
-                    await asociereSeturiRepository.DeleteRangeAsync(listOfOptionsToRemove);
+                    await asociereSeturiRepository.DeleteRangeAsync(oldOptions);
                 }
-               
+
                 await _unitOfWork.CommitTransactionAsync(updateOrAddTransaction);
                 _logger.LogInformation("Set updated succesfully");
 
                 return 1;
             }
             // else we create a new set.
-            
-            
+
+
             var optionsToBeAdded = new List<AsociereSeturi>();
             var newSet = new Seturi
             {
@@ -723,152 +726,147 @@ public partial class SeturiService : ISeturiService
 
             await seturiRepository.AddAsync(newSet);
             await _unitOfWork.CommitAsync();
+            
+            _logger.LogInformation($"Set id after insert in db : {newSet.IdSet}");
 
 
             foreach (var productOnSet in modifiedSet.ProductsOnSet)
             {
+                _logger.LogError($"Nume produs curent de procesat ---- {productOnSet.CodProdusDto}");
                 // blue-08 , grey-03
                 var selectedColors = productOnSet.SelectedColors;
                 // 200x190 , 200x140
                 var selectedDimensions = productOnSet.SelectedDimensions;
-                // de veriificat cazurile -> fara culori / cu dimesiuno
-                // -> cu culori / fara dimensiuni
-                // -> cu culori si dimensiuni
+                // nume manopera (test)
+                var selectedManopere = productOnSet.SelectedManopere;
 
-                if (selectedColors.Count != 0 && selectedDimensions.Count != 0)
+                if (string.Equals(productOnSet.TipProdusDto, "draperie") ||
+                    string.Equals(productOnSet.TipProdusDto, "perdea"))
                 {
+                    _logger.LogInformation("Adaugam perdea/ draperie");
                     foreach (var color in selectedColors)
                     {
                         var splitColorByCode = color.Split('-');
                         var colorName = splitColorByCode[0];
                         var colorCode = splitColorByCode[1];
-                        
-                        var colorCodeInDb = await colorCodesRepository
-                            .FindQueryable(cc => cc.CodCuloare == colorCode)
-                            .FirstAsync();
 
                         var colorInDb = await colorsRepository
-                            .FindQueryable(c => c.NumeCuloare == colorName &&
-                                                c.IdCodCuloare == colorCodeInDb.IdCodCuloare)
+                            .GetSimpleQueryable()
+                            .Where(c => c.NumeCuloare == colorName
+                                        && c.CodCuloare.CodCuloare == colorCode)
                             .FirstAsync();
 
-                        if (selectedDimensions.Count == 0)
+                        _logger.LogError($"Culoare curenta : {colorInDb.NumeCuloare}");
+
+                        foreach (var manopera in selectedManopere)
                         {
-                            var newOptionOnSet = new AsociereSeturi
-                            {
-                                IdProdus = productOnSet.IdProdusDto,
-                                IdSet = newSet.IdSet,
-                                IdCuloare = colorInDb.IdCuloare,
-                                IdDimensiune = null
-                            };
-
-                            optionsToBeAdded.Add(newOptionOnSet);
-                        }
-
-                        foreach (var selectedDimension in selectedDimensions)
-                        {
-                            // lungime190xlatime200-recomandarePat140x200
-                            var splitDimensionFromRecomandarePat = selectedDimension.Split('-');
-                            var dimensions = splitDimensionFromRecomandarePat[0].Split('x');
-
-                            var lungime = dimensions[0];
-                            var latime = dimensions[1];
-                            var recomandarePat = splitDimensionFromRecomandarePat[1];
-                            var dimensionInDb = await dimensionsRepository
-                                .FindQueryable(d => d.Lungime == lungime &&
-                                                    d.Latime == latime &&
-                                                    d.RecomandarePat == recomandarePat)
+                            var findManoperaInDb = await manopereRepository
+                                .GetSimpleQueryable()
+                                .Where(m => m.NumeManopera == manopera)
                                 .FirstAsync();
+                            _logger.LogError($"Nume manopera curenta : {findManoperaInDb.NumeManopera}");
 
-                            var newOptionOnSet = new AsociereSeturi
+
+                            var newProductOptionOnSet = new AsociereSeturi
                             {
                                 IdProdus = productOnSet.IdProdusDto,
                                 IdSet = newSet.IdSet,
                                 IdCuloare = colorInDb.IdCuloare,
-                                IdDimensiune = dimensionInDb.IdDimensiune
+                                IdDimensiune = null,
+                                IdManopera = findManoperaInDb.IdManopera
                             };
 
-                            optionsToBeAdded.Add(newOptionOnSet);
+                            optionsToBeAdded.Add(newProductOptionOnSet);
+
                         }
-                    }
-                }else if (selectedColors.Count != 0 && selectedDimensions.Count == 0)
-                {
-                    foreach (var color in selectedColors)
-                    {
-                        var splitColorByCode = color.Split('-');
-                        var colorName = splitColorByCode[0];
-                        var colorCode = splitColorByCode[1];
-                        
-                        var colorCodeInDb = await colorCodesRepository
-                            .FindQueryable(cc => cc.CodCuloare == colorCode)
-                            .FirstAsync();
-
-                        var colorInDb = await colorsRepository
-                            .FindQueryable(c => c.NumeCuloare == colorName &&
-                                                c.IdCodCuloare == colorCodeInDb.IdCodCuloare)
-                            .FirstAsync();
-
-                       
-                        var newOptionOnSet = new AsociereSeturi
-                        {
-                            IdProdus = productOnSet.IdProdusDto,
-                            IdSet = newSet.IdSet,
-                            IdCuloare = colorInDb.IdCuloare,
-                            IdDimensiune = null
-                        };
-
-                        optionsToBeAdded.Add(newOptionOnSet);
-                        
-                    }
-                }
-                else if(selectedDimensions.Count != 0 && selectedColors.Count == 0)
-                {
-                    foreach (var selectedDimension in selectedDimensions)
-                    {
-                        // lungime190xlatime200-recomandarePat140x200
-                        var splitDimensionFromRecomandarePat = selectedDimension.Split('-');
-                        var dimensions = splitDimensionFromRecomandarePat[0].Split('x');
-
-                        var lungime = dimensions[0];
-                        var latime = dimensions[1];
-                        var recomandarePat = splitDimensionFromRecomandarePat[1];
-                        var dimensionInDb = await dimensionsRepository
-                            .FindQueryable(d => d.Lungime == lungime &&
-                                                d.Latime == latime &&
-                                                d.RecomandarePat == recomandarePat)
-                            .FirstAsync();
-
-                        var newOptionOnSet = new AsociereSeturi
-                        {
-                            IdProdus = productOnSet.IdProdusDto,
-                            IdSet = newSet.IdSet,
-                            IdCuloare = null,
-                            IdDimensiune = dimensionInDb.IdDimensiune
-                        };
-
-                        optionsToBeAdded.Add(newOptionOnSet);
                     }
                 }
                 else
                 {
-                    _logger.LogInformation($"No colors or dimension was choosen for the product {productOnSet.CodProdusDto}");
+                    foreach (var color in selectedColors)
+                    {
+                        var splitColorByCode = color.Split('-');
+                        var colorName = splitColorByCode[0];
+                        var colorCode = splitColorByCode[1];
+
+                        var colorInDb = await colorsRepository
+                            .GetSimpleQueryable()
+                            .Where(c => c.NumeCuloare == colorName
+                                        && c.CodCuloare.CodCuloare == colorCode)
+                            .FirstAsync();
+
+                        if (selectedDimensions.Count != 0)
+                        {
+                            foreach (var selectedDimension in selectedDimensions)
+                            {
+                                var splitDimensionFromRecomandarePat = selectedDimension.Split('-');
+                                var dimensions = splitDimensionFromRecomandarePat[0].Split('x');
+
+
+                                var lungime = dimensions[0];
+                                var latime = dimensions[1];
+                                var recomandarePat = splitDimensionFromRecomandarePat[1];
+                                var dimensionInDb = await dimensionsRepository
+                                    .FindQueryable(d => d.Lungime == lungime &&
+                                                        d.Latime == latime &&
+                                                        d.RecomandarePat == recomandarePat)
+                                    .FirstAsync();
+
+                                _logger.LogInformation($"Set id after insert in db : {newSet.IdSet}");
+
+                                var newProductOptionOnSet = new AsociereSeturi
+                                {
+                                    IdProdus = productOnSet.IdProdusDto,
+                                    IdSet = newSet.IdSet,
+                                    IdCuloare = colorInDb.IdCuloare,
+                                    IdDimensiune = dimensionInDb.IdDimensiune,
+                                    IdManopera = null
+                                };
+                                optionsToBeAdded.Add(newProductOptionOnSet);
+
+                            }
+                        }
+                        else
+                        {
+
+                            var newProductOptionOnSet = new AsociereSeturi
+                            {
+                                IdProdus = productOnSet.IdProdusDto,
+                                IdSet = newSet.IdSet,
+                                IdCuloare = colorInDb.IdCuloare,
+                                IdDimensiune = null,
+                                IdManopera = null
+                            };
+                            optionsToBeAdded.Add(newProductOptionOnSet);
+                        }
+                    }
+
+
                 }
-                
             }
 
+            foreach (var options in optionsToBeAdded)
+            {
+                _logger.LogInformation($"Optiuni : ID_SET {options.IdSet} .ID_PRODUS: {options.IdProdus} , ID_CULOARE: {options.IdCuloare}" +
+                                       $", ID_DIMENSIUNE : {options.IdDimensiune} , ID_MANOPERA : {options.IdManopera}");
+            }
+                
             await asociereSeturiRepository.AddRangeAsync(optionsToBeAdded);
             await _unitOfWork.CommitTransactionAsync(updateOrAddTransaction);
             _logger.LogInformation("Set created succesfully");
             return 1;
-            
         }
+        
         catch (Exception e)
         {
             if (updateOrAddTransaction is not null)
             {
                 await _unitOfWork.RollBackTransactionAsync(updateOrAddTransaction);
             }
-            Console.WriteLine(e.Message);
+
+            _logger.LogError(e.Message);
+            _logger.LogError($"Error: {e.GetType()}");
+
             return -1;
         }
     }
@@ -876,23 +874,23 @@ public partial class SeturiService : ISeturiService
     public async Task<ProductForSetDto?> GetProductDataForSetAdd(string codProdus)
     {
         var productsRepository = _unitOfWork.Repository<Produse>();
-        var dimensionsOnProductsRepository = _unitOfWork.Repository<ProduseCuDimensiuni>();
-        var colorsOnProductsRepository = _unitOfWork.Repository<ProduseCuCulori>();
+        var manopereRepository = _unitOfWork.Repository<Manopere>();
         
         var productToGetData = await productsRepository
-            .FindQueryable(p => p.CodProdus == codProdus.ToUpper())
+            .GetSimpleQueryable()
+            .Where(p => p.CodProdus == codProdus.ToUpper())
+            .Include(pd => pd.PProduseCuDimensiuni!)
+                .ThenInclude(d => d.PdDimensiune)
+            .Include(pc => pc.PProduseCuCulori!)
+                .ThenInclude(c => c.Culoare)
+                .ThenInclude(cc => cc.CodCuloare)
             .FirstAsync();
 
         var productMapped = _mapper.Map<ProductForSetDto>(productToGetData);
         
-        var dimensionsLinkedWithCurrentProduct = await dimensionsOnProductsRepository
-            .FindQueryable(pd => pd.IdProdus == productToGetData.IdProdus)
-            .Include(d => d.PdDimensiune)
-            .ToListAsync();
-
-        if (dimensionsLinkedWithCurrentProduct.Count != 0)
+        if (!productToGetData.PProduseCuDimensiuni.IsNullOrEmpty())
         {
-            foreach (var dimensionLink in dimensionsLinkedWithCurrentProduct)
+            foreach (var dimensionLink in productToGetData.PProduseCuDimensiuni!)
             {
                 var mappedDimensionToDto = _mapper.Map<DimensiuniDto>(dimensionLink.PdDimensiune, opt => 
                 {
@@ -902,15 +900,10 @@ public partial class SeturiService : ISeturiService
                 productMapped.ProductOptions.DimensionVariaties.Add(mappedDimensionToDto);
             }
         }
-        var colorsLinkedWithTheProduct = await colorsOnProductsRepository
-            .FindQueryable(pc => pc.IdProdus == productToGetData.IdProdus)
-            .Include(c => c.Culoare)
-                .ThenInclude(cc => cc.CodCuloare)
-            .ToListAsync();
 
-        if (colorsLinkedWithTheProduct.Count != 0)
+        if (!productToGetData.PProduseCuCulori.IsNullOrEmpty())
         {
-            foreach (var colorLink in colorsLinkedWithTheProduct)
+            foreach (var colorLink in productToGetData.PProduseCuCulori!)
             {
                 var mappedColorToDto = _mapper.Map<CuloriDto>(colorLink.Culoare, opt => 
                 {
@@ -920,6 +913,66 @@ public partial class SeturiService : ISeturiService
                 productMapped.ProductOptions.ColorsVariaties.Add(mappedColorToDto);
             }
         }
+
+
+        if (productToGetData.TipulProdusului is "perdea" or "draperie")
+        {
+            var standardManopere = await manopereRepository
+                .GetSimpleQueryable()
+                .Where(m => m.TipManopera == TipManopere.Standard)
+                .Select(m => new StandardManopereOnSet
+                {
+                    NumeManopera = m.NumeManopera!,
+                    MetruTotalFolosit = m.MaterialFolosit,
+                    TipInel = new TipIneleDto
+                    {
+                        NumeTipInel = m.InelPrindereLaManopera == null ? null : m.InelPrindereLaManopera.CuloareInel,
+                        CaleRelativa = m.InelPrindereLaManopera!.CaleRelativa,
+                        PresignedUrl = "empty"
+                    },
+                    TipGalerie = new TipRejansaDto
+                    {
+                        NumeTipRejansa = m.TipGalerieLaManopera.NumeTipGalerie,
+                        PretTipRejansa = m.TipGalerieLaManopera.PretTipGalerie,
+                        IncretireRejansa = m.TipGalerieLaManopera.IncretireRejansa,
+                        CaleRelativa = m.TipGalerieLaManopera.CaleRelativa,
+                        PresignedUrl = "empty",
+                        SePrindeCuInele = m.TipGalerieLaManopera.SePrindeCuInele
+                    },
+                    TipLinie = new TipLinieDto
+                    {
+                        NumeTipCusaturaColt = m.TipLinieLaManopera.NumeTipLinie,
+                        PretTipCusaturaColt = m.TipLinieLaManopera.PretPeTipLinie,
+                        CaleRelativa = m.TipLinieLaManopera.CaleRelativa,
+                        PresignedUrl = "empty"
+                    }
+                })
+                .ToListAsync();
+
+            foreach (var manopera in standardManopere)
+            {
+                if (manopera.TipInel?.CaleRelativa != null)
+                {
+                    manopera.TipInel.PresignedUrl = await _bucketAcces
+                        .GenerateUrl(manopera.TipInel.CaleRelativa, "inele_prindere");
+                }
+
+                if (manopera.TipGalerie.CaleRelativa != null)
+                {
+                    manopera.TipGalerie.PresignedUrl = await _bucketAcces
+                        .GenerateUrl(manopera.TipGalerie.CaleRelativa, "tipuri_galerie");
+                }
+
+                if (manopera.TipLinie.CaleRelativa != null)
+                {
+                    manopera.TipLinie.PresignedUrl = await _bucketAcces
+                        .GenerateUrl(manopera.TipLinie.CaleRelativa, "tipuri_linie");
+                }
+            }
+
+            productMapped.ProductOptions.StandardManopere = standardManopere;
+        }
+       
 
         return productMapped;
 
@@ -937,6 +990,14 @@ public partial class SeturiService : ISeturiService
 
         var mainQuery = seturiRepository
             .GetSimpleQueryable()
+            .Include(s => s.SAsociereSeturi!)
+                .ThenInclude(p => p.Produs)
+                    .ThenInclude(p => p.PProduseCuCulori!)
+                        .ThenInclude(p => p.Culoare)
+            .Include(set => set.SAsociereSeturi!)
+                .ThenInclude(asoc => asoc.Produs)
+                    .ThenInclude(prod => prod.PProduseCuCulori!)
+                        .ThenInclude(color => color.ImagProduseCuCulori)
             .Where(set => productName.IsNullOrEmpty() || set.SAsociereSeturi!
                 .Any(product => product.Produs.NumeProdus!.ToLower().Contains(productName!.ToLower())))
             .Where(set => !set.IsDeleted && set.SetActivInMagazin)
@@ -970,10 +1031,12 @@ public partial class SeturiService : ISeturiService
                     ? UserHelpers.ConvertCurrency("RON", "EUR", set.PretRedusSet, 0)
                     : set.PretRedusSet,
                 SetProductsDto = set.SAsociereSeturi!
+                    .GroupBy(asoc => asoc.Produs.NumeProdus)
                     .Select(asoc => new ProductsInSet
                     {
-                        NumeProdusDto = asoc.Produs.NumeProdus!,
-                        CuloriProdusDto = asoc.Produs.PProduseCuCulori!
+                        NumeProdusDto = asoc.First().Produs.NumeProdus!,
+                        CuloriProdusDto =  asoc.First().Produs.PProduseCuCulori!
+                            .Where(color => color.IdCuloare == asoc.First().IdCuloare)
                             .Select(color => new ColorsWithImages
                             {
                                 NumeCuloareDto = color.Culoare.NumeCuloare,
@@ -1009,74 +1072,33 @@ public partial class SeturiService : ISeturiService
     {
         try
         {
-            
-            var ringTypesDto = await _cache.GetOrCreateAsync($"ringTypes_{currency}", async entry =>
-                {
-                    var ringTypesRepository = _unitOfWork.Repository<InelePrindere>();
-                    entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
-
-                    // If cache does not exist, run the retrieval and mapping logic
-                    var rings = await ringTypesRepository.GetAllAsync();
-                    var mappedRings = rings.IsNullOrEmpty() ? new List<TipIneleDto>() : _mapper.Map<IList<TipIneleDto>>(rings);
-
-                    // Generate presigned URLs for each ring type
-                    var ringTasks = mappedRings.Select(async ringType =>
-                    {
-                        ringType.PresignedUrl = ringType.CaleRelativa != null
-                            ? await _bucketAcces.GenerateUrl(ringType.CaleRelativa, "inele_prindere")
-                            : null;
-                    }).ToList();
-
-                    await Task.WhenAll(ringTasks);
-
-                    return mappedRings;
-                });
-
-            var rejanseTypesDto = await _cache.GetOrCreateAsync($"rejanse_{currency}", async entry =>
-            {
-                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
-                var rejansaRepository = _unitOfWork.Repository<TipuriGalerie>();
-                var rejanse = await rejansaRepository.GetAllAsync();
-                var mappedRejanse = rejanse.IsNullOrEmpty() ? new List<TipRejansaDto>() : _mapper.Map<IList<TipRejansaDto>>(rejanse);
-
-                var rejansaTasks = mappedRejanse.Select(async rejansa =>
-                {
-                    rejansa.PresignedUrl = rejansa.CaleRelativa != null
-                        ? await _bucketAcces.GenerateUrl(rejansa.CaleRelativa, "tipuri_galerie")
-                        : null;
-                    rejansa.PretTipRejansa = currency == "EUR" 
-                        ? UserHelpers.ConvertCurrency("RON", "EUR", rejansa.PretTipRejansa, 0)
-                        : rejansa.PretTipRejansa;
-                }).ToList();
-
-                await Task.WhenAll(rejansaTasks);
-
-                return mappedRejanse;
-            });
-
-            var liningTypesDto = await _cache.GetOrCreateAsync($"liningTypes_{currency}", async entry =>
-            {
-                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
-                var liningTypesRepository = _unitOfWork.Repository<TipuriLinie>();
-                var linings = await liningTypesRepository.GetAllAsync();
-                var mappedLinings = linings.IsNullOrEmpty() ? new List<TipLinieDto>() : _mapper.Map<IList<TipLinieDto>>(linings);
-
-                var liningTasks = mappedLinings.Select(async lineType =>
-                {
-                    lineType.PresignedUrl = lineType.CaleRelativa != null
-                        ? await _bucketAcces.GenerateUrl(lineType.CaleRelativa, "tipuri_linie")
-                        : null;
-                    lineType.PretTipCusaturaColt = currency == "EUR" 
-                        ? UserHelpers.ConvertCurrency("RON", "EUR", lineType.PretTipCusaturaColt, 0)
-                        : lineType.PretTipCusaturaColt;
-                }).ToList();
-
-                await Task.WhenAll(liningTasks);
-
-                return mappedLinings;
-            });
             var setPageInfo = await _unitOfWork.Repository<Seturi>()
                 .GetSimpleQueryable()
+                .Include(set => set.SAsociereSeturi!)
+                    .ThenInclude(asoc => asoc.Produs)
+                        .ThenInclude(prod => prod.PProduseCuCulori!)
+                            .ThenInclude(color => color.Culoare)
+                .Include(set => set.SAsociereSeturi!)
+                    .ThenInclude(asoc => asoc.Produs)
+                        .ThenInclude(prod => prod.PProduseCuCulori!)
+                            .ThenInclude(color => color.ImagProduseCuCulori)
+                .Include(set => set.SAsociereSeturi!)
+                    .ThenInclude(asoc => asoc.Produs)
+                        .ThenInclude(prod => prod.PProduseCuDimensiuni!)
+                            .ThenInclude(dim => dim.PdDimensiune)
+                .Include(set => set.SAsociereSeturi!)
+                    .ThenInclude(asoc => asoc.Produs)
+                        .ThenInclude(prod => prod.Producator)
+                .Include(set => set.SAsociereSeturi!)
+                    .ThenInclude(asoc => asoc.Manopera)
+                        .ThenInclude(man => man!.InelPrindereLaManopera)
+                .Include(set => set.SAsociereSeturi!)
+                    .ThenInclude(asoc => asoc.Manopera)
+                        .ThenInclude(man => man!.TipGalerieLaManopera)
+                .Include(set => set.SAsociereSeturi!)
+                    .ThenInclude(asoc => asoc.Manopera)
+                        .ThenInclude(man => man!.TipLinieLaManopera)
+                .Include(set => set.ReviewPeSet) 
                 .Where(set => set.NumeSet.ToLower() == setName.ToLower() && set.IdSet == setId
                               && set.SetActivInMagazin
                               && !set.IsDeleted)
@@ -1084,57 +1106,151 @@ public partial class SeturiService : ISeturiService
                 {
                     NumeSetDto = set.NumeSet,
                     PretSetDto = currency == "EUR" ? set.PretSet * (decimal)0.2 : set.PretSet,
-                    PretRedusSetDto =  currency == "EUR" ? set.PretRedusSet * (decimal)0.2 : set.PretRedusSet,
+                    PretRedusSetDto = currency == "EUR" ? set.PretRedusSet * (decimal)0.2 : set.PretRedusSet,
                     DescriereSetDto = set.DescriereSet,
                     ProdusePeSet = set.SAsociereSeturi!
+                        .GroupBy(product => product.Produs.CodProdus)
                         .Select(asoc => new ProductOnSet
                         {
-                            CodProdusDto = asoc.Produs.CodProdus,
-                            DescriereDto = asoc.Produs.Descriere,
-                            NumeProdusDto = asoc.Produs.NumeProdus,
-                            CompozitieDto = asoc.Produs.Compozitie,
-                            TvaDto = asoc.Produs.Tva,
-                            IngrijireDto = asoc.Produs.Ingrijire,
-                            FataReversibilaDto = asoc.Produs.FataReversibila,
-                            TipulProdusuluiDto = asoc.Produs.TipulProdusului,
-                            NumeProducatorDto = asoc.Produs.Producator!.NumeProducator,
-                            TipuriInele = asoc.Produs.TipulProdusului == "perdea" || asoc.Produs.TipulProdusului == "draperie" ?
-                                ringTypesDto : null,
-                            TipuriLinie = asoc.Produs.TipulProdusului == "perdea" || asoc.Produs.TipulProdusului == "draperie" ?
-                                liningTypesDto : null,
-                            TipuriRejansa = asoc.Produs.TipulProdusului == "perdea" || asoc.Produs.TipulProdusului == "draperie" ?
-                                rejanseTypesDto : null,
-                            SelectedColors = asoc.Produs.PProduseCuCulori!
-                                .AsQueryable()
-                                .Where(color => asoc.IdCuloare == null || asoc.IdCuloare == color.IdCuloare)
+                            IdProdus = asoc.First().IdProdus,
+                            CodProdusDto = asoc.Key,
+                            DescriereDto = asoc.First().Produs.Descriere,
+                            NumeProdusDto = asoc.First().Produs.NumeProdus,
+                            CompozitieDto = asoc.First().Produs.Compozitie,
+                            TvaDto = asoc.First().Produs.Tva,
+                            IngrijireDto = asoc.First().Produs.Ingrijire,
+                            FataReversibilaDto = asoc.First().Produs.FataReversibila,
+                            TipulProdusuluiDto = asoc.First().Produs.TipulProdusului,
+                            NumeProducatorDto = asoc.First().Produs.Producator != null 
+                                ? asoc.First().Produs.Producator!.NumeProducator 
+                                : null,
+                            SelectedColors = asoc
+                                .SelectMany(a => a.Produs.PProduseCuCulori!
+                                    .Where(color =>  a.IdCuloare == color.IdCuloare))
                                 .Select(colorDto => new CuloriDto
                                 {
+                                    IdCuloare = colorDto.IdCuloare,
                                     NumeCuloareDto = colorDto.Culoare.NumeCuloare,
                                     CodCuloareDto = colorDto.Culoare.CodCuloare.CodCuloare!,
                                     JustAdded = false,
-                                    ImaginiProdusDto = colorDto.ImagProduseCuCulori!
-                                        .Select(imag => new ImagesDto
-                                        {
-                                            CaleImagineDto = imag.CaleImagine!,
-                                            FisierInBucketDto = imag.FisierInBucket,
-                                            PresignedUrl = null,
-                                            JustAdded = false,
-                                        }).ToList()
+                                    ImaginiProdusDto = colorDto.ImagProduseCuCulori != null 
+                                        ? colorDto.ImagProduseCuCulori
+                                            .Select(imag => new ImagesDto
+                                            {
+                                                CaleImagineDto = imag.CaleImagine!,
+                                                FisierInBucketDto = imag.FisierInBucket,
+                                                PresignedUrl = null,
+                                                JustAdded = false,
+                                            }).ToList()
+                                        : new List<ImagesDto>()
                                 }).ToList(),
-                            SelectedDimensions = asoc.Produs.PProduseCuDimensiuni!
-                                .AsQueryable()
-                                .Where(dimension => asoc.IdDimensiune == null 
-                                                    || dimension.IdDimensiune == null 
-                                                    || asoc.IdDimensiune == dimension.IdDimensiune)
-                                .Select(dimensionDto => new DimensiuniDto
+                            
+                            SelectedDimensions = asoc
+                                .SelectMany(a => a.Produs.PProduseCuDimensiuni!
+                                        .Where(dimension =>  a.IdDimensiune == dimension.IdDimensiune)
+                                        .Select(dimensionDto => new DimensiuniDto
+                                        {
+                                            IdDimensiune = dimensionDto.IdDimensiune,
+                                            LungimeDto = dimensionDto.PdDimensiune!.Lungime,
+                                            LatimeDto = dimensionDto.PdDimensiune!.Latime,
+                                            RecomandarePat = dimensionDto.PdDimensiune!.RecomandarePat,
+                                            JustAdded = false,
+                                        })).Distinct()
+                                .ToList(),
+                            
+                            SelectedManopere = asoc
+                                .Where(manopera => manopera.IdManopera != null)
+                                .Select(man => new 
                                 {
-                                    LungimeDto = dimensionDto.PdDimensiune!.Lungime,
-                                    LatimeDto = dimensionDto.PdDimensiune!.Latime,
-                                    RecomandarePat = dimensionDto.PdDimensiune!.RecomandarePat,
-                                    JustAdded = false,
-                                }).ToList()
+                                    man.Manopera!.IdManopera,
+                                    NumeManopera = man.Manopera!.NumeManopera!,
+                                    man.Manopera.MaterialFolosit,
+                                    TipInel = man.Manopera.InelPrindereLaManopera,
+                                    TipGalerie = man.Manopera.TipGalerieLaManopera,
+                                    TipLinie = man.Manopera.TipLinieLaManopera
+                                })
+                                .Distinct()
+                                .Select(man => new StandardManopereOnSet
+                                {
+                                    IdManopera = man.IdManopera,
+                                    NumeManopera = man.NumeManopera,
+                                    MetruTotalFolosit = man.MaterialFolosit,
+                                    TipInel = new TipIneleDto
+                                    {
+                                        NumeTipInel = man.TipInel!.CuloareInel,
+                                        CaleRelativa = man.TipInel.CaleRelativa,
+                                        PresignedUrl = "empty"
+                                    },
+                                    TipGalerie = new TipRejansaDto
+                                    {
+                                        NumeTipRejansa = man.TipGalerie.NumeTipGalerie,
+                                        PretTipRejansa = 0,
+                                        IncretireRejansa =  man.TipGalerie.IncretireRejansa,
+                                        CaleRelativa =  man.TipGalerie.CaleRelativa,
+                                        PresignedUrl = "empty",
+                                        SePrindeCuInele =  man.TipGalerie.SePrindeCuInele
+                                    },
+                                    TipLinie = new TipLinieDto
+                                    {
+                                        NumeTipCusaturaColt = man.TipLinie.NumeTipLinie,
+                                        PretTipCusaturaColt = 0,
+                                        CaleRelativa = man.TipLinie.CaleRelativa,
+                                        PresignedUrl = "empty"
+                                    }
+                                }).ToList(),
+                            
+                        }).ToList(),
+                    ReviewsSet = set.ReviewPeSet!
+                        .Select(reviews => new ReviewsDto
+                        {
+                            NumarSteleDto = reviews.NumarStele,
+                            TextRecenzie = reviews.TextRecenzie,
+                            NumeClient = reviews.Cont.Nume,
+                            PrenumeClient = reviews.Cont.Prenume,
+                            UsernameContClient = reviews.Cont.Username!
                         }).ToList()
-                }).FirstAsync();
+                }).AsSplitQuery()
+                .FirstAsync();
+
+            foreach (var produs in setPageInfo.ProdusePeSet)
+            {
+                foreach (var culoare in produs.SelectedColors)
+                {
+                    if (culoare.ImaginiProdusDto.IsNullOrEmpty()) continue;
+                    foreach (var imagine in culoare.ImaginiProdusDto!)
+                    {
+                        imagine.PresignedUrl =
+                            await _bucketAcces.GenerateUrl(imagine.CaleImagineDto, imagine.FisierInBucketDto);
+                    }
+                }
+
+                if (produs.TipulProdusuluiDto is not ("perdea" or "draperie"))
+                {
+                    continue;
+                }
+                
+                foreach (var manopera in produs.SelectedManopere)
+                {
+                    if (manopera.TipInel?.CaleRelativa != null)
+                    {
+                        manopera.TipInel.PresignedUrl = await _bucketAcces
+                            .GenerateUrl(manopera.TipInel.CaleRelativa, "inele_prindere");
+                    }
+
+                    if (manopera.TipGalerie.CaleRelativa != null)
+                    {
+                        manopera.TipGalerie.PresignedUrl = await _bucketAcces
+                            .GenerateUrl(manopera.TipGalerie.CaleRelativa, "tipuri_galerie");
+                    }
+                    
+                    if (manopera.TipLinie.CaleRelativa != null)
+                    {
+                        manopera.TipLinie.PresignedUrl = await _bucketAcces
+                            .GenerateUrl(manopera.TipLinie.CaleRelativa, "tipuri_galerie");
+                    }
+                }
+            }
+           
 
             return new KeyValuePair<int, SetPage?>(1, setPageInfo);
         }
@@ -1146,6 +1262,8 @@ public partial class SeturiService : ISeturiService
                 return new KeyValuePair<int, SetPage?>(1,null);
             }
             _logger.LogError(e.Message);
+            _logger.LogError(e.StackTrace);
+            _logger.LogError($"Error name : {e.GetType().Name}");
             _logger.LogError("General error occured");
             return new KeyValuePair<int, SetPage?>(0,null);
                 

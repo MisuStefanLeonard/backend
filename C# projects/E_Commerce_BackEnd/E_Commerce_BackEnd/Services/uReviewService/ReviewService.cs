@@ -7,6 +7,7 @@ using E_Commerce_BackEnd.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.IdentityModel.Tokens;
+using Sqids;
 
 namespace E_Commerce_BackEnd.Services.uReviewService;
 
@@ -14,13 +15,15 @@ public class ReviewService : IReviewService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ITokenService _tokenService;
-    private ILogger<ReviewService> _logger;
+    private readonly ILogger<ReviewService> _logger;
+    private readonly SqidsEncoder<int> _sqidsEncoder;
 
-    public ReviewService(IUnitOfWork unitOfWork, ILogger<ReviewService> logger, ITokenService tokenService)
+    public ReviewService(IUnitOfWork unitOfWork, ILogger<ReviewService> logger, ITokenService tokenService, SqidsEncoder<int> sqidsEncoder)
     {
         _unitOfWork = unitOfWork;
         _logger = logger;
         _tokenService = tokenService;
+        _sqidsEncoder = sqidsEncoder;
     }
 
     public async Task<KeyValuePair<int, string>> PostReview(ReviewReceivedDto review , string token)
@@ -34,10 +37,18 @@ public class ReviewService : IReviewService
             Seturi setToBeReviewed = new();
             if (review.IdSet != null)
             {
-                isSet = true;
+                if (_sqidsEncoder.Decode(review.IdSet) is [var decodedId]
+                    && review.IdSet == _sqidsEncoder.Encode(decodedId))
+                {
+                    isSet = true;
+                    review.IdSet = decodedId.ToString();
+                }
+                else
+                {
+                    throw new Exception("Invalid id decoding of set");
+                }
+                
             }
-            
-            
             
             if (!isSet)
             {
@@ -52,7 +63,7 @@ public class ReviewService : IReviewService
             {
                 var setsRepository = _unitOfWork.Repository<Seturi>();
                 setToBeReviewed = await setsRepository
-                    .FindQueryable(set => set.IdSet == review.IdSet 
+                    .FindQueryable(set => set.IdSet == int.Parse(review.IdSet!)
                                           && set.SetActivInMagazin
                                           && !set.IsDeleted)
                     .FirstAsync();
@@ -88,7 +99,7 @@ public class ReviewService : IReviewService
             {
                 reviewToBePosted = new Reviews
                 {
-                    IdProdus = productToBeReviewed.IdProdus,
+                    IdProdus = null,
                     IdSet = setToBeReviewed.IdSet,
                     IdCont = userAccount.IdCont,
                     NumarStele = review.StarsReview,

@@ -1,3 +1,4 @@
+using E_Commerce_BackEnd.Models.Enums;
 using E_Commerce_BackEnd.Models.OrderRelatedModels;
 using E_Commerce_BackEnd.Models.ProductRelatedModels;
 using E_Commerce_BackEnd.Models.ProductVouchersModels;
@@ -810,6 +811,11 @@ public class ECommerceContext : DbContext
                 .HasColumnName("id_manopera")
                 .HasColumnType("int(1)");
 
+            entity.Property(e => e.NumeManopera)
+                .HasColumnType("varchar(70)")
+                .HasColumnName("nume_manopera")
+                .HasMaxLength(70);
+
             entity.Property(e => e.IdInelPrindere)
                 .HasColumnType("integer")
                 .HasColumnName("id_inel_prindere");
@@ -841,11 +847,25 @@ public class ECommerceContext : DbContext
                 .HasPrecision(6, 2)
                 .HasColumnName("material_folosit")
                 .IsRequired();
+            
+            
+            entity.Property(e => e.TipManopera)
+                .HasColumnName("tip_manopera")
+                .HasConversion<string>()
+                .HasDefaultValue(TipManopere.Aleasa)
+                .HasMaxLength(10)
+                .IsRequired();
 
             entity.HasMany(e => e.ManopereCuComenzi)
                 .WithOne(pc => pc.PcManopera)
                 .HasForeignKey(pc => pc.IdManopera)
                 .HasConstraintName("FK_Manopera_ProduseComenzi");
+            
+            entity.HasMany(e => e.ManopereStandardPeSet)
+                .WithOne(asoc => asoc.Manopera)
+                .HasForeignKey(asoc => asoc.IdManopera)
+                .HasConstraintName("FK_Manopera_AsociereSeturi");
+            
 
         });
 
@@ -925,6 +945,10 @@ public class ECommerceContext : DbContext
             entity.Property(e => e.IdCuloare)
                 .HasColumnType("integer")
                 .HasColumnName("id_culoare");
+            
+            entity.Property(e => e.IdManopera)
+                .HasColumnType("integer")
+                .HasColumnName("id_manopera");
 
             entity.HasOne(asoc => asoc.Produs)
                 .WithMany(prod => prod.PAsociereSeturi)

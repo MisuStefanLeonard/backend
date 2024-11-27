@@ -8,13 +8,15 @@
     ".NETCoreApp,Version=v8.0": {
       "E_Commerce_BackEnd/1.0.0": {
         "dependencies": {
-          "AWSSDK.Core": "3.7.400.3",
-          "AWSSDK.KeyManagementService": "3.7.400.3",
-          "AWSSDK.S3": "3.7.400.3",
-          "AWSSDK.SecretsManager": "3.7.400.3",
+          "AWSSDK.Core": "4.0.0-preview.4",
+          "AWSSDK.ElastiCache": "4.0.0-preview.4",
+          "AWSSDK.Extensions.NETCore.Setup": "4.0.0-preview.4",
+          "AWSSDK.KeyManagementService": "4.0.0-preview.4",
+          "AWSSDK.S3": "4.0.0-preview.4",
+          "AWSSDK.SecretsManager": "4.0.0-preview.4",
           "AWSSDK.SecretsManager.Caching": "1.0.6",
-          "AWSSDK.SimpleSystemsManagement": "3.7.401.1",
-          "Amazon.AspNetCore.DataProtection.SSM": "3.2.1",
+          "AWSSDK.SimpleSystemsManagement": "4.0.0-preview.4",
+          "Amazon.AspNetCore.DataProtection.SSM": "4.0.0-preview.2",
           "Amazon.CDK.AWS.SecretsManager": "1.204.0",
           "AutoMapper": "13.0.1",
           "BCrypt.Net-Next": "4.0.3",
@@ -24,7 +26,7 @@
           "Microsoft.AspNetCore.Authentication.Google": "8.0.7",
           "Microsoft.AspNetCore.Authentication.JwtBearer": "8.0.7",
           "Microsoft.AspNetCore.DataProtection": "9.0.0-preview.6.24328.4",
-          "Microsoft.AspNetCore.DataProtection.Extensions": "8.0.7",
+          "Microsoft.AspNetCore.DataProtection.Extensions": "8.0.10",
           "Microsoft.AspNetCore.RateLimiting": "7.0.0-rc.2.22476.2",
           "Microsoft.EntityFrameworkCore": "8.0.6",
           "Microsoft.EntityFrameworkCore.Design": "8.0.6",
@@ -45,16 +47,16 @@
           "E_Commerce_BackEnd.dll": {}
         }
       },
-      "Amazon.AspNetCore.DataProtection.SSM/3.2.1": {
+      "Amazon.AspNetCore.DataProtection.SSM/4.0.0-preview.2": {
         "dependencies": {
-          "AWSSDK.Extensions.NETCore.Setup": "3.7.300",
-          "AWSSDK.SimpleSystemsManagement": "3.7.401.1",
-          "Microsoft.AspNetCore.DataProtection.Extensions": "8.0.7"
+          "AWSSDK.Extensions.NETCore.Setup": "4.0.0-preview.4",
+          "AWSSDK.SimpleSystemsManagement": "4.0.0-preview.4",
+          "Microsoft.AspNetCore.DataProtection.Extensions": "8.0.10"
         },
         "runtime": {
           "lib/net8.0/Amazon.AspNetCore.DataProtection.SSM.dll": {
-            "assemblyVersion": "3.2.1.0",
-            "fileVersion": "3.2.1.0"
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.0.0"
           }
         }
       },
@@ -494,7 +496,7 @@
       },
       "Amazon.JSII.Runtime/1.84.0": {
         "dependencies": {
-          "Microsoft.Extensions.DependencyInjection": "8.0.0",
+          "Microsoft.Extensions.DependencyInjection": "8.0.1",
           "Microsoft.Extensions.Logging": "8.0.0",
           "Microsoft.Extensions.Logging.Console": "5.0.0",
           "Newtonsoft.Json": "13.0.3"
@@ -517,64 +519,75 @@
           }
         }
       },
-      "AWSSDK.Core/3.7.400.3": {
+      "AWSSDK.Core/4.0.0-preview.4": {
         "runtime": {
           "lib/net8.0/AWSSDK.Core.dll": {
-            "assemblyVersion": "3.3.0.0",
-            "fileVersion": "3.7.400.3"
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.0.0"
           }
         }
       },
-      "AWSSDK.Extensions.NETCore.Setup/3.7.300": {
+      "AWSSDK.ElastiCache/4.0.0-preview.4": {
         "dependencies": {
-          "AWSSDK.Core": "3.7.400.3",
+          "AWSSDK.Core": "4.0.0-preview.4"
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.ElastiCache.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.0.0"
+          }
+        }
+      },
+      "AWSSDK.Extensions.NETCore.Setup/4.0.0-preview.4": {
+        "dependencies": {
+          "AWSSDK.Core": "4.0.0-preview.4",
           "Microsoft.Extensions.Configuration.Abstractions": "9.0.0-preview.6.24327.7",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "9.0.0-preview.6.24327.7",
           "Microsoft.Extensions.Logging.Abstractions": "9.0.0-preview.6.24327.7"
         },
         "runtime": {
           "lib/net8.0/AWSSDK.Extensions.NETCore.Setup.dll": {
-            "assemblyVersion": "3.3.0.0",
-            "fileVersion": "3.7.7.0"
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.0.0"
           }
         }
       },
-      "AWSSDK.KeyManagementService/3.7.400.3": {
+      "AWSSDK.KeyManagementService/4.0.0-preview.4": {
         "dependencies": {
-          "AWSSDK.Core": "3.7.400.3"
+          "AWSSDK.Core": "4.0.0-preview.4"
         },
         "runtime": {
           "lib/net8.0/AWSSDK.KeyManagementService.dll": {
-            "assemblyVersion": "3.3.0.0",
-            "fileVersion": "3.7.400.3"
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.0.0"
           }
         }
       },
-      "AWSSDK.S3/3.7.400.3": {
+      "AWSSDK.S3/4.0.0-preview.4": {
         "dependencies": {
-          "AWSSDK.Core": "3.7.400.3"
+          "AWSSDK.Core": "4.0.0-preview.4"
         },
         "runtime": {
           "lib/net8.0/AWSSDK.S3.dll": {
-            "assemblyVersion": "3.3.0.0",
-            "fileVersion": "3.7.400.3"
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.0.0"
           }
         }
       },
-      "AWSSDK.SecretsManager/3.7.400.3": {
+      "AWSSDK.SecretsManager/4.0.0-preview.4": {
         "dependencies": {
-          "AWSSDK.Core": "3.7.400.3"
+          "AWSSDK.Core": "4.0.0-preview.4"
         },
         "runtime": {
           "lib/net8.0/AWSSDK.SecretsManager.dll": {
-            "assemblyVersion": "3.3.0.0",
-            "fileVersion": "3.7.400.3"
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.0.0"
           }
         }
       },
       "AWSSDK.SecretsManager.Caching/1.0.6": {
         "dependencies": {
-          "AWSSDK.SecretsManager": "3.7.400.3",
+          "AWSSDK.SecretsManager": "4.0.0-preview.4",
           "Microsoft.Extensions.Caching.Memory": "8.0.0"
         },
         "runtime": {
@@ -584,14 +597,14 @@
           }
         }
       },
-      "AWSSDK.SimpleSystemsManagement/3.7.401.1": {
+      "AWSSDK.SimpleSystemsManagement/4.0.0-preview.4": {
         "dependencies": {
-          "AWSSDK.Core": "3.7.400.3"
+          "AWSSDK.Core": "4.0.0-preview.4"
         },
         "runtime": {
           "lib/net8.0/AWSSDK.SimpleSystemsManagement.dll": {
-            "assemblyVersion": "3.3.0.0",
-            "fileVersion": "3.7.401.1"
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.0.0"
           }
         }
       },
@@ -1517,15 +1530,15 @@
           }
         }
       },
-      "Microsoft.AspNetCore.DataProtection.Extensions/8.0.7": {
+      "Microsoft.AspNetCore.DataProtection.Extensions/8.0.10": {
         "dependencies": {
           "Microsoft.AspNetCore.DataProtection": "9.0.0-preview.6.24328.4",
-          "Microsoft.Extensions.DependencyInjection": "8.0.0"
+          "Microsoft.Extensions.DependencyInjection": "8.0.1"
         },
         "runtime": {
           "lib/net8.0/Microsoft.AspNetCore.DataProtection.Extensions.dll": {
             "assemblyVersion": "8.0.0.0",
-            "fileVersion": "8.0.724.31402"
+            "fileVersion": "8.0.1024.46804"
           }
         }
       },
@@ -2217,9 +2230,15 @@
           "Microsoft.Extensions.Configuration.Abstractions": "9.0.0-preview.6.24327.7"
         }
       },
-      "Microsoft.Extensions.DependencyInjection/8.0.0": {
+      "Microsoft.Extensions.DependencyInjection/8.0.1": {
         "dependencies": {
           "Microsoft.Extensions.DependencyInjection.Abstractions": "9.0.0-preview.6.24327.7"
+        },
+        "runtime": {
+          "lib/net8.0/Microsoft.Extensions.DependencyInjection.dll": {
+            "assemblyVersion": "8.0.0.0",
+            "fileVersion": "8.0.1024.46610"
+          }
         }
       },
       "Microsoft.Extensions.DependencyInjection.Abstractions/9.0.0-preview.6.24327.7": {
@@ -2283,7 +2302,7 @@
       },
       "Microsoft.Extensions.Logging/8.0.0": {
         "dependencies": {
-          "Microsoft.Extensions.DependencyInjection": "8.0.0",
+          "Microsoft.Extensions.DependencyInjection": "8.0.1",
           "Microsoft.Extensions.Logging.Abstractions": "9.0.0-preview.6.24327.7",
           "Microsoft.Extensions.Options": "9.0.0-preview.6.24327.7"
         }
@@ -2468,7 +2487,7 @@
       },
       "Microsoft.VisualStudio.Web.CodeGeneration/8.0.2": {
         "dependencies": {
-          "Microsoft.Extensions.DependencyInjection": "8.0.0",
+          "Microsoft.Extensions.DependencyInjection": "8.0.1",
           "Microsoft.VisualStudio.Web.CodeGeneration.EntityFrameworkCore": "8.0.2"
         },
         "runtime": {
@@ -2480,7 +2499,7 @@
       },
       "Microsoft.VisualStudio.Web.CodeGeneration.Core/8.0.2": {
         "dependencies": {
-          "Microsoft.Extensions.DependencyInjection": "8.0.0",
+          "Microsoft.Extensions.DependencyInjection": "8.0.1",
           "Microsoft.VisualStudio.Web.CodeGeneration.Templating": "8.0.2",
           "Newtonsoft.Json": "13.0.3"
         },
@@ -3420,12 +3439,12 @@
       "serviceable": false,
       "sha512": ""
     },
-    "Amazon.AspNetCore.DataProtection.SSM/3.2.1": {
+    "Amazon.AspNetCore.DataProtection.SSM/4.0.0-preview.2": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-zkircc3Sk3/KJ4ailokzn0oqzhF/jguA6e31H9asu48eI9aimoYoDNHsK/a77jt1LaWcVhG59SihXg/OYFPYmQ==",
-      "path": "amazon.aspnetcore.dataprotection.ssm/3.2.1",
-      "hashPath": "amazon.aspnetcore.dataprotection.ssm.3.2.1.nupkg.sha512"
+      "sha512": "sha512-gtjHfa6xxcqUPug7+hsNQwzE3jUYhsJoaXlrL3ylV4lfWDlX0Z74b7Q1C0/2tsvyrYOwC0pSXHn7q5Hlb+nK5w==",
+      "path": "amazon.aspnetcore.dataprotection.ssm/4.0.0-preview.2",
+      "hashPath": "amazon.aspnetcore.dataprotection.ssm.4.0.0-preview.2.nupkg.sha512"
     },
     "Amazon.CDK/1.204.0": {
       "type": "package",
@@ -3630,40 +3649,47 @@
       "path": "automapper/13.0.1",
       "hashPath": "automapper.13.0.1.nupkg.sha512"
     },
-    "AWSSDK.Core/3.7.400.3": {
+    "AWSSDK.Core/4.0.0-preview.4": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-Sw88+Hdw1OsA0++zImHbYJa7FA6OznFhtbB9wJjrAA5O4i/LOhqu1Zh7YjLBL4n1hkicbHSAlPmHP6Kgw70Xkg==",
-      "path": "awssdk.core/3.7.400.3",
-      "hashPath": "awssdk.core.3.7.400.3.nupkg.sha512"
+      "sha512": "sha512-VeekkHkQVHoQ/5n0Bmbzh0dlfqksMLMYftijZs6zIZ3uv1JWGDTxWHNw3H7FSf1933x1DQRTLSnPbvpTwVLbxw==",
+      "path": "awssdk.core/4.0.0-preview.4",
+      "hashPath": "awssdk.core.4.0.0-preview.4.nupkg.sha512"
     },
-    "AWSSDK.Extensions.NETCore.Setup/3.7.300": {
+    "AWSSDK.ElastiCache/4.0.0-preview.4": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-zMxAHFYSAWHsVV9Cn96nE+V40agRCjT0etF10f0d/nFMMb1z7lecVwNadq9JYyqlDj+jsVRH9ydk4Al4v/1+jg==",
-      "path": "awssdk.extensions.netcore.setup/3.7.300",
-      "hashPath": "awssdk.extensions.netcore.setup.3.7.300.nupkg.sha512"
+      "sha512": "sha512-mfrF58Lg4TspzgZhziSYXHdCSId3EMfMb/Cp6XaZCr2L2dr7S7fkosSm7CrKoQ8fHw6yVywNTKqlaVFHBpyZ7g==",
+      "path": "awssdk.elasticache/4.0.0-preview.4",
+      "hashPath": "awssdk.elasticache.4.0.0-preview.4.nupkg.sha512"
     },
-    "AWSSDK.KeyManagementService/3.7.400.3": {
+    "AWSSDK.Extensions.NETCore.Setup/4.0.0-preview.4": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-tdDFS3uOI8FIptIFLGzvgbe4nIFuIMtht4iMK75hhZZjE0ldU+TgVqaf0blNHl5v4VYN1Hr0pfnENJ7iZEYuTg==",
-      "path": "awssdk.keymanagementservice/3.7.400.3",
-      "hashPath": "awssdk.keymanagementservice.3.7.400.3.nupkg.sha512"
+      "sha512": "sha512-QWv5xIi2cnloYTK7KikBl93i+bVZ3g0N6Bew9qHqj+tex1EtkYun5ay8xi8nV0D6pA3S3M3b0+45sU8RPDNE2Q==",
+      "path": "awssdk.extensions.netcore.setup/4.0.0-preview.4",
+      "hashPath": "awssdk.extensions.netcore.setup.4.0.0-preview.4.nupkg.sha512"
     },
-    "AWSSDK.S3/3.7.400.3": {
+    "AWSSDK.KeyManagementService/4.0.0-preview.4": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-lxnDAjuQPRAALyzmPyeDzTLVU3t0o5CTS59lywCC4GEW0iHwiJH6JIGJW2yHrd0kuXcrOpyhiAzv7Hcbb24zsQ==",
-      "path": "awssdk.s3/3.7.400.3",
-      "hashPath": "awssdk.s3.3.7.400.3.nupkg.sha512"
+      "sha512": "sha512-EADeKCtJqdPJcDMV2PEQfpbMYKGxHqe8hr6LXtVc5N1jpfv3eKBPCSfqKohH9gwK9iop2HBBe+tMXd6UGVgT3Q==",
+      "path": "awssdk.keymanagementservice/4.0.0-preview.4",
+      "hashPath": "awssdk.keymanagementservice.4.0.0-preview.4.nupkg.sha512"
     },
-    "AWSSDK.SecretsManager/3.7.400.3": {
+    "AWSSDK.S3/4.0.0-preview.4": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-cYr7wJ/TFVn0ScrC950cdnhp/GWAssepMJ0wNgazVHljZZDAE0nAkSBaEnoGjSbiY0zSA04/OrqHOQa9fP3Y6w==",
-      "path": "awssdk.secretsmanager/3.7.400.3",
-      "hashPath": "awssdk.secretsmanager.3.7.400.3.nupkg.sha512"
+      "sha512": "sha512-pyCEtKBH5lSKlibD2shIBKsP4iQuKPFSVWQQloCrfUIN2ht1TnuD+6UYF1a4SPbBBU6xc8JQDamZe05KJWs+7g==",
+      "path": "awssdk.s3/4.0.0-preview.4",
+      "hashPath": "awssdk.s3.4.0.0-preview.4.nupkg.sha512"
+    },
+    "AWSSDK.SecretsManager/4.0.0-preview.4": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-BffRsNBJKE4iCYlr3HkushWK/SdyWQsOpuTIODhtc+4bRzljqAYr8V9l0sweir4ZuWBuurK2LCwrjjjPDtYLxw==",
+      "path": "awssdk.secretsmanager/4.0.0-preview.4",
+      "hashPath": "awssdk.secretsmanager.4.0.0-preview.4.nupkg.sha512"
     },
     "AWSSDK.SecretsManager.Caching/1.0.6": {
       "type": "package",
@@ -3672,12 +3698,12 @@
       "path": "awssdk.secretsmanager.caching/1.0.6",
       "hashPath": "awssdk.secretsmanager.caching.1.0.6.nupkg.sha512"
     },
-    "AWSSDK.SimpleSystemsManagement/3.7.401.1": {
+    "AWSSDK.SimpleSystemsManagement/4.0.0-preview.4": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-4DC0aCISFl9YHR+wz4WD0dD/iWYNbiGgUPnyp3REiHtMszb1+Z8mV/ohaJOlk5dkQeF8PVq+TWrLqBT7JmjuSQ==",
-      "path": "awssdk.simplesystemsmanagement/3.7.401.1",
-      "hashPath": "awssdk.simplesystemsmanagement.3.7.401.1.nupkg.sha512"
+      "sha512": "sha512-Mmzw+M5J1BfB4wNHVcc19ru/MMzIw9+vQQ3+Gked2aCRNNm1D+wJfhXOs6IPpmHzzh2ayL28L0Fq74zW4x49kA==",
+      "path": "awssdk.simplesystemsmanagement/4.0.0-preview.4",
+      "hashPath": "awssdk.simplesystemsmanagement.4.0.0-preview.4.nupkg.sha512"
     },
     "Azure.Core/1.35.0": {
       "type": "package",
@@ -4260,12 +4286,12 @@
       "path": "microsoft.aspnetcore.dataprotection.abstractions/9.0.0-preview.6.24328.4",
       "hashPath": "microsoft.aspnetcore.dataprotection.abstractions.9.0.0-preview.6.24328.4.nupkg.sha512"
     },
-    "Microsoft.AspNetCore.DataProtection.Extensions/8.0.7": {
+    "Microsoft.AspNetCore.DataProtection.Extensions/8.0.10": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-VaSJEvCGq1/eZNLV2qAX1YukHAAosXd3Q8qLfMOC25IJGa2lkCYEPNO9RO4Jd8T56DvA7aDpwfehWEIyuMZzXg==",
-      "path": "microsoft.aspnetcore.dataprotection.extensions/8.0.7",
-      "hashPath": "microsoft.aspnetcore.dataprotection.extensions.8.0.7.nupkg.sha512"
+      "sha512": "sha512-s8Uhe0i8wQfuChqaS6/uxR4JW6Qiief4trcPybDPVfr/GvFTcS8IPjxHf7g098+Wc3f3OVpZtAazLFTid22M8Q==",
+      "path": "microsoft.aspnetcore.dataprotection.extensions/8.0.10",
+      "hashPath": "microsoft.aspnetcore.dataprotection.extensions.8.0.10.nupkg.sha512"
     },
     "Microsoft.AspNetCore.RateLimiting/7.0.0-rc.2.22476.2": {
       "type": "package",
@@ -4519,12 +4545,12 @@
       "path": "microsoft.extensions.configuration.binder/5.0.0",
       "hashPath": "microsoft.extensions.configuration.binder.5.0.0.nupkg.sha512"
     },
-    "Microsoft.Extensions.DependencyInjection/8.0.0": {
+    "Microsoft.Extensions.DependencyInjection/8.0.1": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-V8S3bsm50ig6JSyrbcJJ8bW2b9QLGouz+G1miK3UTaOWmMtFwNNNzUf4AleyDWUmTrWMLNnFSLEQtxmxgNQnNQ==",
-      "path": "microsoft.extensions.dependencyinjection/8.0.0",
-      "hashPath": "microsoft.extensions.dependencyinjection.8.0.0.nupkg.sha512"
+      "sha512": "sha512-BmANAnR5Xd4Oqw7yQ75xOAYODybZQRzdeNucg7kS5wWKd2PNnMdYtJ2Vciy0QLylRmv42DGl5+AFL9izA6F1Rw==",
+      "path": "microsoft.extensions.dependencyinjection/8.0.1",
+      "hashPath": "microsoft.extensions.dependencyinjection.8.0.1.nupkg.sha512"
     },
     "Microsoft.Extensions.DependencyInjection.Abstractions/9.0.0-preview.6.24327.7": {
       "type": "package",

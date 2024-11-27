@@ -3,6 +3,7 @@ using E_Commerce_BackEnd.Models.DTO.AdminRelatedDtos.Accounts;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.BulkOperationsDto;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.InelePrindereDtos;
+using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ManopereDto.ManoperaModification;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.SeturiDtos;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.TipuriGalerieDtos;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.TipuriLinieDtos;
@@ -12,6 +13,7 @@ using E_Commerce_BackEnd.Services.Helpers.adminHelpers;
 using E_Commerce_BackEnd.Services.uAdminService;
 using E_Commerce_BackEnd.Services.uBucketService;
 using E_Commerce_BackEnd.Services.uInelePrindereService;
+using E_Commerce_BackEnd.Services.uManopereService;
 using E_Commerce_BackEnd.Services.uProductsService;
 using E_Commerce_BackEnd.Services.uService;
 using E_Commerce_BackEnd.Services.uSeturiService;
@@ -42,13 +44,14 @@ namespace E_Commerce_BackEnd.Controllers
         private readonly IUserService _userService;
         private readonly DocumentProcessing _documentProcessing;
         private readonly IBucketService _bucketService;
+        private readonly IManopereService _manopereService;
         private readonly SqidsEncoder<int> _sqidsEncoder;
 
         public AdminController(IAdminService adminService
             , DocumentProcessing documentProcessing, IProductService productService, ISeturiService seturiService, 
              SqidsEncoder<int> sqidsEncoder, 
             IInelePrindereService inelePrindereService, ITipuriGalerieService tipuriGalerieService, 
-            ITipuriLinieService tipuriLinieService, IUserService userService, IVoucherService voucherService, IBucketService bucketService)
+            ITipuriLinieService tipuriLinieService, IUserService userService, IVoucherService voucherService, IBucketService bucketService, IManopereService manopereService)
         {
             _adminService = adminService;
             _documentProcessing = documentProcessing;
@@ -61,6 +64,7 @@ namespace E_Commerce_BackEnd.Controllers
             _userService = userService;
             _voucherService = voucherService;
             _bucketService = bucketService;
+            _manopereService = manopereService;
         }
 
        
@@ -103,8 +107,8 @@ namespace E_Commerce_BackEnd.Controllers
 
             if (lowerInterval != null && upperInterval != null)
             {
-                var lowerIntervalToDateTime = DateTime.Parse(lowerInterval!);
-                var upperIntervalToDateTime = DateTime.Parse(upperInterval!);
+                var lowerIntervalToDateTime = DateTime.Parse(lowerInterval);
+                var upperIntervalToDateTime = DateTime.Parse(upperInterval);
                 var dashBoardData = await _adminService.GetMainDashboardData(lowerIntervalToDateTime,upperIntervalToDateTime);
                 return Ok(dashBoardData);
             }
@@ -528,7 +532,7 @@ namespace E_Commerce_BackEnd.Controllers
                     return BadRequest("Invalid deserializing from the JSON to Dto");
                 }
 
-                var updateResponse = await _seturiService.ModifyOrUpdateSet(modifiedSetToDto, decodedId, false);
+                var updateResponse = await _seturiService.AddOrUpdateSet(modifiedSetToDto, decodedId, false);
 
                 if (updateResponse == 1)
                 {
@@ -547,14 +551,18 @@ namespace E_Commerce_BackEnd.Controllers
         {
             
             var newSetToDto = JsonConvert.DeserializeObject<SetModificationDto>(newSet);
-            
+
+            foreach (var product in newSetToDto.ProductsOnSet)
+            {
+                Console.WriteLine($"Nume produs : {product.NumeProdusDto} - {product.TipProdusDto}");
+            }
 
             if (newSetToDto is null)
             {
                 return BadRequest("Invalid deserializing from the JSON to Dto");
             }
 
-            var updateResponse = await _seturiService.ModifyOrUpdateSet(newSetToDto, 0, true);
+            var updateResponse = await _seturiService.AddOrUpdateSet(newSetToDto, 0, true);
 
             if (updateResponse == 1)
             {
@@ -583,191 +591,6 @@ namespace E_Commerce_BackEnd.Controllers
 
             return Ok(data);
         }
-        
-        // [HttpGet("materiale")]
-        // [Authorize]
-        // public async Task<IActionResult> GetMaterials()
-        // {
-        //     var materials = await _materialsService.GetMaterials();
-        //     
-        //     return Ok(materials);
-        // }
-
-        // [HttpGet("materiale/nume")]
-        // [Authorize]
-        // public async Task<IActionResult> GetMaterialsName()
-        // {
-        //     var materialsNames = await _materialsService.GetMaterialsNames();
-        //
-        //     return Ok(materialsNames);
-        // }
-
-        // [HttpGet("material/{encodedIdMaterial}")]
-        // [Authorize]
-        // public async Task<IActionResult> GetMaterialById([FromRoute] string encodedIdMaterial)
-        // {
-        //     Console.WriteLine($",material ncoede + {encodedIdMaterial}");
-        //     if (_sqidsEncoder.Decode(encodedIdMaterial) is [var decodedId]
-        //         && encodedIdMaterial == _sqidsEncoder.Encode(decodedId))
-        //     {
-        //         var material = await _materialsService.GetMaterialPage(decodedId);
-        //
-        //         return Ok(material);
-        //     }
-        //    
-        //     return NotFound("Invalid material ID ");
-        //     
-        //     
-        //     
-        // }
-        
-        // [HttpDelete("material/{encodedIdMaterial}/image/delete")]
-        // [Authorize]
-        // public async Task<IActionResult> DeleteImageForMaterial([FromRoute] string encodedIdMaterial)
-        // {
-        //
-        //     if (_sqidsEncoder.Decode(encodedIdMaterial) is [var decodedId]
-        //         && encodedIdMaterial == _sqidsEncoder.Encode(decodedId))
-        //     {
-        //         var materialImageDeletionResponse = await _materialsService.DeleteMaterialImage(decodedId);
-        //
-        //         if (materialImageDeletionResponse == 1)
-        //         {
-        //             return Ok("Deleted Succesfully");
-        //         }
-        //         return BadRequest("An error happenned when deleting the product");
-        //     }
-        //     
-        //     return BadRequest("Invalid id material");
-        //     
-        //     
-        // }
-
-        // [HttpPut("material/{encodedIdMaterial}/update")]
-        // [Authorize]
-        // public async Task<IActionResult> UpdateMaterial([FromForm] IFormFileCollection image, [FromRoute] string encodedIdMaterial 
-        //     , [FromForm] string modifiedMaterial)
-        // {
-        //     Console.WriteLine(encodedIdMaterial);
-        //     if (_sqidsEncoder.Decode(encodedIdMaterial) is [var decodedId]
-        //         && encodedIdMaterial == _sqidsEncoder.Encode(decodedId))
-        //     {
-        //         var modifiedMaterialToDto = JsonConvert.DeserializeObject<MaterialeDto>(modifiedMaterial);
-        //
-        //         if (modifiedMaterialToDto is null)
-        //         {
-        //             return NotFound("Material not found");
-        //         }
-        //
-        //         var response =
-        //             await _materialsService.ModifyOrAddMaterial(modifiedMaterialToDto, image, decodedId, false);
-        //
-        //         return response switch
-        //         {
-        //             1 => Ok("Modified succesfully"),
-        //             -1 => BadRequest("NullReferenceException "),
-        //             -2 => StatusCode(515, "Duplicate image name in the bucket"),
-        //             _ => StatusCode(500, "General error occured")
-        //         };
-        //         
-        //     }
-        //
-        //     return StatusCode(505, "Reached here , not good");
-        // }
-
-        // [HttpPost("material/add")]
-        // [Authorize]
-        // public async Task<IActionResult> AddMaterial([FromForm] IFormFileCollection image, [FromForm] string newMaterial)
-        // {
-        //     
-        //     var newMaterialToDto = JsonConvert.DeserializeObject<MaterialeDto>(newMaterial);
-        //
-        //     if (newMaterialToDto is null)
-        //     {
-        //         return NotFound("Material converted to DTO is null");
-        //     }
-        //
-        //     var responseFromAddingMaterial = await _materialsService.ModifyOrAddMaterial(newMaterialToDto, image, 0, true);
-        //     
-        //     return responseFromAddingMaterial switch
-        //     {
-        //         1 => Ok("Modified succesfully"),
-        //         -1 => BadRequest("NullReferenceException "),
-        //         -2 => StatusCode(515, "Duplicate image name in the bucket"),
-        //         _ => StatusCode(500, "General error occured")
-        //     };
-        //
-        // }
-
-        // [HttpDelete("material/delete/{encodedIdMaterial}")]
-        // [Authorize]
-        // public async Task<IActionResult> DeleteMaterialById([FromRoute] string encodedIdMaterial)
-        // {
-        //     if (_sqidsEncoder.Decode(encodedIdMaterial) is [var decodedId]
-        //         && encodedIdMaterial == _sqidsEncoder.Encode(decodedId))
-        //     {
-        //         var deleteMaterialResponse = await _materialsService.DeleteMaterial(decodedId);
-        //
-        //         if (deleteMaterialResponse == 1)
-        //         {
-        //             return Ok("Succesfully deleted material");
-        //         }
-        //         return BadRequest("An error happenned when deleting the material");
-        //     }
-        //
-        //     return BadRequest("An error happenned when deleting the material");
-        // }
-
-        // [HttpPut("materiale/deleteSelected")]
-        // [Authorize]
-        // public async Task<IActionResult> DeleteSelectedMaterialsById([FromBody] BulkOperationsDto deleteOperation)
-        // {
-        //     var responseFromBulkDeletionOnMaterials =  
-        //         await _materialsService.DeleteSelected(deleteOperation);
-        //
-        //     if (responseFromBulkDeletionOnMaterials == 1)
-        //     {
-        //         return Ok("Deleted succesfully the selected materials");
-        //     }
-        //
-        //     return BadRequest("Error on deleting the selected materials");
-        // }
-        //
-        // [HttpPut("materiale/activateSelected")]
-        // [Authorize]
-        // public async Task<IActionResult> ActivateSelectedMaterialsById([FromBody] BulkOperationsDto updateOperation)
-        // {
-        //     var responseFromBulkActivationOnMaterials =  
-        //         await _materialsService.ActivateSelectedMaterials(updateOperation);
-        //
-        //     if (responseFromBulkActivationOnMaterials == 1)
-        //     {
-        //         return Ok("Activated succesfully the selected materials");
-        //     }
-        //
-        //     return BadRequest("Error on activating the selected materials");
-        // }
-        //
-        // [HttpPut("material/toggleActivationState/{encodedIdMaterial}/{activationState}")]
-        // [Authorize]
-        // public async Task<IActionResult> ToggleMaterialActivationState([FromRoute] string encodedIdMaterial , [FromRoute] bool activationState)
-        // {
-        //     if (_sqidsEncoder.Decode(encodedIdMaterial) is [var decodedId]
-        //         && encodedIdMaterial == _sqidsEncoder.Encode(decodedId))
-        //     {
-        //         var responseFromTogglingActivationState = await
-        //             _materialsService.ToggleActivationStateInShop(decodedId, activationState);
-        //
-        //         if (responseFromTogglingActivationState == 1)
-        //         {
-        //             return Ok("Succesfully toggled the state of the material");
-        //         }
-        //         
-        //         return BadRequest("Something happened when toggling the state of the material");
-        //     }
-        //
-        //     return BadRequest("Something happened when toggling the state of the material");
-        // }
         
         
         [HttpGet("inele")]
@@ -1486,6 +1309,90 @@ namespace E_Commerce_BackEnd.Controllers
 
             return Ok(orders);
         }
+
+
+        [HttpGet("manopere")]
+        [Authorize]
+        public async Task<IActionResult> GetManopere()
+        {
+            var manopere = await _manopereService.GetManopere();
+            return Ok(manopere);
+        }
+        
+        
+        [HttpGet("manopera/{encodedIdManopera}")]
+        [Authorize]
+        public async Task<IActionResult> GetManopere([FromRoute] string encodedIdManopera)
+        {
+            if (_sqidsEncoder.Decode(encodedIdManopera) is [var decodedId]
+                && encodedIdManopera == _sqidsEncoder.Encode(decodedId))
+            {
+                var manoperaPage = await _manopereService.GetManoperaForModification(decodedId , TipManopere.Standard);
+                if (manoperaPage == null)
+                {
+                    return NotFound("Error occured!Lining type or Ring type or Galery type not found");
+                }
+                
+                return Ok(manoperaPage);
+            }
+
+            return BadRequest("Invalid id after decoding");
+        }
+
+        [HttpGet("manopere/options")]
+        [Authorize]
+        public async Task<IActionResult> GetManopereOptions()
+        {
+            var options = await _manopereService.GetAvailableOptions();
+            return Ok(options);
+        }
+        
+        [HttpPost("manopera/{encodedIdManopera}/{isUpdating:bool}")]
+        [Authorize]
+        public async Task<IActionResult> GetManopere([FromRoute] string encodedIdManopera, [FromRoute] bool isUpdating,
+            [FromForm] string manoperaUpdated)
+        {
+            
+            int? decodedId = null;
+            if (encodedIdManopera != "0")
+            {
+                if (_sqidsEncoder.Decode(encodedIdManopera) is [var id]
+                    && encodedIdManopera == _sqidsEncoder.Encode(id))
+                {
+                    decodedId = id;
+                }
+                else
+                {
+                    return BadRequest("Invalid id after decoding");
+                }
+            }
+
+          
+            var convertToDto = JsonConvert.DeserializeObject<ManoperaPageModification>(manoperaUpdated);
+            Console.WriteLine("Nume nou {0} , metri noi {1}" , convertToDto.NumeManopera , convertToDto.MetruTotalFolosit);
+
+            if (convertToDto == null)
+            {
+                return StatusCode(505, "Error occurred when decoding the DTO");
+            }
+
+            
+            var responseFromAddOrUpdateManopera =
+                await _manopereService.ModifyOrAddManopera(convertToDto, isUpdating, decodedId);
+            Console.WriteLine("Raspuns {0}" , responseFromAddOrUpdateManopera);
+            return responseFromAddOrUpdateManopera switch
+            {
+                1 => Ok("Updated succesfully"), // modified succesfully
+                2 => NoContent(), // created succesfully
+                // General error thrown, not treated.
+                -1 => BadRequest("General error thrown when executing transaction (update or add)"), 
+                // check ManopereService in ModifyOrAddManopera(exception thrown : ArgumentNullException || InvalidOperationException)
+                -2 => NotFound("Either a ring type or a line type or a galery type does not exist"),
+                // server error     
+                _ => StatusCode(500, "General error occured. Check logs")
+            };
+        }
+
        
     }
     

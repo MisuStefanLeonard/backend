@@ -186,6 +186,10 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnType("integer")
                         .HasColumnName("id_dimensiune");
 
+                    b.Property<int?>("IdManopera")
+                        .HasColumnType("integer")
+                        .HasColumnName("id_manopera");
+
                     b.Property<int>("IdProdus")
                         .HasColumnType("integer")
                         .HasColumnName("id_produs");
@@ -199,6 +203,8 @@ namespace E_Commerce_BackEnd.Migrations.V1
                     b.HasIndex("IdCuloare");
 
                     b.HasIndex("IdDimensiune");
+
+                    b.HasIndex("IdManopera");
 
                     b.HasIndex("IdProdus");
 
@@ -433,6 +439,11 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnType("decimal")
                         .HasColumnName("material_folosit");
 
+                    b.Property<string>("NumeManopera")
+                        .HasMaxLength(70)
+                        .HasColumnType("varchar(70)")
+                        .HasColumnName("nume_manopera");
+
                     b.Property<decimal>("PretCurentTipGalerie")
                         .HasPrecision(6, 2)
                         .HasColumnType("decimal")
@@ -442,6 +453,14 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasPrecision(6, 2)
                         .HasColumnType("decimal")
                         .HasColumnName("pret_curent_tip_linie");
+
+                    b.Property<string>("TipManopera")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)")
+                        .HasDefaultValue("Aleasa")
+                        .HasColumnName("tip_manopera");
 
                     b.HasKey("IdManopera");
 
@@ -1210,6 +1229,11 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasForeignKey("IdDimensiune")
                         .HasConstraintName("FK_Dimensiune_AsociereSeturi");
 
+                    b.HasOne("E_Commerce_BackEnd.Models.ProductRelatedModels.Manopere", "Manopera")
+                        .WithMany("ManopereStandardPeSet")
+                        .HasForeignKey("IdManopera")
+                        .HasConstraintName("FK_Manopera_AsociereSeturi");
+
                     b.HasOne("E_Commerce_BackEnd.Models.ProductRelatedModels.Produse", "Produs")
                         .WithMany("PAsociereSeturi")
                         .HasForeignKey("IdProdus")
@@ -1227,6 +1251,8 @@ namespace E_Commerce_BackEnd.Migrations.V1
                     b.Navigation("AsCuloare");
 
                     b.Navigation("AsDimensiune");
+
+                    b.Navigation("Manopera");
 
                     b.Navigation("Produs");
 
@@ -1515,6 +1541,8 @@ namespace E_Commerce_BackEnd.Migrations.V1
                     b.Navigation("ManopereCuComenzi");
 
                     b.Navigation("ManoperePeCos");
+
+                    b.Navigation("ManopereStandardPeSet");
                 });
 
             modelBuilder.Entity("E_Commerce_BackEnd.Models.ProductRelatedModels.Producatori", b =>

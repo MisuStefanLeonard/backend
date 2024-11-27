@@ -2,6 +2,7 @@ namespace E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductOptionsDto;
 
 public class DimensiuniDto
 {
+    public int? IdDimensiune { get; init; }
     public string? LungimeDto { get; set; }
     public string? LatimeDto { get; set; } 
     public string? RecomandarePat { get; set; } 

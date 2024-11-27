@@ -2,6 +2,7 @@ namespace E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductOptionsDto;
 
 public class CuloriDto
 {
+    public int? IdCuloare { get; init; }
     public string NumeCuloareDto { get; set; } = null!;
 
     public string CodCuloareDto { get; set; } = null!;

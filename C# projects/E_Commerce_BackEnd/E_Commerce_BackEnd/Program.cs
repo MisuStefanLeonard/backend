@@ -21,9 +21,11 @@ using E_Commerce_BackEnd.Services.uAdminService;
 using E_Commerce_BackEnd.Services.uAdressService;
 using E_Commerce_BackEnd.Services.uBucketService;
 using E_Commerce_BackEnd.Services.uInelePrindereService;
+using E_Commerce_BackEnd.Services.uManopereService;
 using E_Commerce_BackEnd.Services.uProductsService;
 using E_Commerce_BackEnd.Services.uReviewService;
 using E_Commerce_BackEnd.Services.uSeturiService;
+using E_Commerce_BackEnd.Services.uShoppingCartService;
 using E_Commerce_BackEnd.Services.uTipuriGalerieService;
 using E_Commerce_BackEnd.Services.uTipuriLinieService;
 using E_Commerce_BackEnd.Services.uVoucherService;
@@ -52,14 +54,6 @@ builder.Services.AddSingleton<IAmazonSecretsManager>
 
 builder.Services.AddSingleton<IAmazonKeyManagementService>
     (sp => new AmazonKeyManagementServiceClient(awsOptions.Credentials, awsOptions.Region));
-
-
-// builder.Services.AddSingleton<IAmazonKeyManagementService>(sp =>
-//     {
-//     var client = new AmazonKeyManagementServiceClient(awsOptions.Credentials,awsOptions.Region);
-//     return client;
-//         }
-// );
 
 // user-secrets
 builder.Configuration.AddUserSecrets<Program>();
@@ -119,10 +113,11 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ISeturiService, SeturiService>();
 builder.Services.AddScoped<IInelePrindereService, InelePrindereService>();
 builder.Services.AddScoped<IVoucherService, VoucherService>();
+builder.Services.AddScoped<IManopereService, ManopereService>();
 builder.Services.AddScoped<IBucketAcces, BucketAccess>();
 builder.Services.AddScoped<IBucketService, BucketService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
-
+builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<ITipuriGalerieService, TipuriGalerieService>();
 builder.Services.AddScoped<ITipuriLinieService, TipuriLinieService>();
 builder.Services.AddTransient<JwtTokenMiddlewareFactory>();
@@ -150,13 +145,22 @@ builder.Services.AddAuthentication(x =>
     x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     x.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme;
     x.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-}).AddCookie()
+}).AddCookie(options =>
+{
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Lax; // Prevent CSRF
+    options.ExpireTimeSpan = TimeSpan.FromDays(1);
+    options.LoginPath = "/signin-google";
+    options.LogoutPath = "/logout";
+})
     .AddGoogle(options =>
 {
     var googleAuth = builder.Configuration.GetSection("GoogleAuth");
     options.ClientId = googleAuth["ClientId"]!;
     options.ClientSecret = googleAuth["ClientSecret"]!;
     options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    
 })
     .AddJwtBearer(x =>
 {

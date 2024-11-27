@@ -9,6 +9,7 @@ using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.Options;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.ProductPage;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.ProductPage.OptionsForCurtain;
+using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.ReviewsDto;
 using E_Commerce_BackEnd.Models.ProductRelatedModels;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
 using E_Commerce_BackEnd.Services.Helpers.UserHelpers;
@@ -1684,6 +1685,12 @@ public partial class ProductService : IProductService
         
         var mainQuery = productsRepository
             .GetSimpleQueryable()
+            .Include(p => p.PProduseCuCulori!)
+                .ThenInclude(p => p.Culoare)
+            .Include(p => p.PProduseCuCulori!)
+                .ThenInclude(p => p.ImagProduseCuCulori)
+            .Include(p => p.PProduseCuDimensiuni!)
+                .ThenInclude(p => p.PdDimensiune)
             .Where(product => productTypes.IsNullOrEmpty() || productTypes!.Contains(product.TipulProdusului.ToUpper()))
             .Where(product => productColors.IsNullOrEmpty() || 
                               product.PProduseCuCulori!.Any(culoare => productColors!.Contains(culoare.Culoare.NumeCuloare.ToUpper())))
@@ -1826,7 +1833,7 @@ public partial class ProductService : IProductService
             {
             
               
-                var ringTypesDto = await _cache.GetOrCreateAsync($"ringTypes_{currency}", async entry =>
+                var ringTypesDto = await _cache.GetOrCreateAsync($"ringTypes", async entry =>
                 {
                     var ringTypesRepository = _unitOfWork.Repository<InelePrindere>();
                     entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
@@ -1895,6 +1902,12 @@ public partial class ProductService : IProductService
            
                 var productForUser = await  productsRepository
                     .GetSimpleQueryable()
+                    .Include(p => p.Producator)
+                    .Include(p => p.PProduseCuCulori!)
+                        .ThenInclude(p => p.Culoare)
+                            .ThenInclude(p => p.CodCuloare)
+                    .Include(p => p.PTipuriPeProduse)
+                    .Include(p => p.ProductReviews)
                     .Where(product => product.CodProdus == codProdus.ToUpper() && product.TipulProdusului == tipProdus.ToLower())
                     .Select(product => new ProductPageForUser
                     {
@@ -1939,7 +1952,19 @@ public partial class ProductService : IProductService
                             }).ToList(),
                         CategoriiProdus = product.PTipuriPeProduse!
                             .Select(type => type.TppTipProdus.Categorie)
-                            .ToList()
+                            .ToList(),
+                        ReviewsGeneral = new ReviewsInfo
+                        {
+                            TotalReviews = product.ProductReviews!.Count,
+                            AverageRating = product.ProductReviews.Count > 0
+                                ? Math.Round(product.ProductReviews.Average(avg => avg.NumarStele), 1)
+                                : 0.0,
+                            FiveStarsReviews = product.ProductReviews!.Count(fiveStars => fiveStars.NumarStele == 5),
+                            FourStarsReviews = product.ProductReviews!.Count(fiveStars => fiveStars.NumarStele == 4),
+                            ThreeStarsReviews = product.ProductReviews!.Count(fiveStars => fiveStars.NumarStele == 3),
+                            TwoStarsReviews = product.ProductReviews!.Count(fiveStars => fiveStars.NumarStele == 2),
+                            OneStarReviews = product.ProductReviews!.Count(fiveStars => fiveStars.NumarStele == 1)
+                        }
                     }).AsSplitQuery()
                     .FirstAsync();
                 
@@ -1964,6 +1989,13 @@ public partial class ProductService : IProductService
             {
                 var productForUser = await productsRepository
                     .GetSimpleQueryable()
+                    .Include(p => p.Producator)
+                    .Include(p => p.PProduseCuDimensiuni)
+                    .Include(p => p.PProduseCuCulori!)
+                        .ThenInclude(p => p.Culoare)
+                            .ThenInclude(p => p.CodCuloare)
+                    .Include(p => p.PTipuriPeProduse)
+                    .Include(p => p.ProductReviews)
                     .Where(product => product.CodProdus == codProdus.ToUpper() && product.TipulProdusului == tipProdus.ToLower())
                     .Select(product => new ProductPageForUser
                     {
@@ -2016,7 +2048,19 @@ public partial class ProductService : IProductService
                             }).ToList(),
                         CategoriiProdus = product.PTipuriPeProduse!
                         .Select(type => type.TppTipProdus.Categorie)
-                        .ToList()
+                        .ToList(),
+                        ReviewsGeneral = new ReviewsInfo
+                        {
+                            TotalReviews = product.ProductReviews!.Count,
+                            AverageRating = product.ProductReviews.Count > 0
+                                ? Math.Round(product.ProductReviews.Average(avg => avg.NumarStele), 1)
+                                : 0.0,
+                            FiveStarsReviews = product.ProductReviews!.Count(fiveStars => fiveStars.NumarStele == 5),
+                            FourStarsReviews = product.ProductReviews!.Count(fiveStars => fiveStars.NumarStele == 4),
+                            ThreeStarsReviews = product.ProductReviews!.Count(fiveStars => fiveStars.NumarStele == 3),
+                            TwoStarsReviews = product.ProductReviews!.Count(fiveStars => fiveStars.NumarStele == 2),
+                            OneStarReviews = product.ProductReviews!.Count(fiveStars => fiveStars.NumarStele == 1)
+                        }
                     }).AsSplitQuery()
                     .FirstAsync();
                 

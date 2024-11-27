@@ -15,37 +15,37 @@ public class BucketAccess : IBucketAcces
     private const string BucketName = "texxbucket";
     private const string DirectoryPrefix = "images/";
     private static readonly AmazonS3Client AmazonS3Client = new (RegionEndpoint.EUCentral1);
-    private readonly IMemoryCache _cache;
+    // private readonly IMemoryCache _cache;
     private readonly ILogger<BucketAccess> _logger;
-    private readonly string? _cloudFrontDomain;
+    private readonly string? _cloudFontDomain;
     
 
-    public BucketAccess(ILogger<BucketAccess> logger, IMemoryCache cache, IConfiguration configuration)
+    public BucketAccess(ILogger<BucketAccess> logger, IConfiguration configuration)
     {
         _logger = logger;
-        _cache = cache;
-        _cloudFrontDomain = configuration["AWS:CloudFrontDomain"];
+        // _cache = cache;
+        _cloudFontDomain = configuration["CloudFont:Id"];
     }
 
-    private byte[] ResizeImage(MemoryStream imageStream, int maxWidth , int maxHeight)
-    {
-        SKBitmap image = SKBitmap.Decode(imageStream);
-
-        var ratioX = (double)maxWidth / image.Width;
-        var ratioY = (double)maxHeight / image.Height;
-        var ratio = Math.Min(ratioX, ratioY);
-
-        var newWidth = (int)(image.Width * ratio);
-        var newHeight = (int)(image.Height * ratio);
-
-        var info = new SKImageInfo(newWidth, newHeight);
-        image = image.Resize(info, SKFilterQuality.High);
-
-        using var ms = new MemoryStream();
-        image.Encode(ms, SKEncodedImageFormat.Jpeg, 100);
-        return ms.ToArray();
-        
-    }
+    // private byte[] ResizeImage(MemoryStream imageStream, int maxWidth , int maxHeight)
+    // {
+    //     SKBitmap image = SKBitmap.Decode(imageStream);
+    //
+    //     var ratioX = (double)maxWidth / image.Width;
+    //     var ratioY = (double)maxHeight / image.Height;
+    //     var ratio = Math.Min(ratioX, ratioY);
+    //
+    //     var newWidth = (int)(image.Width * ratio);
+    //     var newHeight = (int)(image.Height * ratio);
+    //
+    //     var info = new SKImageInfo(newWidth, newHeight);
+    //     image = image.Resize(info, SKFilterQuality.High);
+    //
+    //     using var ms = new MemoryStream();
+    //     image.Encode(ms, SKEncodedImageFormat.Jpeg, 100);
+    //     return ms.ToArray();
+    //     
+    // }
 
     private async Task<bool> DirectoryExists(string key)
     {
@@ -252,63 +252,63 @@ public class BucketAccess : IBucketAcces
        
     }
 
-    public async Task<string?> GenerateUrl(string imagePath, string bucketDir)
-    {
-        try
-        {
-            var key = DirectoryPrefix + bucketDir + "/" + imagePath;
-            var cacheKey = $"presignedUrl_{key}";
-            
-            if (_cache.TryGetValue(cacheKey, out string? cachedUrl))
-            {
-                return cachedUrl;
-            }
-            var responseIfExists = await DirectoryExists(key);
-    
-            if (responseIfExists)
-            {
-                var request = new GetPreSignedUrlRequest
-                {
-                    BucketName = BucketName,
-                    Key = key,
-                    Expires = DateTime.UtcNow.AddHours(12)
-                };
-    
-                var imgUrl = await AmazonS3Client.GetPreSignedURLAsync(request);
-                
-                _cache.Set(cacheKey, imgUrl, TimeSpan.FromHours(12));
-                return imgUrl;
-            }
-            else
-            {
-                throw new AmazonS3Exception("The path of the image in the bucket is not correct");
-            }
-           
-        }
-        catch (AmazonS3Exception e)
-        {
-          _logger.LogInformation($"Error when trying to generate preSignedUrl in {BucketName} with file {imagePath}");
-          Console.WriteLine(e.Message);
-          return null;
-        }
-    }
-    
     // public async Task<string?> GenerateUrl(string imagePath, string bucketDir)
     // {
     //     try
     //     {
-    //         // Construct the CloudFront URL directly
-    //         await Task.Delay(1);
-    //         var cloudFrontUrl = $"https://{_cloudFrontDomain}/images/{bucketDir}/{imagePath}";
-    //         return cloudFrontUrl;
+    //         var key = DirectoryPrefix + bucketDir + "/" + imagePath;
+    //         var cacheKey = $"presignedUrl_{key}";
+    //         
+    //         if (_cache.TryGetValue(cacheKey, out string? cachedUrl))
+    //         {
+    //             return cachedUrl;
+    //         }
+    //         var responseIfExists = await DirectoryExists(key);
+    //
+    //         if (responseIfExists)
+    //         {
+    //             var request = new GetPreSignedUrlRequest
+    //             {
+    //                 BucketName = BucketName,
+    //                 Key = key,
+    //                 Expires = DateTime.UtcNow.AddHours(12)
+    //             };
+    //
+    //             var imgUrl = await AmazonS3Client.GetPreSignedURLAsync(request);
+    //             
+    //             _cache.Set(cacheKey, imgUrl, TimeSpan.FromHours(12));
+    //             return imgUrl;
+    //         }
+    //         else
+    //         {
+    //             throw new AmazonS3Exception("The path of the image in the bucket is not correct");
+    //         }
+    //        
     //     }
     //     catch (AmazonS3Exception e)
     //     {
-    //         _logger.LogInformation($"Error when trying to generate CloudFront URL in {BucketName} with file {imagePath}");
-    //         Console.WriteLine(e.Message);
-    //         return null;
+    //       _logger.LogInformation($"Error when trying to generate preSignedUrl in {BucketName} with file {imagePath}");
+    //       Console.WriteLine(e.Message);
+    //       return null;
     //     }
     // }
+    
+    public async Task<string?> GenerateUrl(string imagePath, string bucketDir)
+    {
+        try
+        {
+            // Construct the CloudFront URL directly
+            await Task.Delay(1);
+            var cloudFrontUrl = $"{_cloudFontDomain}/images/{bucketDir}/{imagePath}";
+            return cloudFrontUrl;
+        }
+        catch (AmazonS3Exception e)
+        {
+            _logger.LogInformation($"Error when trying to generate CloudFront URL in {BucketName} with file {imagePath}");
+            Console.WriteLine(e.Message);
+            return null;
+        }
+    }
 
 
     public async Task<Stream?> DownloadFile(string s3Key)

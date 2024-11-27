@@ -24,7 +24,7 @@ public class UserService : IUserService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly IEmailService _emailService;
-    private readonly UserHelpers _userHelpers;
+    
     private readonly ITokenService _tokenService;
     private readonly IMemoryCache _cache;
     private readonly ILogger<Conturi> _logger;
@@ -41,7 +41,6 @@ public class UserService : IUserService
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _emailService = emailService;
-        _userHelpers = UserHelpers.Instance;
         _tokenService = tokenService;
         _cache = cache;
         _logger = logger;
@@ -56,13 +55,14 @@ public class UserService : IUserService
             transaction = await _unitOfWork.BeginTransactionAsync();
             var repository = _unitOfWork.Repository<Conturi>();
 
-            string token = UserHelpers.Token(Size, Size2, newAccount.Email!);
-            string hashedPassword = UserHelpers.CryptPassword(newAccount.Parola!);
+            var token = UserHelpers.Token(Size, Size2, newAccount.Email!);
+            var hashedPassword = UserHelpers.CryptPassword(newAccount.Parola!);
 
             ICollection<Adrese> newAdrese = new HashSet<Adrese>();
             var accountToCreate = new Conturi(newAccount.Nume, newAccount.Prenume, newAccount.Gen, newAccount.NrTelefon,
                 newAccount.Username!, newAccount.Email!, hashedPassword, newAccount.DataCreare, token,
                 newAccount.Verificat, newAccount.Rol, DateTime.UtcNow, newAdrese);
+            
             await repository.AddAsync(accountToCreate);
 
             await _unitOfWork.CommitTransactionAsync(transaction);
@@ -85,8 +85,8 @@ public class UserService : IUserService
                 await _unitOfWork.RollBackTransactionAsync(transaction);
             }
 
-            Console.Error.WriteLine("Someting happened when creating an account: Error Message:" + e.Message);
-            Console.Error.WriteLine("Someting happened when creating an account: Stacktrace :" + e.StackTrace);
+            _logger.LogError("Someting happened when creating an account: Error Message:" + e.Message);
+            _logger.LogError("Someting happened when creating an account: Stacktrace :" + e.StackTrace);
             throw;
         }
 
@@ -100,9 +100,9 @@ public class UserService : IUserService
             transaction = await _unitOfWork.BeginTransactionAsync();
 
             var claimsList = currentClaims.ToList();
-
-
+            
             var googleEmail = claimsList.FirstOrDefault(claim => claim.Type == ClaimTypes.Email)!.Value;
+           
             var conturiRepository = _unitOfWork.Repository<Conturi>();
 
             var isUserInDb = await conturiRepository.FindQueryable(c => c.Email == googleEmail)
@@ -166,7 +166,7 @@ public class UserService : IUserService
             }
             else
             {
-                Console.WriteLine("AM INTRAT CU USERNAME");
+               
                 currentUser = await conturiRepository.FindQueryable(
                     user => user.Username == loginDto.NumeProp).FirstOrDefaultAsync();
 
@@ -237,8 +237,8 @@ public class UserService : IUserService
                 await _unitOfWork.RollBackTransactionAsync(transaction!);
             }
 
-            Console.Error.WriteLine("Someting happened when removing an account: Error Message:" + e.Message);
-            Console.Error.WriteLine("Someting happened when removing an account: Stacktrace :" + e.StackTrace);
+            _logger.LogError("Someting happened when removing an account: Error Message:" + e.Message);
+            _logger.LogError("Someting happened when removing an account: Stacktrace :" + e.StackTrace);
             throw;
         }
     }
@@ -273,8 +273,8 @@ public class UserService : IUserService
                 await _unitOfWork.RollBackTransactionAsync(transaction!);
             }
 
-            Console.Error.WriteLine("Someting happened when updating an account: Error Message:" + e.Message);
-            Console.Error.WriteLine("Someting happened when updating an account: Stacktrace :" + e.StackTrace);
+            _logger.LogError("Someting happened when updating an account: Error Message:" + e.Message);
+            _logger.LogError("Someting happened when updating an account: Stacktrace :" + e.StackTrace);
 
             throw;
         }
@@ -361,31 +361,27 @@ public class UserService : IUserService
 
                 return 0;
             }
-            else
-            {
+            
+            var token = UserHelpers.Token(Size, Size2, oldEmail!);
+            currentUser.CodActivare = token;
+            currentUser.OraLinkConfirmare = DateTime.UtcNow;
 
-                var token = UserHelpers.Token(Size, Size2, oldEmail!);
-                currentUser.CodActivare = token;
-                currentUser.OraLinkConfirmare = DateTime.UtcNow;
+            await _emailService.SendEmailAsync(updatedDto.Email!, "Schimbare email cont texx.ro",
+                "V-ati schimbat e-mail-ul contului dumneavoastra" +
+                $"<br><p>Noul email este : {updatedDto.Email}</p> " +
+                $"<p><a href='http://localhost:3000/user/account/changeEmail/{token}?email={updatedDto.Email}&nume={updatedDto.Nume}&prenume={updatedDto.Prenume}&gen={updatedDto.Gen}&nrTelefon={updatedDto.NrTelefon}&username={updatedDto.Username}'>" +
+                "Intrati pe acest link ca schimbarea sa aiba loc.</a></p>" +
+                $"<p>Toate ofertele si contactul vor fi realizate pe mail-ul pe care l-ati setat</p>" +
+                "<p>Va asteptam la cumparaturi la noi pe site!</p>" +
+                "<p>ATENTIE! Daca nu ati fost dumneavoastra cel care a solicitat schimbare de mail, contactati-ne in cel mai scurt timp posibil!" +
+                "ACEST MAIL VA EXPIRA INTR-O ORA. Repetati procesul daca acest mail a expirat");
 
-                await _emailService.SendEmailAsync(updatedDto.Email!, "Schimbare email cont texx.ro",
-                    "V-ati schimbat e-mail-ul contului dumneavoastra" +
-                    $"<br><p>Noul email este : {updatedDto.Email}</p> " +
-                    $"<p><a href='http://localhost:3000/user/account/changeEmail/{token}?email={updatedDto.Email}&nume={updatedDto.Nume}&prenume={updatedDto.Prenume}&gen={updatedDto.Gen}&nrTelefon={updatedDto.NrTelefon}&username={updatedDto.Username}'>" +
-                    "Intrati pe acest link ca schimbarea sa aiba loc.</a></p>" +
-                    $"<p>Toate ofertele si contactul vor fi realizate pe mail-ul pe care l-ati setat</p>" +
-                    "<p>Va asteptam la cumparaturi la noi pe site!</p>" +
-                    "<p>ATENTIE! Daca nu ati fost dumneavoastra cel care a solicitat schimbare de mail, contactati-ne in cel mai scurt timp posibil!" +
-                    "ACEST MAIL VA EXPIRA INTR-O ORA. Repetati procesul daca acest mail a expirat");
+            await repository.UpdateAsync(currentUser);
 
-                await repository.UpdateAsync(currentUser);
+            await _unitOfWork.CommitTransactionAsync(transaction);
 
-                await _unitOfWork.CommitTransactionAsync(transaction);
-
-                return 1;
-
-            }
-
+            return 1;
+            
 
         }
         catch (DbUpdateException e)
@@ -395,7 +391,7 @@ public class UserService : IUserService
                 await _unitOfWork.RollBackTransactionAsync(transaction!);
             }
 
-            Console.WriteLine(e.Message);
+            _logger.LogError(e.Message);
             return -1;
         }
     }
@@ -471,7 +467,7 @@ public class UserService : IUserService
                 await _unitOfWork.RollBackTransactionAsync(transaction!);
             }
 
-            Console.WriteLine(e.Message);
+            _logger.LogError(e.Message);
             return 0;
 
 
@@ -516,10 +512,10 @@ public class UserService : IUserService
         {
 
 
-            await Console.Error.WriteLineAsync(
+            _logger.LogError(
                 "Someting happened when checking the token(ForgotPassword)  (InvalidCredentials) :  Error Message:" +
                 e.Message);
-            await Console.Error.WriteLineAsync(
+            _logger.LogError(
                 "Someting happened when checking the token(ForgotPassword)  (InvalidCredentials):  Stacktrace:" +
                 e.StackTrace);
             return false;
@@ -563,8 +559,8 @@ public class UserService : IUserService
                 await _unitOfWork.RollBackTransactionAsync(transaction!);
             }
 
-            Console.Error.WriteLine("Someting happened when changing password an account: Error Message:" + e.Message);
-            Console.Error.WriteLine("Someting happened when changing password an account: StackTrace:" + e.StackTrace);
+            _logger.LogError("Someting happened when changing password an account: Error Message:" + e.Message);
+            _logger.LogError("Someting happened when changing password an account: StackTrace:" + e.StackTrace);
             return -1;
         }
 
@@ -617,7 +613,7 @@ public class UserService : IUserService
                 await _unitOfWork.RollBackTransactionAsync(transaction!);
             }
 
-            Console.WriteLine("Concurency update happened. Rolling back the transaction!" + e.Message);
+            _logger.LogError("Concurency update happened. Rolling back the transaction!" + e.Message);
             return -2;
         }
         catch (DbUpdateException e)
@@ -627,12 +623,12 @@ public class UserService : IUserService
                 await _unitOfWork.RollBackTransactionAsync(transaction!);
             }
 
-            Console.WriteLine(e.Message);
+            _logger.LogError(e.Message);
             return -1;
         }
         catch (InvalidCredentialException e)
         {
-            Console.WriteLine(e.Message);
+            _logger.LogError(e.Message);
             return 0;
         }
     }
@@ -748,15 +744,15 @@ public class UserService : IUserService
 
             }
 
-            Console.Error.WriteLine(
+            _logger.LogError(
                 "Someting happened when retrieving the user for the confirmation token: Error Message:" + e.Message);
-            Console.Error.WriteLine(
+            _logger.LogError(
                 "Someting happened when retrieving the user for the confirmation token: Error Message:" + e.Message);
             return 2;
         }
         catch (InvalidCredentialException e)
         {
-            Console.Error.WriteLine(e.Message);
+            _logger.LogError(e.Message);
             return 3;
         }
     }
@@ -939,12 +935,7 @@ public class UserService : IUserService
                 if (!string.Equals(product.TipulProdusuluiDto , "perdea") && !string.Equals(product.TipulProdusuluiDto , "draperie") 
                                                                           && product.NumeSetDto == null)
                 {
-                    _logger.LogInformation($"PRET PRODUS : {product.PretBazaDto}");
-                    _logger.LogInformation($"NR BUCATI : {product.NrBucatiDto}");
-
                     order.PretTotalComanda += product.PretBazaDto * product.NrBucatiDto;
-                     _logger.LogInformation("A INTRAT AICI / nu e perdea/draperie");
-                    _logger.LogInformation($"{order.PretTotalComanda}");
                 }
 
                 if (product.TipulProdusuluiDto is not ("perdea" or "draperie")) continue;

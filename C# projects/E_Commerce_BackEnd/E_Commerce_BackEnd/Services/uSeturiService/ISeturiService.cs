@@ -18,7 +18,7 @@ public interface ISeturiService
     public Task<int> ActivateSet(int idSet, bool activationState);
     public Task<int> ActivateBulkSets(BulkOperationsDto sets);
     public Task<int> DeleteProductFromSet(int idSet,int idProdus );
-    public Task<int> ModifyOrUpdateSet(SetModificationDto modifiedSet,int idSet,bool isAdding);
+    public Task<int> AddOrUpdateSet(SetModificationDto modifiedSet,int idSet,bool isAdding);
     public Task<ProductForSetDto?> GetProductDataForSetAdd(string codProdus);
 
     #endregion

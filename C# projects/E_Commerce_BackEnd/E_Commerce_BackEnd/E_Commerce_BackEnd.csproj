@@ -52,7 +52,6 @@
 
     <ItemGroup>
       <Folder Include="Migrations\" />
-      <Folder Include="Services\uShoppingCartService\" />
     </ItemGroup>
 
     <ItemGroup>

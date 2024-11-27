@@ -1,7 +1,10 @@
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.ReviewsDto;
+using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ShoppingCartDtos;
+using E_Commerce_BackEnd.Services.Helpers.AWS_Secret;
 using E_Commerce_BackEnd.Services.uProductsService;
 using E_Commerce_BackEnd.Services.uReviewService;
 using E_Commerce_BackEnd.Services.uSeturiService;
+using E_Commerce_BackEnd.Services.uShoppingCartService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
@@ -22,14 +25,18 @@ public class ProductController : ControllerBase
     private readonly IReviewService _reviewService;
     private readonly ISeturiService _seturiService;
     private readonly SqidsEncoder<int> _sqidsEncoder;
+    private readonly ICartService _cartService;
+    private readonly ITokenService _tokenService;
 
 
-    public ProductController(IProductService productService, IReviewService reviewService, SqidsEncoder<int> sqidsEncoder, ISeturiService seturiService)
+    public ProductController(IProductService productService, IReviewService reviewService, SqidsEncoder<int> sqidsEncoder, ISeturiService seturiService, ICartService cartService, ITokenService tokenService)
     {
         _productService = productService;
         _reviewService = reviewService;
         _sqidsEncoder = sqidsEncoder;
         _seturiService = seturiService;
+        _cartService = cartService;
+        _tokenService = tokenService;
     }
 
     [HttpGet("paginated/{pageNumber:int?}/{currency}")]
@@ -99,7 +106,7 @@ public class ProductController : ControllerBase
 
         if (!Request.Cookies.TryGetValue("JWTToken", out var token)) 
             return StatusCode(500, "Server error");
-        
+        // de adaugat decodarea pe encodedIdSet
         var responseFromReviewPosting = await _reviewService.PostReview(jsonToDto!, token);
         return responseFromReviewPosting.Key switch
         {
@@ -158,8 +165,53 @@ public class ProductController : ControllerBase
 
         return StatusCode(500, "Decoded id not found");
     }
+
+    [HttpPost("cart/add")]
+    [Authorize]
+    public async Task<IActionResult> AddOrUpdateCart([FromForm] string? cartItem , [FromForm] string? setItems)
+    {
+        var cartItemToDto = JsonConvert.DeserializeObject<ProductOnCartDto>(cartItem!); // can be null
+        var setItemsToDto = JsonConvert.DeserializeObject<SetOnCartDto>(setItems!); // can be null
+        
+
+        var currentUserClaims = HttpContext.User;
+        var userId = int.Parse(currentUserClaims.FindFirst("user_id")!.Value);
+
+        var responseFromCartAdd = await _cartService.AddOrUpdateCart(userId, setItemsToDto , cartItemToDto);
+
+        return responseFromCartAdd switch
+        {
+            {Key: 1} => Ok("Succesfully added to cart"),
+            {Key: 2} => NoContent(), // quantity incremented
+            {Key: 0} => NotFound("Encoded id of the set could not be decoded"),
+            {Key: -1} => BadRequest("Exception thrown in the addCart function"),
+            _ => StatusCode(500, "General error occured")
+        };
+
+    }
     
-    
+    [HttpPost("cart/delete")]
+    [Authorize]
+    public async Task<IActionResult> DeleteFromCart([FromForm] string? cartItemToDelete , [FromForm] string? setItemsToDelete)
+    {
+        var cartItemToDeleteToDto = JsonConvert.DeserializeObject<ProductOnCartDto>(cartItemToDelete!); // can be null
+        var setItemsToDeleteToDto = JsonConvert.DeserializeObject<SetOnCartDto>(setItemsToDelete!); // can be null
+
+        var currentUserClaims = HttpContext.User;
+        var userId = int.Parse(currentUserClaims.FindFirst("user_id")!.Value);
+
+        var responseFromCartDelete = await _cartService.DeleteFromCart(userId, setItemsToDeleteToDto,cartItemToDeleteToDto);
+
+        return responseFromCartDelete switch
+        {
+            1 => Ok("Succesfully removed item from cart"),
+            2 => NoContent(), // quantity decremented
+            -2 => NotFound("Product not found"),
+            -1 => BadRequest("Exception thrown in the deleteFromCart function"),
+            _ => StatusCode(500, "General error occured")
+        };
+
+    }
     
     
 }
