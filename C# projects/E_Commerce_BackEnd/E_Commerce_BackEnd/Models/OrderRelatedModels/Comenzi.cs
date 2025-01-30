@@ -18,6 +18,7 @@ public class Comenzi
     public TipPlata TipPlata { get; init; }
     [StringLength(50)]
     public string AwbComanda { get; init; } = null!;
+    public decimal PretTransport { get; init; }
     public bool IsCancelable { get; set; }
     
     // Foreign Keys
@@ -30,10 +31,10 @@ public class Comenzi
     public Vouchere? VoucherPeComanda { get; } 
     
     // Many to Many mappings
-    
-    public  ICollection<ProduseCuComenzi>? PcComenzi { get; }
-    
-    
-    
+
+    public ICollection<ProduseCuComenzi>? PcComenzi { get; } = new List<ProduseCuComenzi>();
+
+
+
 
 }

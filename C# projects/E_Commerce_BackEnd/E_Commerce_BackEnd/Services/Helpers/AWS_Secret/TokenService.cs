@@ -7,6 +7,8 @@ using Amazon;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Extensions.Caching;
 using E_Commerce_BackEnd.Models.UserRelatedModels;
+using E_Commerce_BackEnd.UnitOfWork;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Console = System.Console;
 
@@ -15,13 +17,16 @@ namespace E_Commerce_BackEnd.Services.Helpers.AWS_Secret;
 public class TokenService : ITokenService
 {
     private readonly IConfiguration _configuration;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<TokenService> _logger;
     private static SecretsManagerCache? _cache;
+    
 
-    public TokenService( IConfiguration configuration)
+    public TokenService( IConfiguration configuration, IUnitOfWork unitOfWork, ILogger<TokenService> logger)
     {
-       
         _configuration = configuration;
-       
+        _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     private static void InitalizeCache()
@@ -94,11 +99,11 @@ public class TokenService : ITokenService
 
         var claims = new List<Claim>
         {
-            new Claim("username" , currentLogIn.Username!),
-            new Claim(Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.Email , currentLogIn.Email!),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new Claim(ClaimTypes.Role , currentLogIn.Rol),
-            new Claim("user_id" , currentLogIn.IdCont.ToString())
+            new ("username" , currentLogIn.Username!),
+            new (Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames.Email , currentLogIn.Email!),
+            new (JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new (ClaimTypes.Role , currentLogIn.Rol),
+            new ("user_id" , currentLogIn.IdCont.ToString())
         };
         
         var token = new JwtSecurityToken
@@ -106,7 +111,7 @@ public class TokenService : ITokenService
             issuer: jwtSettings["Issuer"],
             audience: jwtSettings["Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(24),
+            expires: DateTime.UtcNow.AddMinutes(15),
             signingCredentials: credentials
         );
 
@@ -125,7 +130,7 @@ public class TokenService : ITokenService
     private async Task<TokenValidationParameters> GetValidationParameters()
     {
         var jwtSettings = _configuration.GetSection("JwtSettings");
-        var secret = await GetSecret("prod/texx.ro/JWT_key"); // Note: Using .Result for simplicity, but consider using async/await appropriately
+        var secret = await GetSecret("prod/texx.ro/JWT_key"); 
         var key = Encoding.UTF8.GetBytes(secret);
         return new TokenValidationParameters
         {
@@ -139,21 +144,55 @@ public class TokenService : ITokenService
         };
     }
     
-    public async Task<ClaimsPrincipal?> TokenValidation(string token)
+    public async Task<Tuple<ClaimsPrincipal? , Conturi?>> TokenValidation(string token , string refreshToken)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
+
         try
         {
-            var validationParameters = await GetValidationParameters();
+            if (token == "refresh")
+            {
+                throw new SecurityTokenExpiredException("Expired token . Issuing a new one.");
+            }
             
-            var claimsPrincipal =  tokenHandler.ValidateToken(token, validationParameters, 
+            var validationParameters = await GetValidationParameters();
+
+            var claimsPrincipal = tokenHandler.ValidateToken(token, validationParameters,
                 out var validatedToken);
-            return claimsPrincipal;
+
+            return new Tuple<ClaimsPrincipal?, Conturi?>(claimsPrincipal , null); // succesfull
         }
-        catch (SecurityTokenValidationException e)
+        catch (SecurityTokenExpiredException ex)
+        {
+            _logger.LogInformation("Issuing new acces token..");
+            var checkRefreshToken = await _unitOfWork.Repository<RememberUser>()
+                .FindQueryable(rm => rm.SessionToken == refreshToken)
+                .FirstOrDefaultAsync();
+
+            if (checkRefreshToken == null || checkRefreshToken.ExpiresAt < DateTime.UtcNow)
+            {
+                _logger.LogError("Refresh token expired. Session expired");
+                return new Tuple<ClaimsPrincipal?, Conturi?>(null , null);
+            }
+
+            var userId = checkRefreshToken.IdCont;
+            var findUser = await _unitOfWork.Repository<Conturi>()
+                .FindQueryable(c => c.IdCont == userId)
+                .FirstOrDefaultAsync();
+
+            if (findUser == null)
+            {
+                _logger.LogError("User not found in db!");
+                return new Tuple<ClaimsPrincipal?, Conturi?>(null , null);
+            }
+            var validateAgain = tokenHandler.ValidateToken(await GenerateJwtAccesToken(findUser),  await GetValidationParameters(),
+                out  _);
+            return new Tuple<ClaimsPrincipal?, Conturi?>(validateAgain, findUser); // refresh 
+        }
+        catch (Exception e)
         {
             Console.WriteLine("Error when validating the token -> Error: " + e.Message);
-            return null;
+            return new Tuple<ClaimsPrincipal?, Conturi?>(null, null); // general error  
         }
     }
 }

@@ -9,11 +9,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace E_Commerce_BackEnd.Migrations.V1_5
+namespace E_Commerce_BackEnd.Migrations.V1_8
 {
     [DbContext(typeof(ECommerceContext))]
-    [Migration("20241114110726_AsocSeturiAndManoperaUpdate")]
-    partial class AsocSeturiAndManoperaUpdate
+    [Migration("20241203154300_UniqueIdentifierCartUpdate")]
+    partial class UniqueIdentifierCartUpdate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -256,7 +256,7 @@ namespace E_Commerce_BackEnd.Migrations.V1_5
                         .HasColumnType("int")
                         .HasColumnName("id_culoare");
 
-                    b.Property<int>("IdDimensiune")
+                    b.Property<int?>("IdDimensiune")
                         .HasColumnType("int")
                         .HasColumnName("id_dimensiune");
 
@@ -264,13 +264,24 @@ namespace E_Commerce_BackEnd.Migrations.V1_5
                         .HasColumnType("int")
                         .HasColumnName("id_manopera");
 
-                    b.Property<int>("IdProdus")
+                    b.Property<int?>("IdProdus")
+                        .IsRequired()
                         .HasColumnType("int")
                         .HasColumnName("id_produs");
 
                     b.Property<int?>("IdSet")
                         .HasColumnType("int")
                         .HasColumnName("id_set");
+
+                    b.Property<string>("IdentificatorSet")
+                        .IsRequired()
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("identificator_set");
+
+                    b.Property<string>("InaltimeAleasaPentruSet")
+                        .HasMaxLength(4)
+                        .HasColumnType("varchar(4)")
+                        .HasColumnName("inaltime_aleasa");
 
                     b.Property<decimal>("PretProdus")
                         .HasPrecision(6, 2)
@@ -437,10 +448,20 @@ namespace E_Commerce_BackEnd.Migrations.V1_5
                         .HasColumnType("integer")
                         .HasColumnName("id_tip_linie");
 
+                    b.Property<string>("InaltimeMaxima")
+                        .HasMaxLength(4)
+                        .HasColumnType("varchar(4)")
+                        .HasColumnName("inaltime_maxima");
+
                     b.Property<decimal>("MaterialFolosit")
                         .HasPrecision(6, 2)
                         .HasColumnType("decimal")
                         .HasColumnName("material_folosit");
+
+                    b.Property<string>("NumeManopera")
+                        .HasMaxLength(70)
+                        .HasColumnType("varchar(70)")
+                        .HasColumnName("nume_manopera");
 
                     b.Property<decimal>("PretCurentTipGalerie")
                         .HasPrecision(6, 2)
@@ -454,8 +475,10 @@ namespace E_Commerce_BackEnd.Migrations.V1_5
 
                     b.Property<string>("TipManopera")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(10)
-                        .HasColumnType("varchar")
+                        .HasColumnType("varchar(10)")
+                        .HasDefaultValue("Aleasa")
                         .HasColumnName("tip_manopera");
 
                     b.HasKey("IdManopera");
@@ -1271,9 +1294,7 @@ namespace E_Commerce_BackEnd.Migrations.V1_5
 
                     b.HasOne("E_Commerce_BackEnd.Models.ProductRelatedModels.Dimensiuni", "Dimensiune")
                         .WithMany("DPeCosCumparaturi")
-                        .HasForeignKey("IdDimensiune")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("IdDimensiune");
 
                     b.HasOne("E_Commerce_BackEnd.Models.ProductRelatedModels.Manopere", "Manopera")
                         .WithMany("ManoperePeCos")

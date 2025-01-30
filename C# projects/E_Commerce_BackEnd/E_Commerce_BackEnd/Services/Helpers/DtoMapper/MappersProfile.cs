@@ -60,6 +60,8 @@ public class MappersProfile : Profile
 
 
         CreateMap<Adrese, AdreseDto>()
+            .ForMember(dest => dest.IdAdresa, 
+                opt => opt.MapFrom(src => src.IdAdresa))
             .ForMember(dest => dest.AliasDto, 
                 opt => opt.MapFrom(src => src.Alias))
             .ForMember(dest => dest.TipAdresaDto, 
@@ -150,6 +152,7 @@ public class MappersProfile : Profile
             .ForMember(dest => dest.Stoc, opt => opt.MapFrom(src => src.StocDto))
             .ForMember(dest => dest.ActivInMagazin, opt => opt.MapFrom(src => src.ActivInMagazinDto))
             .ForMember(dest => dest.PretDeBaza, opt => opt.MapFrom(src => src.PretBazaDto))
+            .ForMember(dest => dest.PretDeBazaRedus, opt => opt.MapFrom(src => src.PretBazaRedusDto))
             .ForMember(dest => dest.TipulProdusului, opt => opt.MapFrom(src => src.TipulProdusuluiDto))
             .ForMember(dest => dest.AfiseazaInNoutati, opt => opt.MapFrom(src => src.AfiseazaInNoutatiDto))
             .ForMember(dest => dest.ProdusLimitat, opt => opt.MapFrom(src => src.ProdusLimitatDto));
@@ -226,6 +229,12 @@ public class MappersProfile : Profile
             .ForMember(dest => dest.Reducere, opt => opt.MapFrom(src => src.ReducereDto / 100))
             .ForMember(dest => dest.DataExpirare, opt => opt.MapFrom(src => src.DataExpirareDto.Date))
             .ForMember(dest => dest.CodVoucher, opt => opt.MapFrom(src => src.CodVoucherDto.ToUpper()));
+        
+        
+        CreateMap<Vouchere, VouchereDto>()
+            .ForMember(dest => dest.ReducereDto, opt => opt.MapFrom(src => src.Reducere * 100))
+            .ForMember(dest => dest.DataExpirareDto, opt => opt.MapFrom(src => src.DataExpirare.Date))
+            .ForMember(dest => dest.CodVoucherDto, opt => opt.MapFrom(src => src.CodVoucher.ToUpper()));
 
         CreateMap<Vouchere, VouchereDisplayDto>()
             .ForMember(dest => dest.ReducereDto, opt => opt.MapFrom(src => src.Reducere * 100))
@@ -305,6 +314,7 @@ public class MappersProfile : Profile
 
 
         CreateMap<TipuriGalerie, TipRejansaDto>()
+            .ForMember(dest => dest.IdRejansa  , opt => opt.MapFrom(src => src.IdTipGalerie))
             .ForMember(dest => dest.SePrindeCuInele, opt => opt.MapFrom(src => src.SePrindeCuInele))
             .ForMember(dest => dest.PretTipRejansa, opt => opt.MapFrom(src => src.PretTipGalerie))
             .ForMember(dest => dest.NumeTipRejansa, opt => opt.MapFrom(src => src.NumeTipGalerie))
@@ -312,12 +322,14 @@ public class MappersProfile : Profile
             .ForMember(dest => dest.CaleRelativa, opt => opt.MapFrom(src => src.CaleRelativa));
         
         CreateMap<TipuriLinie, TipLinieDto>()
+            .ForMember(dest => dest.IdTipLinie  , opt => opt.MapFrom(src => src.IdTipLinie))
             .ForMember(dest => dest.NumeTipCusaturaColt, opt => opt.MapFrom(src => src.NumeTipLinie))
             .ForMember(dest => dest.PretTipCusaturaColt, opt => opt.MapFrom(src => src.PretPeTipLinie))
             .ForMember(dest => dest.CaleRelativa, opt => opt.MapFrom(src => src.CaleRelativa));
 
         
         CreateMap<InelePrindere, TipIneleDto>()
+            .ForMember(dest => dest.IdInelPrindere  , opt => opt.MapFrom(src => src.IdInel))
             .ForMember(dest => dest.NumeTipInel, opt => opt.MapFrom(src => src.CuloareInel))
             .ForMember(dest => dest.CaleRelativa, opt => opt.MapFrom(src => src.CaleRelativa));
 

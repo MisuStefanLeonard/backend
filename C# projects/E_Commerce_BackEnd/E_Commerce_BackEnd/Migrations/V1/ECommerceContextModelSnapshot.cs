@@ -22,6 +22,30 @@ namespace E_Commerce_BackEnd.Migrations.V1
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
+            modelBuilder.Entity("E_Commerce_BackEnd.Models.ConfigurationModels.GlobalConfigs", b =>
+                {
+                    b.Property<int>("IdConfiguratie")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int(1)")
+                        .HasColumnName("id_config");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdConfiguratie"));
+
+                    b.Property<string>("NumeAtributGlobal")
+                        .IsRequired()
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("nume_atribut");
+
+                    b.Property<string>("ValoareAtributGlobal")
+                        .IsRequired()
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("valoare_atribut");
+
+                    b.HasKey("IdConfiguratie");
+
+                    b.ToTable("global_config", (string)null);
+                });
+
             modelBuilder.Entity("E_Commerce_BackEnd.Models.OrderRelatedModels.Comenzi", b =>
                 {
                     b.Property<int>("IdComanda")
@@ -59,6 +83,11 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint")
                         .HasDefaultValue((sbyte)1);
+
+                    b.Property<decimal>("PretTransport")
+                        .HasPrecision(4, 2)
+                        .HasColumnType("decimal")
+                        .HasColumnName("pret_transport");
 
                     b.Property<string>("StatusComanda")
                         .IsRequired()
@@ -142,6 +171,10 @@ namespace E_Commerce_BackEnd.Migrations.V1
                     b.Property<int?>("IdSet")
                         .HasColumnType("integer")
                         .HasColumnName("id_set");
+
+                    b.Property<string>("InaltimeAleasaPentruSet")
+                        .HasColumnType("varchar(4)")
+                        .HasColumnName("inaltime_set");
 
                     b.Property<int>("NrBucati")
                         .HasColumnType("integer")
@@ -245,7 +278,13 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnType("int")
                         .HasColumnName("cantitate_produs");
 
-                    b.Property<int>("IdCont")
+                    b.Property<DateTime>("ExpiresAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasColumnName("expires_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<int?>("IdCont")
                         .HasColumnType("int")
                         .HasColumnName("id_cont");
 
@@ -253,7 +292,7 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnType("int")
                         .HasColumnName("id_culoare");
 
-                    b.Property<int>("IdDimensiune")
+                    b.Property<int?>("IdDimensiune")
                         .HasColumnType("int")
                         .HasColumnName("id_dimensiune");
 
@@ -261,7 +300,8 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnType("int")
                         .HasColumnName("id_manopera");
 
-                    b.Property<int>("IdProdus")
+                    b.Property<int?>("IdProdus")
+                        .IsRequired()
                         .HasColumnType("int")
                         .HasColumnName("id_produs");
 
@@ -269,10 +309,23 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnType("int")
                         .HasColumnName("id_set");
 
+                    b.Property<string>("IdentificatorSet")
+                        .IsRequired()
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("identificator_set");
+
+                    b.Property<string>("InaltimeAleasaPentruSet")
+                        .HasMaxLength(4)
+                        .HasColumnType("varchar(4)")
+                        .HasColumnName("inaltime_aleasa");
+
                     b.Property<decimal>("PretProdus")
                         .HasPrecision(6, 2)
                         .HasColumnType("decimal")
                         .HasColumnName("pret_produs");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("char(36)");
 
                     b.HasKey("IdProdusInCos");
 
@@ -433,6 +486,11 @@ namespace E_Commerce_BackEnd.Migrations.V1
                     b.Property<int>("IdTipLinie")
                         .HasColumnType("integer")
                         .HasColumnName("id_tip_linie");
+
+                    b.Property<string>("InaltimeMaxima")
+                        .HasMaxLength(4)
+                        .HasColumnType("varchar(4)")
+                        .HasColumnName("inaltime_maxima");
 
                     b.Property<decimal>("MaterialFolosit")
                         .HasPrecision(6, 2)
@@ -993,7 +1051,6 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasDefaultValueSql("NOW()");
 
                     b.Property<string>("Parola")
-                        .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("varchar")
                         .HasColumnName("parola");
@@ -1010,7 +1067,6 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnName("rol");
 
                     b.Property<string>("Username")
-                        .IsRequired()
                         .HasMaxLength(15)
                         .HasColumnType("varchar")
                         .HasColumnName("username");
@@ -1024,10 +1080,6 @@ namespace E_Commerce_BackEnd.Migrations.V1
                     b.HasIndex("Email")
                         .IsUnique()
                         .HasDatabaseName("INDEX_EMAIL");
-
-                    b.HasIndex("Username")
-                        .IsUnique()
-                        .HasDatabaseName("INDEX_USERNAME");
 
                     b.ToTable("conturi", (string)null);
                 });
@@ -1263,9 +1315,7 @@ namespace E_Commerce_BackEnd.Migrations.V1
                 {
                     b.HasOne("E_Commerce_BackEnd.Models.UserRelatedModels.Conturi", "Cont")
                         .WithMany("ProduseInCosPeCont")
-                        .HasForeignKey("IdCont")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("IdCont");
 
                     b.HasOne("E_Commerce_BackEnd.Models.ProductRelatedModels.Culori", "Culoare")
                         .WithMany("CuloriPeCosCumparaturi")
@@ -1275,9 +1325,7 @@ namespace E_Commerce_BackEnd.Migrations.V1
 
                     b.HasOne("E_Commerce_BackEnd.Models.ProductRelatedModels.Dimensiuni", "Dimensiune")
                         .WithMany("DPeCosCumparaturi")
-                        .HasForeignKey("IdDimensiune")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("IdDimensiune");
 
                     b.HasOne("E_Commerce_BackEnd.Models.ProductRelatedModels.Manopere", "Manopera")
                         .WithMany("ManoperePeCos")

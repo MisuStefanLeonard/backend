@@ -1,7 +1,6 @@
 
 using E_Commerce_BackEnd.Models.DTO;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using E_Commerce_BackEnd.Models.UserRelatedModels;
 using E_Commerce_BackEnd.Services.uService;
 using Microsoft.AspNetCore.Authorization;
@@ -29,7 +28,6 @@ namespace E_Commerce_BackEnd.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> GetAccountByUsernameAsync([FromBody]UsernameRequestDto usernameRequestDto)
         {
-            Console.WriteLine($"{usernameRequestDto.Username}");
             var account = await _userService.GetAccountByUsernameAsync(usernameRequestDto.Username);
             if (account is not null)
             {
@@ -75,52 +73,64 @@ namespace E_Commerce_BackEnd.Controllers
         [AllowAnonymous]
         public async Task<ActionResult<Conturi>> LoginAccount([FromBody]LoginDto loginDto)
         {
-            try
+           
+            if (Request.Cookies.TryGetValue("session_tok", out _))
             {
-                var user = await _userService.LoginAccountAsync(loginDto);
-                var isAdmin = user is { RoleProp: "Admin" };
-                if (user == null)
-                {
-                    return NotFound("Unautohrized access!");
-                }
+                return BadRequest("You are already logged in!");
+            }
+            var user = await _userService.LoginAccountAsync(loginDto);
+            var isAdmin = user is { RoleProp: "Admin" };
+            if (user == null)
+            {
+                return NotFound("Unautohrized access!");
+            }
+      
+
+            var cookieOptions = new CookieOptions()
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTime.UtcNow.AddMinutes(15)
+                // Expires = DateTime.UtcNow.AddSeconds(30) // testing
+
+            };
+            
+
+            var isLoggedInCookieOptions = new CookieOptions()
+            {
+                Secure = true, // if not working , remove
+                Expires = DateTime.UtcNow.AddDays(7),
+                // Expires = DateTime.UtcNow.AddMinutes(1), // testing
+                SameSite = SameSiteMode.Strict
+            };
+
+            var refreshTokenOptions = new CookieOptions()
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTime.UtcNow.AddDays(7)
+                // Expires = DateTime.UtcNow.AddMinutes(1) // testing
+
+            };
+          
+            Response.Cookies.Append("JWTToken", loginDto.TokenProp, cookieOptions);
+            Response.Cookies.Append("session_tok" , loginDto.RefreshTokenProp! , refreshTokenOptions);
+            Response.Cookies.Append("userLoggedIn" , "1" , isLoggedInCookieOptions);
+            Response.Cookies.Append("admin" , isAdmin ? "1" : "0" , isLoggedInCookieOptions);
           
 
-                var cookieOptions = new CookieOptions()
-                {
-                    HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.Strict,
-                    Expires = DateTime.UtcNow.AddDays(1)
-                };
-                
-
-                var isLoggedInCookieOptions = new CookieOptions()
-                {
-                    Secure = true, // if not working , remove
-                    Expires = DateTime.UtcNow.AddDays(1),
-                    SameSite = SameSiteMode.Strict
-                };
-              
-                Response.Cookies.Append("JWTToken", loginDto.TokenProp, cookieOptions);
-                Response.Cookies.Append("userLoggedIn" , "1" , isLoggedInCookieOptions);
-                Response.Cookies.Append("admin" , isAdmin ? "1" : "0" , isLoggedInCookieOptions);
-              
-
-                return Ok();
-                
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-                Console.WriteLine(e.StackTrace);
-                return StatusCode(500, new { message = "An error occurred while processing your request." });
-            }
+            return Ok();
+            
+        
         }
 
         [HttpGet("signin-google")]
         [AllowAnonymous]
         public IActionResult GoogleLogIn()
         {
+            Console.WriteLine("in google LOG IN");
             var redirectUrl = Url.Action("GoogleResponse", "Authentication");
            
             var properties = new AuthenticationProperties
@@ -138,25 +148,46 @@ namespace E_Commerce_BackEnd.Controllers
             var result = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
           
             var claims = result.Principal?.Identities.FirstOrDefault()?.Claims;
-
-            var newCreatedGoogleUser = _userService.CreateAccountBasedOnGoogleLogIn(claims!);
-
-            var newJwtTokenForGoogleUser = _userService.GenerateJwt(newCreatedGoogleUser.Result!);
+            
+            var newCreatedGoogleUser = await _userService.CreateAccountBasedOnGoogleLogIn(claims!);
+            Console.WriteLine("in google-response");
+            
+            var loginGoogleAccount = await _userService.LoginAccountAsync(new LoginDto
+            {
+                NumeProp = newCreatedGoogleUser!.Email!,
+                ParolaProp = null,
+                TokenProp = "",
+                RoleProp = "Client",
+                RefreshTokenProp = null
+            });
+            
             
             var cookieOptions = new CookieOptions()
             {
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.Lax,
-                Expires = DateTime.UtcNow.AddDays(1)
+                Expires = DateTime.UtcNow.AddMinutes(15)
+                // Expires = DateTime.UtcNow.AddSeconds(30)
+
             };
             var isLoggedInCookieOptions = new CookieOptions()
             {
                 Secure = true,
-                Expires = DateTime.UtcNow.AddDays(1),
+                Expires = DateTime.UtcNow.AddDays(7),
+                // Expires = DateTime.UtcNow.AddMinutes(1),
                 SameSite = SameSiteMode.Strict
             };
-            Response.Cookies.Append("JWTToken", newJwtTokenForGoogleUser, cookieOptions);
+            var refreshTokenOptions = new CookieOptions()
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTime.UtcNow.AddDays(7),
+                // Expires = DateTime.UtcNow.AddMinutes(1),
+            };
+            Response.Cookies.Append("JWTToken", loginGoogleAccount!.TokenProp, cookieOptions);
+            Response.Cookies.Append("session_tok" , loginGoogleAccount!.RefreshTokenProp! , refreshTokenOptions);
             Response.Cookies.Append("userLoggedIn" , "1" , isLoggedInCookieOptions);
 
             return Redirect("http://localhost:3000/home");
@@ -256,51 +287,49 @@ namespace E_Commerce_BackEnd.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> Logout()
         {
-            try
+           
+            var googleGeneratedCookie = Request.Cookies[".AspNetCore.Cookies"];
+            foreach (var cookie in Request.Cookies)
             {
-                var googleGeneratedCookie = Request.Cookies[".AspNetCore.Cookies"];
-                
-                var cookieOptions = new CookieOptions()
+                Console.WriteLine(cookie.Key);
+            }
+           
+            var isLoggedInCookieOptions = new CookieOptions()
+            {
+                Expires = DateTime.UtcNow.AddYears(-2),
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+            };
+
+            if (Request.Cookies.TryGetValue("session_tok", out var refreshToken))
+            {
+                Console.WriteLine("IN session tok");
+                var response = await _userService.LogoutAsync(refreshToken);
+                if (response == -1)
                 {
-                    HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.None,
-                    Expires = DateTime.UtcNow.AddDays(-2)
-                };
-
-                var isLoggedInCookieOptions = new CookieOptions()
-                {
-                    Expires = DateTime.UtcNow.AddDays(-2)
-                };
-
-               
-
-                Response.Cookies.Append("JWTToken", "", cookieOptions);
-                Response.Cookies.Append("userLoggedIn" , "" , isLoggedInCookieOptions);
-                Response.Cookies.Append("admin" , "" , isLoggedInCookieOptions);
-                Response.Cookies.Append("adminLoggedIn" , "" , isLoggedInCookieOptions);
-
-                if (googleGeneratedCookie != null)
-                {
-                    Response.Cookies.Append(".AspNetCore.Cookies", "", cookieOptions);
+                    Console.WriteLine("Error when deleting the refresh token from db");
                 }
-              
-                await Task.Delay(10);
-
-                return Ok();
             }
-            catch (Exception ex)
+           
+
+            Response.Cookies.Append("JWTToken", "", isLoggedInCookieOptions);
+            Response.Cookies.Append("session_tok", "", isLoggedInCookieOptions);
+            Response.Cookies.Append("userLoggedIn" , "" , isLoggedInCookieOptions);
+            Response.Cookies.Append("admin" , "" , isLoggedInCookieOptions);
+            Response.Cookies.Append("adminLoggedIn" , "" , isLoggedInCookieOptions);
+
+            if (googleGeneratedCookie != null)
             {
-                Console.WriteLine("Logout failed:" + ex.Message);
-                return Unauthorized();
+                Response.Cookies.Append(".AspNetCore.Cookies", "", isLoggedInCookieOptions);
             }
-        }
+          
+            await Task.Delay(10);
 
-        private async Task<bool> AccountExists(int id)
-        {
-            var account = await _userService.GetAccountByIdAsync(id);
-            return account != null;
+            return Ok("Succesfully logout of the account");
+           
         }
+        
         
 
         [HttpGet("confirmare/{token}")]

@@ -12,6 +12,7 @@ using E_Commerce_BackEnd.Models.Enums;
 using E_Commerce_BackEnd.Services.Helpers.adminHelpers;
 using E_Commerce_BackEnd.Services.uAdminService;
 using E_Commerce_BackEnd.Services.uBucketService;
+using E_Commerce_BackEnd.Services.uGeneralService;
 using E_Commerce_BackEnd.Services.uInelePrindereService;
 using E_Commerce_BackEnd.Services.uManopereService;
 using E_Commerce_BackEnd.Services.uProductsService;
@@ -45,13 +46,14 @@ namespace E_Commerce_BackEnd.Controllers
         private readonly DocumentProcessing _documentProcessing;
         private readonly IBucketService _bucketService;
         private readonly IManopereService _manopereService;
+        private readonly IGeneralSettingsService _generalSettingsService;
         private readonly SqidsEncoder<int> _sqidsEncoder;
 
         public AdminController(IAdminService adminService
             , DocumentProcessing documentProcessing, IProductService productService, ISeturiService seturiService, 
              SqidsEncoder<int> sqidsEncoder, 
             IInelePrindereService inelePrindereService, ITipuriGalerieService tipuriGalerieService, 
-            ITipuriLinieService tipuriLinieService, IUserService userService, IVoucherService voucherService, IBucketService bucketService, IManopereService manopereService)
+            ITipuriLinieService tipuriLinieService, IUserService userService, IVoucherService voucherService, IBucketService bucketService, IManopereService manopereService, IGeneralSettingsService generalSettingsService)
         {
             _adminService = adminService;
             _documentProcessing = documentProcessing;
@@ -65,6 +67,7 @@ namespace E_Commerce_BackEnd.Controllers
             _voucherService = voucherService;
             _bucketService = bucketService;
             _manopereService = manopereService;
+            _generalSettingsService = generalSettingsService;
         }
 
        
@@ -86,8 +89,8 @@ namespace E_Commerce_BackEnd.Controllers
             {
                 HttpOnly = true,
                 Secure = true,
-                SameSite = SameSiteMode.None,
-                Expires = DateTime.UtcNow.AddDays(1)
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTime.UtcNow.AddDays(7)
             };
                 
             Response.Cookies.Append("adminLoggedIn" , "1" , cookieOptions);
@@ -551,12 +554,7 @@ namespace E_Commerce_BackEnd.Controllers
         {
             
             var newSetToDto = JsonConvert.DeserializeObject<SetModificationDto>(newSet);
-
-            foreach (var product in newSetToDto.ProductsOnSet)
-            {
-                Console.WriteLine($"Nume produs : {product.NumeProdusDto} - {product.TipProdusDto}");
-            }
-
+            
             if (newSetToDto is null)
             {
                 return BadRequest("Invalid deserializing from the JSON to Dto");
@@ -1391,6 +1389,33 @@ namespace E_Commerce_BackEnd.Controllers
                 // server error     
                 _ => StatusCode(500, "General error occured. Check logs")
             };
+        }
+
+        [HttpPost("modifyGeneralSettings")]
+        [Authorize]
+        public async Task<IActionResult> ModifyGeneralSettings([FromForm] string dict)
+        {
+            var generalSettingsDict = JsonConvert.DeserializeObject<IDictionary<string, string>>(dict);
+
+            if (generalSettingsDict == null) return NotFound("Contactati administratorului");
+            
+            var response = await _generalSettingsService.SaveGeneralSettings(generalSettingsDict);
+
+            return response switch
+            {
+                -2 => BadRequest("Eroare generala. Contactati administratorului"),
+                1 => Ok("Modificat cu succes"),
+                _ => StatusCode(500 , "Server error"),
+            };
+
+        }
+
+        [HttpGet("generalSettings")]
+        [Authorize]
+        public async Task<IActionResult> ModifyGeneralSettings()
+        {
+            var response = await _generalSettingsService.GetGeneralSettingsData();
+            return Ok(response);
         }
 
        

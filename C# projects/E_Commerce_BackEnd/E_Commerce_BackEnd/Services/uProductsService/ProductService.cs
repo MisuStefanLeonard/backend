@@ -14,6 +14,9 @@ using E_Commerce_BackEnd.Models.ProductRelatedModels;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
 using E_Commerce_BackEnd.Services.Helpers.UserHelpers;
 using E_Commerce_BackEnd.UnitOfWork;
+using Google.Analytics.Data.V1Beta;
+using Google.Apis.Auth.OAuth2;
+using Grpc.Auth;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Caching.Memory;
@@ -162,6 +165,7 @@ public partial class ProductService : IProductService
                     IsDeleted = false,
                     ActivInMagazin = modifiedProduct.ActivInMagazinDto,
                     PretDeBaza = modifiedProduct.PretBazaDto,
+                    PretDeBazaRedus = modifiedProduct.PretBazaRedusDto,
                     IdProducator = producator?.IdProducator,
                 };
             
@@ -187,56 +191,70 @@ public partial class ProductService : IProductService
             var productTypesRepository = _unitOfWork.Repository<TipuriProduse>();
             var modifiedProductTypes = modifiedProduct.TipuriProduseDto;
     
-            if (!modifiedProductTypes.IsNullOrEmpty())
-            {
-                foreach (var newType in modifiedProductTypes)
-                {
-                    var findTypeInDb = await productTypesRepository
-                        .FindQueryable(t => t.Categorie == newType.CategorieDto.ToUpper())
-                        .FirstOrDefaultAsync();
-    
-                    if (findTypeInDb == null)
-                    {
-                        findTypeInDb = new TipuriProduse
-                        {
-                            Categorie = newType.CategorieDto.ToUpper()
-                        };
-    
-                        await productTypesRepository.AddAsync(findTypeInDb);
-                        await _unitOfWork.CommitAsync();
-                    }
-    
-                    var typeOnProduct = await typesOnProductsRepository
-                        .FindQueryable(tp => tp.IdTipProdus == findTypeInDb.IdTipProdus && tp.IdProdus == productId)
-                        .FirstOrDefaultAsync();
-    
-                    if (typeOnProduct == null)
-                    {
-                        var newTypeOnProduct = new TipuriPeProduse
-                        {
-                            IdTipProdus = findTypeInDb.IdTipProdus,
-                            IdProdus = productId
-                        };
-    
-                        await typesOnProductsRepository.AddAsync(newTypeOnProduct);
-                    }
-                }
-    
-                successCodes[1] = 1;
-            }
-            else
-            {
-                successCodes[1] = 1;
+            
+            var allProductTypes = await productTypesRepository.GetSimpleQueryable().ToListAsync();
+            var allTypesOnProducts = await typesOnProductsRepository
+                .FindQueryable(tp => tp.IdProdus == productId)
+                .ToListAsync();
 
+            var newProductTypes = new List<TipuriProduse>();
+            var newTypesOnProducts = new List<TipuriPeProduse>();
+
+            // Step 1: Add new product types to the database if they don't exist
+            foreach (var newType in modifiedProductTypes)
+            {
+                var existingType = allProductTypes.FirstOrDefault(t => t.Categorie == newType.CategorieDto.ToUpper());
+                if (existingType == null)
+                {
+                    existingType = new TipuriProduse { Categorie = newType.CategorieDto.ToUpper() };
+                    newProductTypes.Add(existingType);
+                }
             }
+
+            if (newProductTypes.Count > 0)
+            {
+                await productTypesRepository.AddRangeAsync(newProductTypes);
+                await _unitOfWork.CommitAsync();
+
+                // Refresh the product types list after adding new ones
+                allProductTypes = await productTypesRepository.GetSimpleQueryable().ToListAsync();
+            }
+
+            // Step 2: Prepare the new types-on-products entries
+            foreach (var newType in modifiedProductTypes)
+            {
+                var associatedType = allProductTypes.First(t => t.Categorie == newType.CategorieDto.ToUpper());
     
+                // Check if the type-on-product already exists
+                var existingTypeOnProduct = allTypesOnProducts
+                    .FirstOrDefault(tp => tp.IdTipProdus == associatedType.IdTipProdus && tp.IdProdus == productId);
+
+                if (existingTypeOnProduct == null)
+                {
+                    newTypesOnProducts.Add(new TipuriPeProduse
+                    {
+                        IdTipProdus = associatedType.IdTipProdus,
+                        IdProdus = productId
+                    });
+                }
+            }
+
+            // Step 3: Add the new types-on-products entries to the database
+            if (newTypesOnProducts.Count > 0)
+            {
+                await typesOnProductsRepository.AddRangeAsync(newTypesOnProducts);
+            }
+
+            successCodes[1] = 1;
+
+            // de facut bulk insert
             // Handle colors and images
             var colorsOnProductsRepository = _unitOfWork.Repository<ProduseCuCulori>();
             var colorRepository = _unitOfWork.Repository<Culori>();
             var colorCodesRepository = _unitOfWork.Repository<CodCulori>();
             var imagesRepository = _unitOfWork.Repository<Imagini>();
             var modifiedProductColors = modifiedProduct.CuloriProdusDto;
-    
+            
             if (!modifiedProductColors.IsNullOrEmpty())
             {
                 foreach (var color in modifiedProductColors)
@@ -351,6 +369,11 @@ public partial class ProductService : IProductService
             var dimensionOnProductsRepository = _unitOfWork.Repository<ProduseCuDimensiuni>();
             var dimensionsRepository = _unitOfWork.Repository<Dimensiuni>();
             var modifiedDimensions = modifiedProduct.DimensiuniProduseDto;
+            var newDimensions = new List<Dimensiuni>();
+            var newDImensionsLinkedWithProducts = new List<ProduseCuDimensiuni>();
+            var allDimensionLinkedWithProduct = await dimensionOnProductsRepository
+                .FindQueryable(d => d.IdProdus == productId)
+                .ToListAsync();
     
             if (!modifiedDimensions.IsNullOrEmpty())
             {
@@ -361,7 +384,7 @@ public partial class ProductService : IProductService
                                             && d.Latime == updatedDimension.LatimeDto
                                             && d.RecomandarePat == updatedDimension.RecomandarePat)
                         .FirstOrDefaultAsync();
-    
+
                     if (isNewDimensionInDb == null)
                     {
                         var newUpdatedDimension = new Dimensiuni
@@ -370,32 +393,48 @@ public partial class ProductService : IProductService
                             Latime = updatedDimension.LatimeDto!,
                             RecomandarePat = updatedDimension.RecomandarePat,
                         };
-    
-                        await dimensionsRepository.AddAsync(newUpdatedDimension);
-                        await _unitOfWork.CommitAsync();
-                        isNewDimensionInDb = newUpdatedDimension;
-                    }
-    
-                    var isNewDimensionLinkedWithProductInDb = await dimensionOnProductsRepository
-                        .FindQueryable(pd => pd.IdProdus == productId
-                                             && pd.IdDimensiune == isNewDimensionInDb.IdDimensiune)
-                        .FirstOrDefaultAsync();
 
-                    if (isNewDimensionLinkedWithProductInDb != null) 
-                        continue;
-                    
-                    var newUpdatedDimensionLinkedWithProduct = new ProduseCuDimensiuni
-                    {
-                        Pret = updatedDimension.PretDto,
-                        PretRedus = updatedDimension.PretRedusDto,
-                        IdDimensiune = isNewDimensionInDb.IdDimensiune,
-                        IdProdus = productId
-                    };
-    
-                    await dimensionOnProductsRepository.AddAsync(newUpdatedDimensionLinkedWithProduct);
+                        newDimensions.Add(newUpdatedDimension);
+                       
+                    }
                 }
-    
-                successCodes[4] = 1;
+
+                if (newDimensions.Count > 0)
+                {
+                    await dimensionsRepository.AddRangeAsync(newDimensions);
+                    await _unitOfWork.CommitAsync();
+                    newDimensions = await dimensionsRepository.GetSimpleQueryable()
+                        .ToListAsync();
+                }
+                
+
+                foreach (var dimension in modifiedDimensions!)
+                {
+                    
+                    var newDimensionAdded = newDimensions.First(d => d.Lungime == dimension.LungimeDto
+                                                                     && d.Latime == dimension.LatimeDto &&
+                                                                     d.RecomandarePat == dimension.RecomandarePat);
+                    var isNewDimensionLinkedWithProductInDb = allDimensionLinkedWithProduct
+                        .FirstOrDefault(pd =>
+                            pd.IdDimensiune == newDimensionAdded.IdDimensiune && pd.IdProdus == productId);
+
+                    if (isNewDimensionLinkedWithProductInDb == null)
+                    {
+                        var newUpdatedDimensionLinkedWithProduct = new ProduseCuDimensiuni
+                        {
+                            Pret = dimension.PretDto,
+                            PretRedus = dimension.PretRedusDto,
+                            IdDimensiune = newDimensionAdded.IdDimensiune,
+                            IdProdus = productId
+                        };
+                        newDImensionsLinkedWithProducts.Add(newUpdatedDimensionLinkedWithProduct);
+                    }
+
+                    
+                }
+
+                await dimensionOnProductsRepository.AddRangeAsync(newDImensionsLinkedWithProducts);
+               
             }
             else
             {
@@ -410,10 +449,10 @@ public partial class ProductService : IProductService
                         await dimensionOnProductsRepository.DeleteRangeAsync(oldEntriesOfDimension);
                     }
                 }
-                successCodes[4] = 1;
+               
             }
     
-            
+            successCodes[4] = 1;
     
             // Commit all changes in a transaction
             await _unitOfWork.CommitTransactionAsync(modifyingTransaction);
@@ -1647,6 +1686,43 @@ public partial class ProductService : IProductService
 
     }
 
+    public async Task<ProductTypesAndSubCategories> GetProductTypesAndSubCategories()
+    {
+        
+        var productTypes = await _cache.GetOrCreateAsync("productTypes", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
+            var productTypes = await _unitOfWork.Repository<Produse>()
+                .GetSimpleQueryable()
+                .GroupBy(types => types.TipulProdusului)
+                .Select(g => g.Key)
+                .ToListAsync();
+
+            return productTypes;
+
+        });
+
+        var productCategories = await _cache.GetOrCreateAsync("productCategories", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
+            var productCategories = await _unitOfWork.Repository<TipuriProduse>()
+                .GetSimpleQueryable()
+                .GroupBy(tip => tip.Categorie)
+                .Select(g => g.Key)
+                .ToListAsync();
+
+            return productCategories;
+        });
+
+        return new ProductTypesAndSubCategories
+        {
+            ProductTypes = productTypes!,
+            Categories = productCategories!
+        };
+
+
+    }
+
     public async Task<IList<ProductsListingForUsers>> GetProductsForUsers(
         int? pageNumber, List<string>? productTypes, List<string>? productColors,
         List<string>? productDimensions, List<decimal>? productPrices, bool? reverseFace,
@@ -1758,7 +1834,14 @@ public partial class ProductService : IProductService
                             FisierInBucketDto = image.FisierInBucket,
                             PresignedUrl = null
                         }).ToList()
-                }).ToList()
+                }).ToList(),
+            ReviewsInfoGeneral = new ReviewsInfoForQuickDisplay
+            {
+                TotalReviews = product.ProductReviews!.Count,
+                AverageRating = product.ProductReviews.Count > 0
+                    ? Math.Round(product.ProductReviews.Average(avg => avg.NumarStele), 1)
+                    : 0.0,
+            }
         }).AsSplitQuery()
         .ToListAsync();
 
@@ -1911,6 +1994,7 @@ public partial class ProductService : IProductService
                     .Where(product => product.CodProdus == codProdus.ToUpper() && product.TipulProdusului == tipProdus.ToLower())
                     .Select(product => new ProductPageForUser
                     {
+                        IdProdus = product.IdProdus,
                         CodProdusDto = product.CodProdus,
                         DescriereDto = product.Descriere,
                         NumeProdusDto = product.NumeProdus,
@@ -1928,6 +2012,7 @@ public partial class ProductService : IProductService
                         CuloriProdus = product.PProduseCuCulori!
                             .Select(pc => new CuloriDto
                             {
+                                IdCuloare = pc.IdCuloare,
                                 NumeCuloareDto = pc.Culoare.NumeCuloare,
                                 CodCuloareDto = pc.Culoare.CodCuloare.CodCuloare!,
                                 JustAdded = false,
@@ -1990,7 +2075,7 @@ public partial class ProductService : IProductService
                 var productForUser = await productsRepository
                     .GetSimpleQueryable()
                     .Include(p => p.Producator)
-                    .Include(p => p.PProduseCuDimensiuni)
+                    .Include(p => p.PProduseCuDimensiuni!)
                     .Include(p => p.PProduseCuCulori!)
                         .ThenInclude(p => p.Culoare)
                             .ThenInclude(p => p.CodCuloare)
@@ -1999,6 +2084,7 @@ public partial class ProductService : IProductService
                     .Where(product => product.CodProdus == codProdus.ToUpper() && product.TipulProdusului == tipProdus.ToLower())
                     .Select(product => new ProductPageForUser
                     {
+                        IdProdus = product.IdProdus,
                         CodProdusDto = product.CodProdus,
                         DescriereDto = product.Descriere,
                         NumeProdusDto = product.NumeProdus,
@@ -2014,6 +2100,7 @@ public partial class ProductService : IProductService
                             .OrderByDescending(dimensiune => dimensiune.Pret)
                             .Select(dimensiune => new DimensiuniDto
                             {
+                                IdDimensiune = dimensiune.IdDimensiune,
                                 LungimeDto = dimensiune.PdDimensiune!.Lungime,
                                 LatimeDto = dimensiune.PdDimensiune!.Latime,
                                 RecomandarePat = dimensiune.PdDimensiune!.RecomandarePat!,
@@ -2024,6 +2111,7 @@ public partial class ProductService : IProductService
                         CuloriProdus = product.PProduseCuCulori!
                             .Select(pc => new CuloriDto
                             {
+                                IdCuloare = pc.IdCuloare,
                                 NumeCuloareDto = pc.Culoare.NumeCuloare,
                                 CodCuloareDto = pc.Culoare.CodCuloare.CodCuloare!,
                                 JustAdded = false,
@@ -2034,6 +2122,8 @@ public partial class ProductService : IProductService
                                             CaleImagineDto = imag.CaleImagine!,
                                             FisierInBucketDto = imag.FisierInBucket,
                                             PresignedUrl = null,
+                                            IdProdusCuCuloareDto = 0,
+                                            JustAdded = false
                                         }).ToList()
                                     : null 
                             }).ToList(),
@@ -2094,5 +2184,306 @@ public partial class ProductService : IProductService
                 
         }
         
+    }
+
+    public async Task<IList<MostViewedProduct>> GetMostViewedProducts(string currency = "RON")
+    {
+
+        var mostViewedProductsCached = await _cache.GetOrCreateAsync($"mostViewedProducts_{currency}", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(20);
+            const string propertyId = "462890702";
+
+            // Get the current working directory
+            var currentDirectory = Directory.GetCurrentDirectory();
+
+            // Construct the path to the credentials file (adjust the relative path)
+            var credentialsPath = Path.Combine(currentDirectory, "credentials.json");
+
+            // Load the service account credentials from the JSON key file
+            var credential = GoogleCredential.FromFile(credentialsPath)
+                .CreateScoped("https://www.googleapis.com/auth/analytics.readonly");
+
+            // Create the BetaAnalyticsDataClient with the credential
+            var client = await new BetaAnalyticsDataClientBuilder
+            {
+                ChannelCredentials = credential.ToChannelCredentials()
+            }.BuildAsync();
+            const string lowerInterval = "2022-01-01";
+            const string upperInterval = "today";
+
+            var usersPerPage = new RunReportRequest
+            {
+                Property = "properties/" + propertyId,
+                Dimensions =
+                {
+                    new Dimension { Name = "pagePath" },
+                },
+                Metrics =
+                {
+                    new Metric { Name = "screenPageViews" }
+                },
+                DateRanges = { new DateRange { StartDate = lowerInterval, EndDate = upperInterval } },
+                DimensionFilter = new FilterExpression
+                {
+                    AndGroup = new FilterExpressionList
+                    {
+                        Expressions =
+                        {
+                            new FilterExpression
+                            {
+                                Filter = new Filter
+                                {
+                                    FieldName = "pagePath",
+                                    StringFilter = new Filter.Types.StringFilter
+                                    {
+                                        MatchType = Filter.Types.StringFilter.Types.MatchType.BeginsWith,
+                                        Value = "/product"
+                                    }
+                                }
+                            },
+                            new FilterExpression
+                            {
+                                NotExpression = new FilterExpression
+                                {
+                                    Filter = new Filter
+                                    {
+                                        FieldName = "pagePath",
+                                        StringFilter = new Filter.Types.StringFilter
+                                        {
+                                            MatchType = Filter.Types.StringFilter.Types.MatchType.Contains,
+                                            Value = "/admin"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+            };
+
+            var responseFromProductAndSetsViews = await client.RunReportAsync(usersPerPage);
+
+            var sortedViews = responseFromProductAndSetsViews.Rows
+                .Select(row => new MostPageViews
+                {
+                    PagePath = row.DimensionValues[0].Value,
+                    Views = int.Parse(row.MetricValues[0].Value)
+                })
+                .OrderByDescending(view => view.Views) // Sort by views in descending order
+                .Take(20) // Take the top 20
+                .Select(view => view.PagePath.Split("/")[2])
+                .ToList();
+
+
+            var productsRepository = _unitOfWork.Repository<Produse>();
+            
+            var mostViewedProducts = await productsRepository
+                .GetSimpleQueryable()
+                .Where(p => sortedViews.Contains(p.CodProdus))
+                .Select(p => new MostViewedProduct
+                {
+                    CodProdusDto = p.CodProdus,
+                    NumeProdusDto = p.NumeProdus!,
+                    TipulProdusuluiDto = p.TipulProdusului,
+                    PretBazaDto = currency == "RON"
+                        ? p.PProduseCuDimensiuni!.Count == 0
+                            ? p.PretDeBaza
+                            : p.PProduseCuDimensiuni.Min(dim => dim.Pret)
+                        : p.PProduseCuDimensiuni!.Count == 0
+                            ? p.PretDeBaza
+                            : p.PProduseCuDimensiuni.Min(dim => dim.Pret) * (decimal)0.2,
+                    PretBazaRedusDto = currency == "RON"
+                        ? p.PProduseCuDimensiuni!.Count == 0
+                            ? p.PretDeBazaRedus
+                            : p.PProduseCuDimensiuni.Min(dim => dim.PretRedus)
+                        : p.PProduseCuDimensiuni!.Count == 0
+                            ? p.PretDeBaza
+                            : p.PProduseCuDimensiuni.Min(dim => dim.PretRedus) * (decimal)0.2,
+                    CuloriProdusDto = p.PProduseCuCulori!
+                        .Where(pc => pc.ImagProduseCuCulori!.Count > 0)
+                        .Take(1)
+                        .Select(culori => new ColorsWithImages
+                        {
+                            NumeCuloareDto = culori.Culoare.NumeCuloare,
+                            ImaginiProdusDto = culori.ImagProduseCuCulori!
+                                .OrderBy(image => image.CaleImagine) 
+                                .Take(1)
+                                .Select(image => new ImagesDtoForUsers
+                                {
+                                    CaleImagineDto = image.CaleImagine ?? "",
+                                    FisierInBucketDto = image.FisierInBucket,
+                                    PresignedUrl = null
+                                }).ToList()
+                        }).ToList()
+                })
+                .AsSplitQuery()
+                .ToListAsync();
+
+
+            foreach (var product in mostViewedProducts)
+            {
+                foreach (var color in product.CuloriProdusDto)
+                {
+
+                    if (color.ImaginiProdusDto.IsNullOrEmpty()) continue;
+                    foreach (var image in color.ImaginiProdusDto!)
+                    {
+                        image.PresignedUrl =
+                            await _bucketAcces.GenerateUrl(image.CaleImagineDto, image.FisierInBucketDto);
+                    }
+
+                }
+            }
+
+            return mostViewedProducts;
+        });
+        return mostViewedProductsCached!;
+    }
+
+    public async Task<IList<MostViewedProduct>> GetProductsThatAreNew(string currency = "RON")
+    {
+        
+        var getNewProducts = await _cache.GetOrCreateAsync($"newProducts_{currency}", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30);
+            var productsRepository = _unitOfWork.Repository<Produse>();
+            var newProducts = await productsRepository
+                .GetSimpleQueryable()
+                .Where(p => p.ActivInMagazin && !p.IsDeleted && p.AfiseazaInNoutati)
+                .Take(15)
+                .Select(p => new MostViewedProduct
+                {
+                    CodProdusDto = p.CodProdus,
+                    NumeProdusDto = p.NumeProdus!,
+                    TipulProdusuluiDto = p.TipulProdusului,
+                    PretBazaDto = currency == "RON"
+                        ? p.PProduseCuDimensiuni!.Count == 0
+                            ? p.PretDeBaza
+                            : p.PProduseCuDimensiuni.Min(dim => dim.Pret)
+                        : p.PProduseCuDimensiuni!.Count == 0
+                            ? p.PretDeBaza
+                            : p.PProduseCuDimensiuni.Min(dim => dim.Pret) * (decimal)0.2,
+                    PretBazaRedusDto = currency == "RON"
+                        ? p.PProduseCuDimensiuni!.Count == 0
+                            ? p.PretDeBazaRedus
+                            : p.PProduseCuDimensiuni.Min(dim => dim.PretRedus)
+                        : p.PProduseCuDimensiuni!.Count == 0
+                            ? p.PretDeBaza
+                            : p.PProduseCuDimensiuni.Min(dim => dim.PretRedus) * (decimal)0.2,
+                    CuloriProdusDto = p.PProduseCuCulori!
+                        .Where(pc => pc.ImagProduseCuCulori!.Count > 0)
+                        .Take(1)
+                        .Select(culori => new ColorsWithImages
+                        {
+                            NumeCuloareDto = culori.Culoare.NumeCuloare,
+                            ImaginiProdusDto = culori.ImagProduseCuCulori!
+                                .OrderBy(image => image.CaleImagine)
+                                .Take(1)
+                                .Select(image => new ImagesDtoForUsers
+                                {
+                                    CaleImagineDto = image.CaleImagine ?? "",
+                                    FisierInBucketDto = image.FisierInBucket,
+                                    PresignedUrl = null
+                                }).ToList()
+                        }).ToList()
+                })
+                .AsSplitQuery()
+                .ToListAsync();
+
+
+            foreach (var product in newProducts)
+            {
+                foreach (var color in product.CuloriProdusDto)
+                {
+
+                    if (color.ImaginiProdusDto.IsNullOrEmpty()) continue;
+                    foreach (var image in color.ImaginiProdusDto!)
+                    {
+                        image.PresignedUrl =
+                            await _bucketAcces.GenerateUrl(image.CaleImagineDto, image.FisierInBucketDto);
+                    }
+
+                }
+            }
+
+            return newProducts;
+        });
+
+        return getNewProducts ?? [];
+
+    }
+    
+    public async Task<IList<MostViewedProduct>> GetProductsThatAreLimitedEdition(string currency = "RON")
+    {
+        var getLimitedEditionProducts = await _cache.GetOrCreateAsync($"newProducts_{currency}", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30);
+            var productsRepository = _unitOfWork.Repository<Produse>();
+            var limitedEditionProducts = await productsRepository
+                .GetSimpleQueryable()
+                .Where(p => p.ActivInMagazin && !p.IsDeleted && p.ProdusLimitat)
+                .Take(15)
+                .Select(p => new MostViewedProduct
+                {
+                    CodProdusDto = p.CodProdus,
+                    NumeProdusDto = p.NumeProdus!,
+                    TipulProdusuluiDto = p.TipulProdusului,
+                    PretBazaDto = currency == "RON"
+                        ? p.PProduseCuDimensiuni!.Count == 0
+                            ? p.PretDeBaza
+                            : p.PProduseCuDimensiuni.Min(dim => dim.Pret)
+                        : p.PProduseCuDimensiuni!.Count == 0
+                            ? p.PretDeBaza
+                            : p.PProduseCuDimensiuni.Min(dim => dim.Pret) * (decimal)0.2,
+                    PretBazaRedusDto = currency == "RON"
+                        ? p.PProduseCuDimensiuni!.Count == 0
+                            ? p.PretDeBazaRedus
+                            : p.PProduseCuDimensiuni.Min(dim => dim.PretRedus)
+                        : p.PProduseCuDimensiuni!.Count == 0
+                            ? p.PretDeBaza
+                            : p.PProduseCuDimensiuni.Min(dim => dim.PretRedus) * (decimal)0.2,
+                    CuloriProdusDto = p.PProduseCuCulori!
+                        .Where(pc => pc.ImagProduseCuCulori!.Count > 0)
+                        .Take(1)
+                        .Select(culori => new ColorsWithImages
+                        {
+                            NumeCuloareDto = culori.Culoare.NumeCuloare,
+                            ImaginiProdusDto = culori.ImagProduseCuCulori!
+                                .OrderBy(image => image.CaleImagine)
+                                .Take(1)
+                                .Select(image => new ImagesDtoForUsers
+                                {
+                                    CaleImagineDto = image.CaleImagine ?? "",
+                                    FisierInBucketDto = image.FisierInBucket,
+                                    PresignedUrl = null
+                                }).ToList()
+                        }).ToList()
+                })
+                .AsSplitQuery()
+                .ToListAsync();
+
+
+            foreach (var product in limitedEditionProducts)
+            {
+                foreach (var color in product.CuloriProdusDto)
+                {
+
+                    if (color.ImaginiProdusDto.IsNullOrEmpty()) continue;
+                    foreach (var image in color.ImaginiProdusDto!)
+                    {
+                        image.PresignedUrl =
+                            await _bucketAcces.GenerateUrl(image.CaleImagineDto, image.FisierInBucketDto);
+                    }
+
+                }
+            }
+
+            return limitedEditionProducts;
+        });
+
+        return getLimitedEditionProducts ?? [];
+
     }
 }

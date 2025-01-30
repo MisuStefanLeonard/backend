@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "H4eiBWlIRuVqFyWKukKMAQTd7Rg0W8B/iGiR0CMUCVc3M3LOBVPZYibbyq0PsvHVPKDLeneRZ3DwKpAfTcB6HA==",
+  "dgSpecHash": "NxwBwBrtiK0aXmyB5wA5oWVeWI2NqtELwVJDwRWbCoT6IWkojCot2Gf0YfiDuM7F0GGOMIR982Dr60l15YQTgQ==",
   "success": true,
   "projectFilePath": "/Users/misustefan/Desktop/backend/C# projects/E_Commerce_BackEnd/Testing/Testing.csproj",
   "expectedPackageFiles": [
@@ -166,6 +166,8 @@
     "/Users/misustefan/.nuget/packages/microsoft.extensions.dependencyinjection.abstractions/9.0.0-preview.6.24327.7/microsoft.extensions.dependencyinjection.abstractions.9.0.0-preview.6.24327.7.nupkg.sha512",
     "/Users/misustefan/.nuget/packages/microsoft.extensions.dependencymodel/8.0.0/microsoft.extensions.dependencymodel.8.0.0.nupkg.sha512",
     "/Users/misustefan/.nuget/packages/microsoft.extensions.diagnostics.abstractions/9.0.0-preview.6.24327.7/microsoft.extensions.diagnostics.abstractions.9.0.0-preview.6.24327.7.nupkg.sha512",
+    "/Users/misustefan/.nuget/packages/microsoft.extensions.diagnostics.healthchecks/8.0.0/microsoft.extensions.diagnostics.healthchecks.8.0.0.nupkg.sha512",
+    "/Users/misustefan/.nuget/packages/microsoft.extensions.diagnostics.healthchecks.abstractions/8.0.0/microsoft.extensions.diagnostics.healthchecks.abstractions.8.0.0.nupkg.sha512",
     "/Users/misustefan/.nuget/packages/microsoft.extensions.fileproviders.abstractions/9.0.0-preview.6.24327.7/microsoft.extensions.fileproviders.abstractions.9.0.0-preview.6.24327.7.nupkg.sha512",
     "/Users/misustefan/.nuget/packages/microsoft.extensions.hosting.abstractions/9.0.0-preview.6.24327.7/microsoft.extensions.hosting.abstractions.9.0.0-preview.6.24327.7.nupkg.sha512",
     "/Users/misustefan/.nuget/packages/microsoft.extensions.logging/8.0.0/microsoft.extensions.logging.8.0.0.nupkg.sha512",
@@ -220,6 +222,11 @@
     "/Users/misustefan/.nuget/packages/nunit3testadapter/4.5.0/nunit3testadapter.4.5.0.nupkg.sha512",
     "/Users/misustefan/.nuget/packages/pomelo.entityframeworkcore.mysql/8.0.2/pomelo.entityframeworkcore.mysql.8.0.2.nupkg.sha512",
     "/Users/misustefan/.nuget/packages/portable.bouncycastle/1.9.0/portable.bouncycastle.1.9.0.nupkg.sha512",
+    "/Users/misustefan/.nuget/packages/quartz/3.13.1/quartz.3.13.1.nupkg.sha512",
+    "/Users/misustefan/.nuget/packages/quartz.aspnetcore/3.13.1/quartz.aspnetcore.3.13.1.nupkg.sha512",
+    "/Users/misustefan/.nuget/packages/quartz.extensions.dependencyinjection/3.13.1/quartz.extensions.dependencyinjection.3.13.1.nupkg.sha512",
+    "/Users/misustefan/.nuget/packages/quartz.extensions.hosting/3.13.1/quartz.extensions.hosting.3.13.1.nupkg.sha512",
+    "/Users/misustefan/.nuget/packages/quartz.serialization.systemtextjson/3.13.1/quartz.serialization.systemtextjson.3.13.1.nupkg.sha512",
     "/Users/misustefan/.nuget/packages/randomdatagenerator.net/1.0.17/randomdatagenerator.net.1.0.17.nupkg.sha512",
     "/Users/misustefan/.nuget/packages/sixlabors.fonts/1.0.0/sixlabors.fonts.1.0.0.nupkg.sha512",
     "/Users/misustefan/.nuget/packages/sixlabors.imagesharp/2.1.8/sixlabors.imagesharp.2.1.8.nupkg.sha512",

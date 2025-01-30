@@ -11,18 +11,18 @@ namespace E_Commerce_BackEnd.Migrations.V1_4
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<int>(
-                name: "IdSet",
+                name: "id_set",
                 table: "reviews",
                 type: "int(1)",
                 nullable: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_reviews_IdSet",
+                name: "IX_reviews_id_set",
                 table: "reviews",
-                column: "IdSet");
+                column: "id_set");
 
             migrationBuilder.AddForeignKey(
-                name: "FK_reviews_seturi_IdSet",
+                name: "FK_reviews_seturi_id_set",
                 table: "reviews",
                 column: "IdSet",
                 principalTable: "seturi",
@@ -33,15 +33,15 @@ namespace E_Commerce_BackEnd.Migrations.V1_4
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropForeignKey(
-                name: "FK_reviews_seturi_IdSet",
+                name: "FK_reviews_seturi_id_set",
                 table: "reviews");
 
             migrationBuilder.DropIndex(
-                name: "IX_reviews_IdSet",
+                name: "IX_reviews_id_set",
                 table: "reviews");
 
             migrationBuilder.DropColumn(
-                name: "IdSet",
+                name: "id_set",
                 table: "reviews");
         }
     }

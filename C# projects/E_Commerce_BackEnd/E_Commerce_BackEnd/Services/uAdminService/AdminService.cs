@@ -828,11 +828,7 @@ public async Task<GaDashboardDto> GetGoogleAnalyticsData(string? lowerInterval ,
         {
             new Dimension { Name = "city" },
             new Dimension { Name = "pagePath" },
-            // new Dimension { Name = "itemCategory" },
-            // new Dimension { Name = "itemCategory2" },
-            // new Dimension { Name = "itemCategory3" },
-            // new Dimension { Name = "itemName"},
-            // new Dimension { Name = "mobileDeviceModel"}
+           
         },
         Metrics =
         {
@@ -866,11 +862,7 @@ public async Task<GaDashboardDto> GetGoogleAnalyticsData(string? lowerInterval ,
         {
             new Dimension { Name = "city" },
             new Dimension { Name = "unifiedScreenName" },
-            // new Dimension { Name = "itemCategory" },
-            // new Dimension { Name = "itemCategory2" },
-            // new Dimension { Name = "itemCategory3" },
-            // new Dimension { Name = "itemName"},
-            // new Dimension { Name = "mobileDeviceModel"}
+            
         },
         Metrics =
         {
@@ -907,9 +899,6 @@ public async Task<GaDashboardDto> GetGoogleAnalyticsData(string? lowerInterval ,
     // general
     foreach (var row in responseFromTotalUsers.Rows)
     {
-        Console.WriteLine("Active users : {0} \n , Active 1 day users : {1} \n , Active 28 day users : {2} , Total page views  : {3} " ,
-            row.MetricValues[0].Value , row.MetricValues[1].Value , row.MetricValues[2].Value , row.MetricValues[3].Value);
-
         googleAnalyticsDto.TotalActiveUsers = int.Parse(row.MetricValues[0].Value); // total active users 
         googleAnalyticsDto.TotalOneDayActiveUsers = int.Parse(row.MetricValues[1].Value); // total active users petr 1 day 
         googleAnalyticsDto.Total28DayActiveUsers = int.Parse(row.MetricValues[2].Value); // total active users per 28 days 
@@ -921,7 +910,7 @@ public async Task<GaDashboardDto> GetGoogleAnalyticsData(string? lowerInterval ,
     // real time
     foreach (var row in realTimeResponseFromTotalUsers.Rows)
     {
-        Console.WriteLine("Total useri activi reali : {0} , Event count : {1}" , row.MetricValues[0].Value , row.MetricValues[1].Value);
+        
         googleAnalyticsDto.TotalActiveUsersReal = int.Parse(row.MetricValues[0].Value); // total active users real time
         googleAnalyticsDto.TotalScreenPageViewsReal = int.Parse(row.MetricValues[1].Value);
     }

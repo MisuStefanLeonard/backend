@@ -5,6 +5,7 @@ using AutoMapper;
 using E_Commerce_BackEnd.Models.DTO;
 using E_Commerce_BackEnd.Models.DTO.AdminRelatedDtos.Accounts;
 using E_Commerce_BackEnd.Models.DTO.AdminRelatedDtos.OrdersDto;
+using E_Commerce_BackEnd.Models.DTO.Recaptcha;
 using E_Commerce_BackEnd.Models.OrderRelatedModels;
 using E_Commerce_BackEnd.Models.UserRelatedModels;
 using E_Commerce_BackEnd.Services.emailService;
@@ -14,7 +15,7 @@ using E_Commerce_BackEnd.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Caching.Memory;
-
+using Newtonsoft.Json;
 
 
 namespace E_Commerce_BackEnd.Services.uService;
@@ -24,19 +25,18 @@ public class UserService : IUserService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly IEmailService _emailService;
-    
+    private readonly IConfiguration _configuration;
     private readonly ITokenService _tokenService;
     private readonly IMemoryCache _cache;
     private readonly ILogger<Conturi> _logger;
-
-
+    private const string ReCaptchaURL = "https://www.google.com/recaptcha/api/siteverify";
     private const int Size = 30;
     private const int Size2 = 30;
 
 
     public UserService(IUnitOfWork unitOfWork, IMapper mapper,
         IEmailService emailService, ITokenService tokenService,
-        IMemoryCache cache, ILogger<Conturi> logger)
+        IMemoryCache cache, ILogger<Conturi> logger, IConfiguration configuration)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
@@ -44,6 +44,7 @@ public class UserService : IUserService
         _tokenService = tokenService;
         _cache = cache;
         _logger = logger;
+        _configuration = configuration;
     }
 
     public async Task AddAccountAsync(Conturi newAccount)
@@ -92,9 +93,50 @@ public class UserService : IUserService
 
     }
 
+    public async Task<int> LogoutAsync(string refreshToken)
+    {
+        IDbContextTransaction? deleteRefreshTokenTransaction = null;
+        try
+        {
+            _logger.LogInformation(refreshToken);
+            deleteRefreshTokenTransaction = await _unitOfWork.BeginTransactionAsync();
+            var getRefreshTokenFromDb = await _unitOfWork.Repository<RememberUser>()
+                .FindQueryable(token => token.SessionToken == refreshToken)
+                .FirstOrDefaultAsync();
+
+            if (getRefreshTokenFromDb == null)
+            {
+                return 1; // token already deleted | not present
+            }
+
+            await _unitOfWork.Repository<RememberUser>().DeleteAsync(getRefreshTokenFromDb);
+            await _unitOfWork.CommitTransactionAsync(deleteRefreshTokenTransaction);
+            return 1; // succes delete
+        }
+        catch (Exception e)
+        {
+            if (deleteRefreshTokenTransaction != null)
+            {
+                await _unitOfWork.RollBackTransactionAsync(deleteRefreshTokenTransaction);
+                _logger.LogError(e.Message);
+                _logger.LogError(e.StackTrace);
+
+            }
+            return -1;
+        }
+    }
+
+    public async Task<string> GenerateRefreshToken()
+    {
+        var getToken = _tokenService.RefreshToken();
+        await Task.CompletedTask;
+        return getToken;
+        
+    }
+
     public async Task<Conturi?> CreateAccountBasedOnGoogleLogIn(IEnumerable<Claim> currentClaims)
     {
-        IDbContextTransaction transaction = null!;
+        IDbContextTransaction? transaction = null;
         try
         {
             transaction = await _unitOfWork.BeginTransactionAsync();
@@ -110,6 +152,7 @@ public class UserService : IUserService
 
             if (isUserInDb != null)
             {
+                await _unitOfWork.CommitTransactionAsync(transaction);
                 return isUserInDb;
             }
 
@@ -117,25 +160,22 @@ public class UserService : IUserService
             var givenname = claimsList.FirstOrDefault(claim => claim.Type == ClaimTypes.GivenName)!.Value;
             var googleGeneratedUserName = surname + givenname;
 
-            var randomPassword = UserHelpers.GenerateRandomPassword();
-
             ICollection<Adrese> newAdrese = new HashSet<Adrese>();
 
             var googleUser = new Conturi(givenname, surname, null, null,
-                googleGeneratedUserName, googleEmail, UserHelpers.CryptPassword(randomPassword), DateTime.UtcNow,
+                googleGeneratedUserName, googleEmail, null, DateTime.UtcNow,
                 "google", true, "Client", DateTime.UtcNow, newAdrese);
 
             await conturiRepository.AddAsync(googleUser);
             await _unitOfWork.CommitTransactionAsync(transaction);
 
-
             return googleUser;
         }
         catch (Exception e)
         {
-            if (transaction == null!)
+            if (transaction != null)
             {
-                await _unitOfWork.RollBackTransactionAsync(transaction!);
+                await _unitOfWork.RollBackTransactionAsync(transaction);
             }
 
             Console.WriteLine(e);
@@ -146,34 +186,43 @@ public class UserService : IUserService
 
     public async Task<LoginDto?> LoginAccountAsync(LoginDto loginDto)
     {
-
+        IDbContextTransaction? addRefreshTokenTransaction = null;
         try
         {
-
+            addRefreshTokenTransaction = await _unitOfWork.BeginTransactionAsync();
             var conturiRepository = _unitOfWork.Repository<Conturi>();
-            Conturi? currentUser;
             var plainTextPassword = loginDto.ParolaProp;
-            if (loginDto.NumeProp.Contains('@'))
+            var currentUser =  loginDto.NumeProp.Contains('@')
+                ? await conturiRepository.FindQueryable(user => user.Email == loginDto.NumeProp).FirstOrDefaultAsync() 
+                : await conturiRepository.FindQueryable(user => user.Username == loginDto.NumeProp).FirstOrDefaultAsync();
+
+            RememberUser newRefreshToken;
+            var rememberUserRepository = _unitOfWork.Repository<RememberUser>();
+            
+            if (currentUser is not null && plainTextPassword == null)
             {
-
-                currentUser = await conturiRepository.FindQueryable(
-                    user => user.Email == loginDto.NumeProp).FirstOrDefaultAsync();
-
-                if (currentUser is null || !UserHelpers.VerifyCryptedPassword(plainTextPassword, currentUser.Parola!))
+                _logger.LogInformation("GOOGLE AUTH");
+                var tokenForGoogleUser = await _tokenService.GenerateJwtAccesToken(currentUser);
+                var refreshTokenForGoogleUser = _tokenService.RefreshToken();
+                loginDto.TokenProp = tokenForGoogleUser;
+                loginDto.RoleProp = currentUser.Rol;
+                loginDto.RefreshTokenProp = refreshTokenForGoogleUser;
+                newRefreshToken = new RememberUser
                 {
-                    throw new UnauthorizedAccessException("Account does not exist / Wrong password or username");
-                }
+                    IdCont = currentUser.IdCont,
+                    SessionToken = refreshTokenForGoogleUser,
+                    IssuedAt = DateTime.UtcNow,
+                    ExpiresAt = DateTime.UtcNow.AddDays(7)
+                };
+                await rememberUserRepository.AddAsync(newRefreshToken);
+                await _unitOfWork.CommitTransactionAsync(addRefreshTokenTransaction);
+                return loginDto;
             }
-            else
+            
+           
+            if (currentUser is null || !UserHelpers.VerifyCryptedPassword(plainTextPassword!, currentUser.Parola!))
             {
-               
-                currentUser = await conturiRepository.FindQueryable(
-                    user => user.Username == loginDto.NumeProp).FirstOrDefaultAsync();
-
-                if (currentUser is null || !UserHelpers.VerifyCryptedPassword(plainTextPassword, currentUser.Parola!))
-                {
-                    throw new UnauthorizedAccessException("Account does not exist / Wrong password or username");
-                }
+                throw new UnauthorizedAccessException("Account does not exist / Wrong password or username");
             }
 
 
@@ -188,20 +237,52 @@ public class UserService : IUserService
             }
 
             var tokenForCurrentUser = await _tokenService.GenerateJwtAccesToken(currentUser);
-
+            var refreshTokenForCurrentUser = _tokenService.RefreshToken();
             loginDto.TokenProp = tokenForCurrentUser;
             loginDto.RoleProp = currentUser.Rol;
+            loginDto.RefreshTokenProp = refreshTokenForCurrentUser;
 
+           
+            newRefreshToken = new RememberUser
+            {
+                IdCont = currentUser.IdCont,
+                SessionToken = refreshTokenForCurrentUser,
+                IssuedAt = DateTime.UtcNow,
+                ExpiresAt = DateTime.UtcNow.AddDays(7)
+            };
+
+            await rememberUserRepository.AddAsync(newRefreshToken);
+            await _unitOfWork.CommitTransactionAsync(addRefreshTokenTransaction);
             return loginDto;
         }
         catch (InvalidCredentialException e)
         {
-            Console.WriteLine(e);
+            if (addRefreshTokenTransaction != null)
+            {
+                await _unitOfWork.RollBackTransactionAsync(addRefreshTokenTransaction);
+            }
+            _logger.LogError("Invalid credentials");
             return null;
         }
         catch (UnauthorizedAccessException e)
         {
-            Console.WriteLine(e);
+            if (addRefreshTokenTransaction != null)
+            {
+                await _unitOfWork.RollBackTransactionAsync(addRefreshTokenTransaction);
+            }
+            _logger.LogError("Account has not been activated ");
+            return null;
+        }
+        catch (Exception e)
+        {
+            if (addRefreshTokenTransaction != null)
+            {
+                await _unitOfWork.RollBackTransactionAsync(addRefreshTokenTransaction);
+            }
+            _logger.LogError("General error occured");
+            _logger.LogError(e.StackTrace);
+            _logger.LogError(e.Message);
+
             return null;
         }
 
@@ -209,80 +290,10 @@ public class UserService : IUserService
 
     }
 
-    public async Task RemoveAccountAsync(int idAccount)
-    {
-        IDbContextTransaction? transaction = null;
-
-        try
-        {
-            transaction = await _unitOfWork.BeginTransactionAsync();
-            var repository = _unitOfWork.Repository<Conturi>();
-
-            Conturi? accountToBeDeleted = await repository.GetByIdAsync(idAccount);
-
-            if (accountToBeDeleted == null)
-            {
-                throw new DbUpdateException("Account does not exist!");
-            }
-
-            await repository.DeleteAsync(accountToBeDeleted);
-
-            await _unitOfWork.CommitTransactionAsync(transaction);
-
-        }
-        catch (DbUpdateException e)
-        {
-            if (transaction == null)
-            {
-                await _unitOfWork.RollBackTransactionAsync(transaction!);
-            }
-
-            _logger.LogError("Someting happened when removing an account: Error Message:" + e.Message);
-            _logger.LogError("Someting happened when removing an account: Stacktrace :" + e.StackTrace);
-            throw;
-        }
-    }
-
-    public async Task UpdateAccountAsync(int idAccount, Conturi updatedAccount)
-    {
-        IDbContextTransaction? transaction = null;
-
-        try
-        {
-            transaction = await _unitOfWork.BeginTransactionAsync();
-            var repository = _unitOfWork.Repository<Conturi>();
-
-            Conturi? accountToBeUpdated = await repository.GetByIdAsync(idAccount);
-
-            if (accountToBeUpdated == null)
-            {
-                throw new DbUpdateException("Account to be updated not found");
-            }
-
-            _mapper.Map(updatedAccount, accountToBeUpdated);
-
-            await repository.UpdateAsync(accountToBeUpdated);
-
-            await _unitOfWork.CommitTransactionAsync(transaction);
-
-        }
-        catch (DbUpdateConcurrencyException e)
-        {
-            if (transaction == null)
-            {
-                await _unitOfWork.RollBackTransactionAsync(transaction!);
-            }
-
-            _logger.LogError("Someting happened when updating an account: Error Message:" + e.Message);
-            _logger.LogError("Someting happened when updating an account: Stacktrace :" + e.StackTrace);
-
-            throw;
-        }
-
-    }
-
+    
     public async Task<ConturiDto> GetProfileDataAsync(int userId)
     {
+        
         var watch = System.Diagnostics.Stopwatch.StartNew();
 
         var cacheKey = $"ProfileData_{userId}";
@@ -474,13 +485,63 @@ public class UserService : IUserService
         }
     }
 
-    public string GenerateJwt(Conturi? account)
+    public async Task<int> ContactAdmin(ContactDetails detaliiContact)
     {
-        var jwt = _tokenService.GenerateJwtAccesToken(account!).Result;
-        return jwt;
+        try
+        {
+            var key = _configuration.GetSection("reCAPTCHA").GetSection("secret").Value;
+            using var client = new HttpClient();
+            var parameters = new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("secret", key!),
+                new KeyValuePair<string, string>("response", detaliiContact.CaptchaToken),
+                new KeyValuePair<string, string>("remoteip", string.Empty)
+            });
+            var response = await client.PostAsync(ReCaptchaURL, parameters);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+               _logger.LogError($"Failed to verify reCAPTCHA. Status code: {response.StatusCode}");
+                return 0;
+            }
+            
+            var jsonResponse = await response.Content.ReadAsStringAsync();
+            _logger.LogInformation(jsonResponse);
+            var recaptchaResult = JsonConvert.DeserializeObject<RecaptchaResponse>(jsonResponse);
+
+            // Check the success and score (optional)
+            if (recaptchaResult is { Success: true } && recaptchaResult.Score >= 0.5)
+            {
+               _logger.LogInformation("reCAPTCHA verification succeeded.");
+            }
+            else
+            {
+                _logger.LogError($"reCAPTCHA verification failed. Error codes: {string.Join(", ", recaptchaResult.ErrorCodes)}");
+                return 0;
+            }
+            
+            var phoneNumber = detaliiContact.NrTelefon ?? "Nespecificat";
+            var orderNumber = detaliiContact.NumarComanda ?? "Nespecificat";
+            await _emailService.SendEmailAsync(detaliiContact.Email, $"{detaliiContact.MotivContact}",
+                $"<p>E-mail : {detaliiContact.Email} </p>" +
+                $"<p>Numar de telefon : {phoneNumber}</p>" +
+                $"<p>Numar comanda : {orderNumber} </p>" +
+                $"<p>Motiv contact : {detaliiContact.MotivContact} </p>" +
+                $"<p>Descriere problema :{detaliiContact.Descriere} </p>");
+
+            return 1;
+        }
+        catch (Exception e)
+        {
+            _logger.LogError($"Exception : {e.GetType()}");
+            _logger.LogError(e.Message);
+            _logger.LogError(e.StackTrace);
+
+            return -1;
+        }
+      
     }
-
-
+    
     public async Task<bool> CheckForgotPasswordTokenLifeTime(string token)
     {
 
@@ -757,28 +818,7 @@ public class UserService : IUserService
         }
     }
 
-    public async Task<ClaimsPrincipal?> CheckJwtTokenValidity(string jwtToken)
-    {
-        var response = await _tokenService.TokenValidation(jwtToken);
-        if (response != null)
-        {
-            return response;
-        }
-
-        await Task.Delay(1);
-        return null;
-
-    }
-
-    public async Task<IEnumerable<Conturi>?> GetAllAccountsAsync()
-    {
-        return await _unitOfWork.Repository<Conturi>().GetAllAsync();
-    }
-
-    public async Task<Conturi?> GetAccountByIdAsync(int id)
-    {
-        return await _unitOfWork.Repository<Conturi>().GetByIdAsync(id);
-    }
+   
 
     public async Task<Conturi?> GetAccountByEmailAsync(string email)
     {
@@ -892,6 +932,7 @@ public class UserService : IUserService
                     NumeProducatorDto = ord.Produs.Producator!.NumeProducator,
                     TipulProdusuluiDto = ord.Produs.TipulProdusului,
                     NumeSetDto = ord.Set!.NumeSet,
+                    InaltimeSetDto = ord.InaltimeAleasaPentruSet,
                     PretBazaDto = ord.PretCumparat,
                     NumeCuloareDto = ord.PcCuloare.NumeCuloare,
                     CodCuloareDto = ord.PcCuloare.CodCuloare.CodCuloare!,

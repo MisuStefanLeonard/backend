@@ -45,7 +45,7 @@ public class ProductController : ControllerBase
         [FromQuery] string? productColors, [FromQuery] string? productDimensions, [FromQuery] string? productPrice, 
         [FromQuery] bool? productReverseFace , [FromRoute] string currency)
     {
-        Console.WriteLine($"product widhts : {productDimensions} ");
+        
         List<string>? listOfProductTypes = null;
         List<string>? listOfProductColors = null;
         List<string>? listOfProductDimensions = null;
@@ -104,10 +104,10 @@ public class ProductController : ControllerBase
        
         var jsonToDto = JsonConvert.DeserializeObject<ReviewReceivedDto>(reviewInfo);
 
-        if (!Request.Cookies.TryGetValue("JWTToken", out var token)) 
+        if (!Request.Cookies.TryGetValue("JWTToken", out var token) || !Request.Cookies.TryGetValue("session_tok", out var refreshToken)) 
             return StatusCode(500, "Server error");
         // de adaugat decodarea pe encodedIdSet
-        var responseFromReviewPosting = await _reviewService.PostReview(jsonToDto!, token);
+        var responseFromReviewPosting = await _reviewService.PostReview(jsonToDto!, token,refreshToken);
         return responseFromReviewPosting.Key switch
         {
             1 => Ok(responseFromReviewPosting),
@@ -167,17 +167,25 @@ public class ProductController : ControllerBase
     }
 
     [HttpPost("cart/add")]
-    [Authorize]
+    [AllowAnonymous]
     public async Task<IActionResult> AddOrUpdateCart([FromForm] string? cartItem , [FromForm] string? setItems)
     {
         var cartItemToDto = JsonConvert.DeserializeObject<ProductOnCartDto>(cartItem!); // can be null
         var setItemsToDto = JsonConvert.DeserializeObject<SetOnCartDto>(setItems!); // can be null
+        var getSessionId = Request.Cookies["ASP.NET_COOKIE_cartSession"];
+        var emptyGuid = Guid.Empty;
+        if (getSessionId != null)
+        {
+            emptyGuid = Guid.Parse(getSessionId.Split('|')[0]);
+        }
+        int? userId = null;
+        var idClaim = HttpContext.User.FindFirst("user_id");
+        if (idClaim != null)
+        {
+            userId = int.Parse(idClaim.Value);
+        }
         
-
-        var currentUserClaims = HttpContext.User;
-        var userId = int.Parse(currentUserClaims.FindFirst("user_id")!.Value);
-
-        var responseFromCartAdd = await _cartService.AddOrUpdateCart(userId, setItemsToDto , cartItemToDto);
+        var responseFromCartAdd = await _cartService.AddOrUpdateCart(emptyGuid,userId, setItemsToDto , cartItemToDto);
 
         return responseFromCartAdd switch
         {
@@ -191,27 +199,247 @@ public class ProductController : ControllerBase
     }
     
     [HttpPost("cart/delete")]
-    [Authorize]
-    public async Task<IActionResult> DeleteFromCart([FromForm] string? cartItemToDelete , [FromForm] string? setItemsToDelete)
+    [AllowAnonymous]
+    public async Task<IActionResult> DeleteFromCart([FromForm] string productData)
     {
-        var cartItemToDeleteToDto = JsonConvert.DeserializeObject<ProductOnCartDto>(cartItemToDelete!); // can be null
-        var setItemsToDeleteToDto = JsonConvert.DeserializeObject<SetOnCartDto>(setItemsToDelete!); // can be null
+        var convertToJson =  JsonConvert.DeserializeObject<UpdateQuantityInfo>(productData);
 
-        var currentUserClaims = HttpContext.User;
-        var userId = int.Parse(currentUserClaims.FindFirst("user_id")!.Value);
+        if (convertToJson == null)
+        {
+            return BadRequest("JSON CANNOT BE CONVERTED. CHECK LOGS.");
+        }
+        
+        if (Request.Cookies.TryGetValue("ASP.NET_COOKIE_cartSession", out var sessionId))
+        {
+            convertToJson.SessionId = Guid.Parse(sessionId.Split('|')[0]);
+          
+            if (Request.Cookies.TryGetValue("JWTToken", out var jwt) && Request.Cookies.TryGetValue("session_tok", out var refresh))
+            {
+                var validateJwt = await _tokenService.TokenValidation(jwt,refresh);
+                if (validateJwt == null)
+                {
+                    return Unauthorized("Jwt token not valid!Session expired ");
+                }
+                convertToJson.IdCont = int.Parse(HttpContext.User.FindFirst("user_id")!.Value);
+                convertToJson.SessionId = Guid.Empty;
+            }
+        }
+        else
+        {
+            return BadRequest("Refresh page again! Session id missing");
+        }
 
-        var responseFromCartDelete = await _cartService.DeleteFromCart(userId, setItemsToDeleteToDto,cartItemToDeleteToDto);
+
+        var responseFromCartDelete = await _cartService.DeleteFromCart(convertToJson);
 
         return responseFromCartDelete switch
         {
-            1 => Ok("Succesfully removed item from cart"),
-            2 => NoContent(), // quantity decremented
-            -2 => NotFound("Product not found"),
-            -1 => BadRequest("Exception thrown in the deleteFromCart function"),
-            _ => StatusCode(500, "General error occured")
+            -2 => NotFound("Product/Bundle does not exist anymore"),
+            -1 => BadRequest("Exception thrown.Check logs "),
+            1 => Ok("Succesfully deleted the product"),
+            _ => StatusCode(500 , "General error occured. Maybe server error")
         };
+        
+        
+        
+        
+
+    }
+
+    [HttpGet("mostViewedProducts/{currency:required}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetMostViewedProducts([FromRoute] string currency)
+    {
+        var productsList = await _productService.GetMostViewedProducts(currency);
+        return Ok(productsList);
+    }
+
+    [HttpGet("syncCartOnCheckout/{currency:required}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> CheckCartOnCheckout([FromRoute] string currency)
+    {
+        Guid sessionIdentifier;
+        DateTime dateTimeSinceCookieWasAdded;
+        var currentDateTime = DateTime.UtcNow;
+        var id = 0;
+        if (Request.Cookies.TryGetValue("ASP.NET_COOKIE_cartSession", out var sessionId))
+        {
+            sessionIdentifier = Guid.Parse(sessionId.Split('|')[0]);
+            dateTimeSinceCookieWasAdded = DateTime.Parse(sessionId.Split('|')[1]);
+            if ((currentDateTime - dateTimeSinceCookieWasAdded).TotalHours >= 60)
+            {
+                /* Cart session renewal for checkout endpoint.  */
+                var refreshCartSession = new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.Strict,
+                    Expires = DateTime.UtcNow.AddDays(3)
+                };
+                
+                Response.Cookies.Append("ASP.NET_COOKIE_cartSession",sessionId.Split('|')[0]+$"|{currentDateTime}",refreshCartSession);
+                /* Cart session renewal for checkout endpoint.  */
+            }
+            if (Request.Cookies.TryGetValue("JWTToken", out var jwt) && Request.Cookies.TryGetValue("session_tok", out var refresh))
+            {
+                var validateJwt = await _tokenService.TokenValidation(jwt,refresh);
+                if (validateJwt == null)
+                {
+                    return Unauthorized("Jwt token not valid!Session expired ");
+                }
+                id = int.Parse(HttpContext.User.FindFirst("user_id")!.Value);
+                sessionIdentifier = Guid.Empty;
+                
+            }
+        }
+        else
+        {
+            return BadRequest("Refresh page again! Session id missing");
+        }
+        
+        var response = await _cartService.CheckCartAtCheckout(id == 0 ? null : id , sessionIdentifier,dateTimeSinceCookieWasAdded,currentDateTime.AddDays(3),currency);
+       
+        return response.Item1 switch
+        {
+            -2 => NotFound("Cart empty. Abort"),
+            1 => Ok(/*updated items*/response.Item2),
+            _ => BadRequest("ERROR THROWN. CHECK LOGS")
+        };
+
 
     }
     
+    // de terminat pe front-end afisarea produselor in cart!
+    [HttpGet("cart/{currency:required}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetCartItems([FromRoute] string currency)
+    {
+        var sessionId = Guid.Empty;
+        if (Request.Cookies.TryGetValue("ASP.NET_COOKIE_cartSession", out var guid) )
+        {
+            sessionId = Guid.Parse(guid.Split('|')[0]);
+        }
+       
+        var userId = 0;
+        var getUserId = HttpContext.User.FindFirst("user_id");
+        if (getUserId != null)
+        {
+            userId = int.Parse(getUserId.Value);
+        }
+      
+        if (userId == 0 && sessionId == Guid.Empty)
+        {
+            return BadRequest("Refresh page and try again");
+        }
+
+        var response = await _cartService.GetCartItems(userId != 0 ? userId : null, sessionId , currency);
+
+        return Ok(response);
+    }
+
+    [HttpPost("modify/quantity")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ModifyQuantity([FromForm] string productData)
+    {
+        var convertToJson =  JsonConvert.DeserializeObject<UpdateQuantityInfo>(productData);
+
+        if (convertToJson == null)
+        {
+            return BadRequest("JSON CANNOT BE CONVERTED. CHECK LOGS.");
+        }
+        
+        if (Request.Cookies.TryGetValue("ASP.NET_COOKIE_cartSession", out var sessionId))
+        {
+            convertToJson.SessionId = Guid.Parse(sessionId.Split('|')[0]);
+          
+            if (Request.Cookies.TryGetValue("JWTToken", out var jwt) && Request.Cookies.TryGetValue("session_tok", out var refresh))
+            {
+                var validateJwt = await _tokenService.TokenValidation(jwt,refresh);
+                if (validateJwt == null)
+                {
+                    return Unauthorized("Jwt token not valid!Session expired ");
+                }
+                convertToJson.IdCont = int.Parse(HttpContext.User.FindFirst("user_id")!.Value);
+                convertToJson.SessionId = Guid.Empty;
+            }
+        }
+        else
+        {
+            return BadRequest("Refresh page again! Session id missing");
+        }
+
+
+        var response = await _cartService.ModifyQuantity(convertToJson);
+
+        return response switch
+        {
+            -2 => NotFound("Product/Bundle does not exist anymore"),
+            -1 => BadRequest("Exception thrown.Check logs "),
+            1 => Ok("Succesfully incremented/decremented quantity"),
+            _ => StatusCode(500 , "General error occured. Maybe server error")
+        };
+    }
+
     
+    [HttpPost("applyVoucher")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ApplyVoucher([FromBody] CheckVoucher voucherData)
+    {
+        var sessionId = Guid.Empty;
+        if (Request.Cookies.TryGetValue("ASP.NET_COOKIE_cartSession", out var guid))
+        {
+            sessionId = Guid.Parse(guid.Split('|')[0]);
+        }
+       
+        var userId = 0;
+        var getUserId = HttpContext.User.FindFirst("user_id");
+        if (getUserId != null)
+        {
+            userId = int.Parse(getUserId.Value);
+        }
+      
+        if (userId == 0 && sessionId == Guid.Empty)
+        {
+            return BadRequest("Refresh page and try again");
+        }
+        
+        var (key, data) = await _cartService.GetVoucherInfo(userId != 0 ? userId : null ,voucherData);
+
+        return key switch
+        {
+            1 => Ok(data),
+            0 => NotFound("Invalid voucher/Expired voucher"),
+            -2 => BadRequest("Voucher already used!"),
+            -1 => NoContent(), // account not found
+            _ => StatusCode(500 , "Server error")
+        };
+    }
+
+    [HttpGet("productTypesAndCategories")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetProductTypesAndCategoriesForUserDisplay()
+    {
+        var response = await _productService.GetProductTypesAndSubCategories();
+        return Ok(response);
+    }
+
+    [HttpGet("limitedEditionProducts/{currentCurrency:required}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetLimitedEditionProducts([FromRoute] string currentCurrency)
+    {
+        var response = await _productService.GetProductsThatAreLimitedEdition(currentCurrency);
+        return Ok(response);
+    }
+    
+    [HttpGet("newProducts/{currentCurrency:required}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetNewProducts([FromRoute] string currentCurrency)
+    {
+        var response = await _productService.GetProductsThatAreNew(currentCurrency);
+        return Ok(response);
+    }
+
+    
+
+
 }

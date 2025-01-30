@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
+using Newtonsoft.Json;
 
 namespace E_Commerce_BackEnd.Controllers;
 
@@ -44,12 +45,13 @@ public class UserController : ControllerBase
     [Authorize]
     public async Task<IActionResult> ProfilePersonalData()
     {
+        
         var watch = System.Diagnostics.Stopwatch.StartNew();
         var userClaims = HttpContext.User;
         // USER ID CLAIM
         var userIdClaim = userClaims.FindFirst("user_id");
         // USER ID
-        int userId = int.Parse(userIdClaim!.Value);
+        var userId = int.Parse(userIdClaim!.Value);
             
         var data = await _userService.GetProfileDataAsync(userId);
         
@@ -66,22 +68,18 @@ public class UserController : ControllerBase
         var claims = HttpContext.User;
         var userIdFromClaim = claims.FindFirst(claim => claim.Type == "user_id");
         
-        int userId = int.Parse(userIdFromClaim!.Value);
+        var userId = int.Parse(userIdFromClaim!.Value);
         
-        int changingUserDataResponse = await _userService.EmailChangingOrUpdatingUserDataAsync(userId,updatedDto);
+        var changingUserDataResponse = await _userService.EmailChangingOrUpdatingUserDataAsync(userId,updatedDto);
 
-        // daca mail-ul a fost schimbat
-        if (changingUserDataResponse == 1)
+        return changingUserDataResponse switch
         {
-            return NoContent(); // 204
-        }
-        // daca mail-ul nu a fost schimbat 
-        else if (changingUserDataResponse == 0)
-        {
-            return Ok(); // 200
-        }
-
-        return BadRequest("A avut loc o eroare. Va rugam incercati mai tarziu");
+            // daca mail-ul a fost schimbat
+            1 => NoContent(),
+            // daca mail-ul nu a fost schimbat 
+            0 => Ok(),
+            _ => BadRequest("A avut loc o eroare. Va rugam incercati mai tarziu")
+        };
     }
     
 
@@ -193,6 +191,27 @@ public class UserController : ControllerBase
             -1 => NotFound("Exception catched!Error has occured"),
             -2 => BadRequest("Expired link! Request a new one from the administrator!"),
             _ => StatusCode(500, "Unknown server error! Contact administrator.")
+        };
+    }
+
+    [HttpPost("sendContactEmail")]
+    [AllowAnonymous]
+    public async Task<IActionResult> SendContactEmail([FromForm] string contactDetails)
+    {
+        var convertToDto = JsonConvert.DeserializeObject<ContactDetails>(contactDetails);
+
+        if (convertToDto == null)
+        {
+            return BadRequest("An error happened when converting to DTO");
+        }
+
+        var response = await _userService.ContactAdmin(convertToDto);
+
+        return response switch
+        {
+            1 => Ok("Succesfully sent contact email"),
+            -1 => NotFound("An error happened when sending the email"),
+            _ => StatusCode(500, "Server error")
         };
     }
     

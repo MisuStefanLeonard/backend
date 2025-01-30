@@ -4,6 +4,7 @@ namespace E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.Prod
 
 public class TipRejansaDto 
 {
+    public int IdRejansa { get; init; }
     public string? NumeTipRejansa { get; init; } 
     public decimal PretTipRejansa { get; set; }
     public decimal IncretireRejansa { get; set; }

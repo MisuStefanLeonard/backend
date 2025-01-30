@@ -34,8 +34,7 @@ namespace E_Commerce_BackEnd.MIddleware
 
                     // Write response and end request processing
                     await context.Response.WriteAsync(GetUnauthorizedMessage(context, path));
-                    
-                    return; // Prevent further middleware from running
+                  
                 }
             }
             else

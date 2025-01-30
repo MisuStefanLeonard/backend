@@ -1,5 +1,6 @@
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductOptionsDto;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.Options;
+using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.ReviewsDto;
 
 namespace E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers;
 
@@ -12,6 +13,6 @@ public class ProductsListingForUsers
     public decimal PretBazaRedusDto { get; init; } 
     public IList<DimensiuniDto>? DimensiuniProduseDto { get; init; } = [];
     public IList<ColorsWithImages> CuloriProdusDto { get; init; } = [];
-    
+    public ReviewsInfoForQuickDisplay ReviewsInfoGeneral { get; init; } = null!;
     public int TotalProducts { get; init; }
 }

@@ -1,4 +1,5 @@
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.ProductPage;
+using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.ReviewsDto;
 
 namespace E_Commerce_BackEnd.Models.DTO.ProduseDtos.SeturiDtos.User.SetPage;
 
@@ -11,5 +12,7 @@ public class SetPage
 
     public IList<ProductOnSet> ProdusePeSet { get; init; } = new List<ProductOnSet>();
     public IList<ReviewsDto> ReviewsSet { get; init; } = new List<ReviewsDto>();
+    
+    public ReviewsInfo? ReviewsGeneral { get; init; }
 
 }

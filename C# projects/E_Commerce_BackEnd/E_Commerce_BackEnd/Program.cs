@@ -1,3 +1,4 @@
+using System.Collections.Specialized;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
@@ -12,6 +13,7 @@ using E_Commerce_BackEnd.Services.Helpers.DtoMapper;
 using E_Commerce_BackEnd.Services.emailService;
 using E_Commerce_BackEnd.UnitOfWork;
 using E_Commerce_BackEnd.Models.Context;
+using E_Commerce_BackEnd.QuartzJobs;
 using E_Commerce_BackEnd.Services.Helpers.adminHelpers;
 using E_Commerce_BackEnd.Services.uService;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret;
@@ -20,6 +22,7 @@ using E_Commerce_BackEnd.Services.Helpers.Resolvers;
 using E_Commerce_BackEnd.Services.uAdminService;
 using E_Commerce_BackEnd.Services.uAdressService;
 using E_Commerce_BackEnd.Services.uBucketService;
+using E_Commerce_BackEnd.Services.uGeneralService;
 using E_Commerce_BackEnd.Services.uInelePrindereService;
 using E_Commerce_BackEnd.Services.uManopereService;
 using E_Commerce_BackEnd.Services.uProductsService;
@@ -32,6 +35,7 @@ using E_Commerce_BackEnd.Services.uVoucherService;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.RateLimiting;
+using Quartz;
 using Sqids;
 
 
@@ -39,7 +43,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Configure AWS options
 var region = builder.Configuration.GetAWSOptions();
-AWSOptions awsOptions = new AWSOptions
+var awsOptions = new AWSOptions
 {
     Profile = "misu_stefan",
     ProfilesLocation = "/Users/misustefan/.aws/credentials",
@@ -47,16 +51,9 @@ AWSOptions awsOptions = new AWSOptions
 };
 builder.Services.AddDefaultAWSOptions(awsOptions);
 
-
-// Add AWS services
-builder.Services.AddSingleton<IAmazonSecretsManager>
-    (sp => new AmazonSecretsManagerClient(awsOptions.Credentials, awsOptions.Region));
-
-builder.Services.AddSingleton<IAmazonKeyManagementService>
-    (sp => new AmazonKeyManagementServiceClient(awsOptions.Credentials, awsOptions.Region));
-
 // user-secrets
 builder.Configuration.AddUserSecrets<Program>();
+// Quartz integration for task scheduling
 
 
 // Add data protection using AWS Systems Manager Parameter Store
@@ -65,15 +62,53 @@ builder.Services.AddDataProtection()
     .PersistKeysToAWSSystemsManager("prod/texx.ro/admin");
 
 // Configure DbContext and logger
-string? connectionString = builder.Configuration.GetConnectionString("CMDatabase");
+var connectionString = builder.Configuration.GetConnectionString("CMDatabase");
 if (connectionString == null)
 {
-    throw new InvalidOperationException($"Connection string CMDatabase is null");
+    throw new InvalidOperationException("Connection string CMDatabase is null");
 }
 var loggerFactory = DbContextInjection.MyLoggerFactory;
-
 builder.Services.M_DbContextInjection<ECommerceContext>(connectionString, loggerFactory);
+// Background cleanup jobs using Quartz.net
+builder.Services.AddQuartz(q =>
+{
+    q.UsePersistentStore(opt =>
+    {
+        opt.UseProperties = true;
+        opt.UseMySql(connectionString);
+        opt.UseSystemTextJsonSerializer();
+        opt.PerformSchemaValidation = true;
+    });
 
+    var cartCleanUpJobKey = JobKey.Create("cart-clean-up-job", "cart");
+    var sessionTokenCleanUpJobKey = JobKey.Create("session-token-clean-up-job", "session-tokens");
+
+    q.AddJob<CartCleanUp>(cartCleanUpJobKey)
+        .AddTrigger(trigger =>
+        {
+            trigger.ForJob(cartCleanUpJobKey)
+                .WithIdentity("cart-clean-up-trigger", "cart-trigger")
+                .WithCronSchedule("0 0 0 ? * 2/3 *");
+                //  At 00:00:00am, every 3 days starting on Monday, every month 
+                
+        });
+    
+    q.AddJob<CartCleanUp>(sessionTokenCleanUpJobKey)
+        .AddTrigger(trigger =>
+        {
+            trigger.ForJob(sessionTokenCleanUpJobKey)
+                .WithIdentity("session-token-clean-up-trigger", "session-tokne-trigger")
+                .WithCronSchedule("0 0 0 */7 * ?");
+            //  At 00:00:00am, every 3 days starting on Monday, every month 
+                
+        });
+
+});
+
+builder.Services.AddQuartzHostedService(opt =>
+{
+    opt.WaitForJobsToComplete = true;
+});
 // Mapper configuration
 builder.Services.AddAutoMapper((serviceProvider, cfg) =>
 {
@@ -99,6 +134,12 @@ builder.Services.AddCors(options =>
         });
 });
 
+// Add AWS services
+builder.Services.AddSingleton<IAmazonSecretsManager>
+    (sp => new AmazonSecretsManagerClient(awsOptions.Credentials, awsOptions.Region));
+
+builder.Services.AddSingleton<IAmazonKeyManagementService>
+    (sp => new AmazonKeyManagementServiceClient(awsOptions.Credentials, awsOptions.Region));
 // Unit of work and repositories
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
@@ -107,10 +148,11 @@ builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Emai
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAdressService, AdressService>();
-builder.Services.AddTransient<ITokenService, TokenService>();
+builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ISeturiService, SeturiService>();
+builder.Services.AddScoped<IGeneralSettingsService, GeneralSettingsService>();
 builder.Services.AddScoped<IInelePrindereService, InelePrindereService>();
 builder.Services.AddScoped<IVoucherService, VoucherService>();
 builder.Services.AddScoped<IManopereService, ManopereService>();
@@ -120,8 +162,9 @@ builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<ITipuriGalerieService, TipuriGalerieService>();
 builder.Services.AddScoped<ITipuriLinieService, TipuriLinieService>();
-builder.Services.AddTransient<JwtTokenMiddlewareFactory>();
+builder.Services.AddTransient<JwtTokenMiddleware>();
 builder.Services.AddTransient<AdminMiddleware>();
+builder.Services.AddTransient<CartMiddleware>();
 builder.Services.AddScoped<DocumentProcessing>();
 
 builder.Services.AddSingleton<SqidsEncoder<int>>();
@@ -160,7 +203,6 @@ builder.Services.AddAuthentication(x =>
     options.ClientId = googleAuth["ClientId"]!;
     options.ClientSecret = googleAuth["ClientSecret"]!;
     options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-    
 })
     .AddJwtBearer(x =>
 {
@@ -212,12 +254,12 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseRateLimiter();
-
-app.UseMiddleware<JwtTokenMiddlewareFactory>();
+app.UseMiddleware<CartMiddleware>();
+app.UseMiddleware<JwtTokenMiddleware>();
 app.UseMiddleware<AdminMiddleware>();
-
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
 app.Run();

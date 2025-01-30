@@ -36,6 +36,7 @@ public interface IProductService
     #region GetProductOptionsData
     public Task<ProductOptionsForComboBox?> GetProductTypes();
     public Task<IList<ProductInfo>?> GetProductCodesAndNames();
+    public Task<ProductTypesAndSubCategories> GetProductTypesAndSubCategories();
     #endregion
 
     #region ProductsForUsers
@@ -44,6 +45,10 @@ public interface IProductService
         List<string>? productDimensions , List<decimal>? productPrices , bool? reverseFace,string currency = "RON");
     public Task<ProductsFilterOptions> FilterOptions(string currency = "RON");
     public Task<KeyValuePair<int , ProductPageForUser?>> GetProductPage(string codProdus , string tipProdus,string currency = "RON");
+    public Task<IList<MostViewedProduct>> GetMostViewedProducts(string currency = "RON");
+    public Task<IList<MostViewedProduct>> GetProductsThatAreNew(string currency = "RON");
+    public Task<IList<MostViewedProduct>>  GetProductsThatAreLimitedEdition(string currency = "RON");
+   
 
     #endregion
 

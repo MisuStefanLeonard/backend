@@ -26,7 +26,7 @@ public class ReviewService : IReviewService
         _sqidsEncoder = sqidsEncoder;
     }
 
-    public async Task<KeyValuePair<int, string>> PostReview(ReviewReceivedDto review , string token)
+    public async Task<KeyValuePair<int, string>> PostReview(ReviewReceivedDto review , string token, string refreshToken)
     {
         IDbContextTransaction? insertTransaction = null;
         try
@@ -71,13 +71,13 @@ public class ReviewService : IReviewService
            
             var usersRepository = _unitOfWork.Repository<Conturi>();
             
-            var userClaims = await _tokenService.TokenValidation(token);
+            var userClaims = await _tokenService.TokenValidation(token,refreshToken);
            
-            var username = userClaims!
-                .FindFirst(claim => claim.Type == "username")!.Value.ToString();
+            var userId = int.Parse(userClaims.Item1!
+                .FindFirst(claim => claim.Type == "user_id")!.Value.ToString());
            
             var userAccount = await usersRepository
-                .FindQueryable(user => user.Username == username)
+                .FindQueryable(user => user.IdCont == userId)
                 .FirstAsync();
             
             var reviewsRepository = _unitOfWork.Repository<Reviews>();

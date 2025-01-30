@@ -9,6 +9,7 @@ public class ManoperaPageModification
     public TipRejansaDto TipGalerie { get; init; } = null!;
     public TipLinieDto TipLinie { get; init; } = null!;
     public decimal MetruTotalFolosit { get; init; }
+    public string? InaltimeMaxima { get; init; }
     public IList<string?> NumeDeManopere { get; init; } = new List<string?>();
     public ManoperaCurtainsOptions OptiuniDisponibile { get; init; } = null!;
 

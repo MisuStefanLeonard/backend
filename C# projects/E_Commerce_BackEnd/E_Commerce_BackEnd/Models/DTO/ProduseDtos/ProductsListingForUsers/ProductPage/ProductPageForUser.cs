@@ -6,6 +6,7 @@ namespace E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.Prod
 
 public class ProductPageForUser
 {
+    public int IdProdus { get; init; }
     public string? CodProdusDto { get; init; }
     public string? DescriereDto { get; init; }
     public string? NumeProdusDto { get; init; }

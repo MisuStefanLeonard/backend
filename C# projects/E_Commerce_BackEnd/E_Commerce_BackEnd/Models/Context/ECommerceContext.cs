@@ -1,3 +1,4 @@
+using E_Commerce_BackEnd.Models.ConfigurationModels;
 using E_Commerce_BackEnd.Models.Enums;
 using E_Commerce_BackEnd.Models.OrderRelatedModels;
 using E_Commerce_BackEnd.Models.ProductRelatedModels;
@@ -121,12 +122,7 @@ public class ECommerceContext : DbContext
             entity.Property(e => e.Username)
                 .HasColumnName("username")
                 .HasColumnType("varchar")
-                .HasMaxLength(15)
-                .IsRequired();
-
-            entity.HasIndex(e => e.Username)
-                .HasDatabaseName("INDEX_USERNAME")
-                .IsUnique();
+                .HasMaxLength(15);
             
             entity.Property(e => e.Email)
                 .HasColumnName("email")
@@ -141,8 +137,7 @@ public class ECommerceContext : DbContext
             entity.Property(e => e.Parola)
                 .HasColumnName("parola")
                 .HasColumnType("varchar")
-                .HasMaxLength(150)
-                .IsRequired();
+                .HasMaxLength(150);
 
             entity.Property(e => e.DataCreare)
                 .HasColumnName("data_creare")
@@ -378,6 +373,11 @@ public class ECommerceContext : DbContext
                 .HasColumnType("varchar")
                 .HasMaxLength(50)
                 .IsRequired();
+            
+            entity.Property(e => e.PretTransport)
+                .HasColumnName("pret_transport")
+                .HasColumnType("decimal")
+                .HasPrecision(4,2);
 
             entity.Property(e => e.IsCancelable)
                 .HasColumnType("is_cancelable")
@@ -419,6 +419,10 @@ public class ECommerceContext : DbContext
                 .HasColumnName("pret_baza")
                 .HasPrecision(6, 2)
                 .IsRequired();
+
+            entity.Property(e => e.InaltimeAleasaPentruSet)
+                .HasColumnType("varchar(4)")
+                .HasColumnName("inaltime_set");
             
             entity.Property(e => e.IdCuloare)
                 .HasColumnName("id_culoare")
@@ -848,13 +852,17 @@ public class ECommerceContext : DbContext
                 .HasColumnName("material_folosit")
                 .IsRequired();
             
-            
             entity.Property(e => e.TipManopera)
                 .HasColumnName("tip_manopera")
                 .HasConversion<string>()
                 .HasDefaultValue(TipManopere.Aleasa)
                 .HasMaxLength(10)
                 .IsRequired();
+
+            entity.Property(e => e.InaltimeMaxima)
+                .HasColumnType("varchar(4)")
+                .HasColumnName("inaltime_maxima")
+                .HasMaxLength(4);
 
             entity.HasMany(e => e.ManopereCuComenzi)
                 .WithOne(pc => pc.PcManopera)
@@ -1190,16 +1198,28 @@ public class ECommerceContext : DbContext
                 .HasColumnName("pret_produs")
                 .HasPrecision(6,2)
                 .IsRequired();
-            
+
+            entity.Property(e => e.InaltimeAleasaPentruSet)
+                .HasColumnType("varchar(4)")
+                .HasColumnName("inaltime_aleasa")
+                .HasMaxLength(4);
+
+            entity.Property(e => e.IdentificatorSet)
+                .HasColumnType("varchar(50)")
+                .HasColumnName("identificator_set")
+                .IsRequired();
+
+            entity.Property(e => e.SessionId)
+                .HasColumnType("char(36)")
+                .IsRequired();
+
             entity.Property(e => e.IdCont)
                 .HasColumnType("int")
-                .HasColumnName("id_cont")
-                .IsRequired();
-        
+                .HasColumnName("id_cont");
+
             entity.Property(e => e.IdDimensiune)
                 .HasColumnType("int")
-                .HasColumnName("id_dimensiune")
-                .IsRequired();
+                .HasColumnName("id_dimensiune");
         
             entity.Property(e => e.IdCuloare)
                 .HasColumnType("int")
@@ -1219,10 +1239,15 @@ public class ECommerceContext : DbContext
                 .HasColumnName("id_produs")
                 .IsRequired();
 
+             entity.Property(e => e.ExpiresAt)
+                 .HasColumnType("datetime")
+                 .HasColumnName("expires_at")
+                 .HasDefaultValueSql("NOW()")
+                 .IsRequired();
+
              entity.HasOne(cont => cont.Cont)
                  .WithMany(cont => cont.ProduseInCosPeCont)
-                 .HasForeignKey(cosCump => cosCump.IdCont)
-                 .IsRequired();
+                 .HasForeignKey(cosCump => cosCump.IdCont);
              
              entity.HasOne(cosCump => cosCump.Produs)
                  .WithMany(produs => produs.ProduseInCos)
@@ -1233,11 +1258,10 @@ public class ECommerceContext : DbContext
                  .WithMany(culoare => culoare.CuloriPeCosCumparaturi)
                  .HasForeignKey(cosCump => cosCump.IdCuloare)
                  .IsRequired();
-            
+
              entity.HasOne(cosCump => cosCump.Dimensiune)
                  .WithMany(dimensiune => dimensiune.DPeCosCumparaturi)
-                 .HasForeignKey(cosCump => cosCump.IdDimensiune)
-                 .IsRequired();
+                 .HasForeignKey(cosCump => cosCump.IdDimensiune);
 
              entity.HasOne(cosCump => cosCump.Set)
                  .WithMany(set => set.SeturiPeCos)
@@ -1295,6 +1319,28 @@ public class ECommerceContext : DbContext
             entity.HasOne(r => r.Set)
                 .WithMany(s => s.ReviewPeSet)
                 .HasForeignKey(r => r.IdSet);
+            
+        });
+        // de adaugat tipuri de produse din backend pe frontend sa le afisez in caz ca dauga + 
+        // de adaugat subcategoriile pe fiecare produs !!!!
+        // de updatat paginile de produse cand e perdea/draperie sa se poate vedea cum se masoara !!!!
+        
+        modelBuilder.Entity<GlobalConfigs>(entity =>
+        {
+            entity.ToTable("global_config");
+            entity.HasKey(e => e.IdConfiguratie);
+
+            entity.Property(e => e.IdConfiguratie)
+                .HasColumnName("id_config")
+                .HasColumnType("int(1)");
+
+            entity.Property(e => e.NumeAtributGlobal)
+                .HasColumnName("nume_atribut")
+                .HasColumnType("varchar(100)");
+
+            entity.Property(e => e.ValoareAtributGlobal)
+                .HasColumnName("valoare_atribut")
+                .HasColumnType("varchar(50)");
             
         });
 

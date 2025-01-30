@@ -37,7 +37,7 @@ public  class Conturi
     }
 
     public Conturi(string? nume, string? prenume, bool? gen, string? nrTelefon, string username, 
-                   string email, string parola, DateTime? dataCreare, 
+                   string email, string? parola, DateTime? dataCreare, 
                    string codActivare, bool verificat, string rol ,DateTime oraLinkConfirmare,ICollection<Adrese>? adreseConturi)
     {
         Nume = nume;

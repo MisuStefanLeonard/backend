@@ -28,7 +28,6 @@ public class AdressService : IAdressService
 
     public async Task<IList<AdreseDto>?> GetAllUsersAdresses(int userId)
     {
-        var watch = System.Diagnostics.Stopwatch.StartNew();
         
         var cacheKey = $"Adrese_{userId}";
 
@@ -58,8 +57,6 @@ public class AdressService : IAdressService
         
         _cache.Set(cacheKey, userAddressesDto, TimeSpan.FromMinutes(10)); 
         
-        watch.Stop();
-        _logger.LogInformation($"Time elapsed in AddressService for fetching the adresses: {watch.ElapsedMilliseconds}");
 
         return userAddressesDto;
 

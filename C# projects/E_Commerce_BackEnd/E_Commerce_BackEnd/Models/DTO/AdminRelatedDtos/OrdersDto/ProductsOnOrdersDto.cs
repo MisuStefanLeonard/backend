@@ -13,6 +13,7 @@ public class ProductsOnOrdersDto
     public decimal PretBazaDto { get; init; }
     // seturi info ( if it has)
     public string? NumeSetDto { get; init; } 
+    public string? InaltimeSetDto { get; init; }
     
     // color info and color code
     public string NumeCuloareDto { get; init; } = null!;
@@ -35,4 +36,5 @@ public class ProductsOnOrdersDto
     public string? CodVoucherFolositDto { get; init; }
     public decimal? ReducereVoucherDto { get; init; }
     public int NrBucatiDto { get; init; }
+    
 }

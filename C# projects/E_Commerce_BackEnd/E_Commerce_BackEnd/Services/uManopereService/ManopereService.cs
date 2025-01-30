@@ -91,6 +91,7 @@ public class ManopereService : IManopereService
                     PresignedUrl = "empty"
                 },
                 MetruTotalFolosit = m.MaterialFolosit,
+                InaltimeMaxima = m.InaltimeMaxima,
                 NumeDeManopere = manopereNames,
                 OptiuniDisponibile = availableOptions
                 
@@ -260,6 +261,7 @@ public class ManopereService : IManopereService
                     IdTipLinie = liningTypeInDb.IdTipLinie,
                     IdTipGalerie = galeryTypeInDb.IdTipGalerie,
                     MaterialFolosit = manopera.MetruTotalFolosit,
+                    InaltimeMaxima = manopera.InaltimeMaxima,
                     TipManopera = TipManopere.Standard
                 };
 

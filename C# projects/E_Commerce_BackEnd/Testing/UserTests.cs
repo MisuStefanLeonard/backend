@@ -35,8 +35,8 @@ public class Tests
         _mockCache = new Mock<IMemoryCache>();
         _mockCache = new Mock<IMemoryCache>();
         
-        _userService = new UserService(_mockUnitOfWork.Object, _mockMapper.Object, _mockEmailService.Object, 
-            _mockTokenService.Object , _mockCache.Object , _mockLoguri.Object);
+        // _userService = new UserService(_mockUnitOfWork.Object, _mockMapper.Object, _mockEmailService.Object, 
+        //     _mockTokenService.Object , _mockCache.Object , _mockLoguri.Object);
     }
 
     [Test]

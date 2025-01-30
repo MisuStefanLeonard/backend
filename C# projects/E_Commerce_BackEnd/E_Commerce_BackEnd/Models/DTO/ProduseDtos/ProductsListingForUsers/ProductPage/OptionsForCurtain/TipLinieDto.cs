@@ -4,6 +4,7 @@ namespace E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.Prod
 
 public class TipLinieDto 
 {
+    public int IdTipLinie { get; init; }
     public string? NumeTipCusaturaColt { get; init; } 
     public decimal PretTipCusaturaColt { get; set; } 
     public string? CaleRelativa { get; init; }

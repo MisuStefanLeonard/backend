@@ -6,6 +6,7 @@ using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductOptionsDto;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.Options;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.ProductPage;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.ProductPage.OptionsForCurtain;
+using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.ReviewsDto;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.SeturiDtos;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.SeturiDtos.DtoForProductOptions;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.SeturiDtos.User;
@@ -998,6 +999,7 @@ public class SeturiService : ISeturiService
                 .ThenInclude(asoc => asoc.Produs)
                     .ThenInclude(prod => prod.PProduseCuCulori!)
                         .ThenInclude(color => color.ImagProduseCuCulori)
+            .Include(set => set.ReviewPeSet)
             .Where(set => productName.IsNullOrEmpty() || set.SAsociereSeturi!
                 .Any(product => product.Produs.NumeProdus!.ToLower().Contains(productName!.ToLower())))
             .Where(set => !set.IsDeleted && set.SetActivInMagazin)
@@ -1035,8 +1037,9 @@ public class SeturiService : ISeturiService
                     .Select(asoc => new ProductsInSet
                     {
                         NumeProdusDto = asoc.First().Produs.NumeProdus!,
-                        CuloriProdusDto =  asoc.First().Produs.PProduseCuCulori!
-                            .Where(color => color.IdCuloare == asoc.First().IdCuloare)
+                        CuloriProdusDto = asoc.SelectMany(a => a.Produs.PProduseCuCulori!)
+                            .Where(color => asoc.Any(a => a.IdCuloare == color.IdCuloare))
+                            .Distinct()
                             .Select(color => new ColorsWithImages
                             {
                                 NumeCuloareDto = color.Culoare.NumeCuloare,
@@ -1047,7 +1050,14 @@ public class SeturiService : ISeturiService
                                     PresignedUrl = null
                                 }).ToList()
                             }).ToList()
-                    }).ToList()
+                    }).ToList(),
+                ReviewsInfoGeneral = new ReviewsInfoForQuickDisplay
+                {
+                    TotalReviews = set.ReviewPeSet!.Count,
+                    AverageRating = set.ReviewPeSet.Count > 0
+                        ? Math.Round(set.ReviewPeSet.Average(avg => avg.NumarStele), 1)
+                        : 0.0,
+                }
             }).ToListAsync();
 
 
@@ -1072,6 +1082,7 @@ public class SeturiService : ISeturiService
     {
         try
         {
+            
             var setPageInfo = await _unitOfWork.Repository<Seturi>()
                 .GetSimpleQueryable()
                 .Include(set => set.SAsociereSeturi!)
@@ -1127,6 +1138,7 @@ public class SeturiService : ISeturiService
                             SelectedColors = asoc
                                 .SelectMany(a => a.Produs.PProduseCuCulori!
                                     .Where(color =>  a.IdCuloare == color.IdCuloare))
+                                .Distinct()
                                 .Select(colorDto => new CuloriDto
                                 {
                                     IdCuloare = colorDto.IdCuloare,
@@ -1165,6 +1177,7 @@ public class SeturiService : ISeturiService
                                     man.Manopera!.IdManopera,
                                     NumeManopera = man.Manopera!.NumeManopera!,
                                     man.Manopera.MaterialFolosit,
+                                    man.Manopera.InaltimeMaxima,
                                     TipInel = man.Manopera.InelPrindereLaManopera,
                                     TipGalerie = man.Manopera.TipGalerieLaManopera,
                                     TipLinie = man.Manopera.TipLinieLaManopera
@@ -1175,6 +1188,7 @@ public class SeturiService : ISeturiService
                                     IdManopera = man.IdManopera,
                                     NumeManopera = man.NumeManopera,
                                     MetruTotalFolosit = man.MaterialFolosit,
+                                    InaltimeMaxima = man.InaltimeMaxima,
                                     TipInel = new TipIneleDto
                                     {
                                         NumeTipInel = man.TipInel!.CuloareInel,
@@ -1208,7 +1222,19 @@ public class SeturiService : ISeturiService
                             NumeClient = reviews.Cont.Nume,
                             PrenumeClient = reviews.Cont.Prenume,
                             UsernameContClient = reviews.Cont.Username!
-                        }).ToList()
+                        }).ToList(),
+                    ReviewsGeneral = new ReviewsInfo
+                    {
+                        TotalReviews = set.ReviewPeSet!.Count,
+                        AverageRating = set.ReviewPeSet.Count > 0
+                            ? Math.Round(set.ReviewPeSet.Average(avg => avg.NumarStele), 1)
+                            : 0.0,
+                        FiveStarsReviews = set.ReviewPeSet.Count(fiveStars => fiveStars.NumarStele == 5),
+                        FourStarsReviews = set.ReviewPeSet.Count(fiveStars => fiveStars.NumarStele == 4),
+                        ThreeStarsReviews = set.ReviewPeSet.Count(fiveStars => fiveStars.NumarStele == 3),
+                        TwoStarsReviews = set.ReviewPeSet.Count(fiveStars => fiveStars.NumarStele == 2),
+                        OneStarReviews = set.ReviewPeSet.Count(fiveStars => fiveStars.NumarStele == 1)
+                    }
                 }).AsSplitQuery()
                 .FirstAsync();
 

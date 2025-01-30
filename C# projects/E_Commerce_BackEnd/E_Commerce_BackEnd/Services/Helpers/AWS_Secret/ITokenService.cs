@@ -8,5 +8,5 @@ public interface ITokenService
 {
     Task<string> GenerateJwtAccesToken(Conturi currentLogIn);
     string RefreshToken();
-    Task<ClaimsPrincipal? >TokenValidation(string token);
+    Task<Tuple<ClaimsPrincipal? , Conturi?>>TokenValidation(string token , string refreshToken);
 }
