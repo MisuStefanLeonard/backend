@@ -208,17 +208,14 @@ namespace E_Commerce_BackEnd.Controllers
         {
             var deleteProductResponse = await _productService.DeleteProduct(codProdus);
 
-            switch (deleteProductResponse)
+            return deleteProductResponse switch
             {
-                case 1:
-                    return Ok("Deleted succesfully");
-                case -1:
-                    return NotFound("Product not found");
-                case -2:
-                    return BadRequest("Bad request, rolling back transaction");
-            }
-
-            return StatusCode(500, "Server error");
+                1 => Ok("Deleted succesfully"),
+                -1 => NotFound("Product not found"),
+                -2 => BadRequest("Bad request, rolling back transaction"),
+                -3 => StatusCode(515 , "Product is being bought.Cannot modify/delete"),
+                _ => StatusCode(500, "Server error")
+            };
         }
 
         [HttpDelete("delete/{categorieProdus}/{codProdus}/type")]
@@ -233,6 +230,7 @@ namespace E_Commerce_BackEnd.Controllers
                 1 => Ok("Deleted type on product succesfully"),
                 0 => NotFound("An error occured when querying the database"),
                 -1 => BadRequest("An fatal error occured when querying the database! Rolling back transaction"),
+                -3 => StatusCode(515 , "Produsul este blocat ."),
                 _ => StatusCode(500, "Server error")
             };
         }
@@ -250,6 +248,7 @@ namespace E_Commerce_BackEnd.Controllers
                 1 => Ok("Deleted dimension on product succesfully"),
                 0 => NotFound("An error occured when querying the database"),
                 -1 => BadRequest("An fatal error occured when querying the database! Rolling back transaction"),
+                -3 => StatusCode(515 , "Produsul este blocat ."),
                 _ => StatusCode(500, "Server error")
             };
         }
@@ -267,6 +266,7 @@ namespace E_Commerce_BackEnd.Controllers
                 1 => Ok("Deleted color on product succesfully"),
                 0 => NotFound("An error occured when querying the database"),
                 -1 => BadRequest("An fatal error occured when querying the database! Rolling back transaction"),
+                -3 => StatusCode(515 , "Produsul este blocat ."),
                 _ => StatusCode(500, "Server error")
             };
         }
@@ -285,6 +285,7 @@ namespace E_Commerce_BackEnd.Controllers
                 1 => Ok("Deleted image on product succesfully"),
                 0 => NotFound("An error occured when querying the database"),
                 -1 => BadRequest("An fatal error occured when querying the database! Rolling back transaction"),
+                -3 => StatusCode(515 , "Produsul este blocat ."),
                 _ => StatusCode(500, "Server error")
             };
         }
@@ -335,8 +336,8 @@ namespace E_Commerce_BackEnd.Controllers
                 }
                 
                 var response = await _productService.UpdateProduct(modifiedProduct,images);
-        
-                return Ok(response);
+
+                return response.All(x => x == 0) ? StatusCode(515, "Product locked!Cannot modify") : Ok(response); // if it returns [] , product is locked 
             }
             catch (Exception ex)
             {
@@ -352,12 +353,12 @@ namespace E_Commerce_BackEnd.Controllers
             var responseFromTogglingActivationState = await 
                 _productService.ToggleActivationStateInShop(codProdus, activationState);
 
-            if (responseFromTogglingActivationState == 1)
+            return responseFromTogglingActivationState switch
             {
-                return Ok("Succesfully toggled the state");
-            }
-
-            return BadRequest("Something happened when toggling the state of the product");
+                1 => Ok("Succesfully toggled the state"),
+                -3 => StatusCode(515, "Produsul este blocat ."),
+                _ => BadRequest("Something happened when toggling the state of the product")
+            };
         }
 
         [HttpPut("deleteSelectedProducts")]
@@ -367,12 +368,12 @@ namespace E_Commerce_BackEnd.Controllers
            
             var responseFromBulkDeletion = await _productService.DeleteSelectedProducts(toDelete);
 
-            if (responseFromBulkDeletion == 1)
+            return responseFromBulkDeletion switch
             {
-                return Ok("Succesfully deleted the selected products");
-            }
-
-            return BadRequest("An error happened. Please refresh");
+                1 => Ok("Succesfully deleted the selected products"),
+                -3 => StatusCode(515, " Cannot delete . product is being bought"),
+                _ => BadRequest("An error happened. Please refresh")
+            };
         }
         
         [HttpPut("activateSelectedProducts")]
@@ -382,9 +383,13 @@ namespace E_Commerce_BackEnd.Controllers
            
             var responseFromBulkActivation = await _productService.ActivateSelectedProducts(toActivate);
 
-            if (responseFromBulkActivation == 1)
+            switch (responseFromBulkActivation)
             {
-                return Ok("Succesfully activated the selected products");
+                case 1:
+                    return Ok("Succesfully activated the selected products");
+                case -3:
+                    StatusCode(515, " Cannot delete . product is being bought");
+                    break;
             }
 
             return BadRequest("An error happened. Please refresh");
@@ -417,7 +422,7 @@ namespace E_Commerce_BackEnd.Controllers
                 && encodedIdSetDto == _sqidsEncoder.Encode(decodedId))
             {
                 var setById = await _seturiService.GetSetPage(decodedId);
-
+                
                 return Ok(setById);
             }
            
@@ -461,6 +466,7 @@ namespace E_Commerce_BackEnd.Controllers
                 {
                     1 => Ok("Succesful set deletion"), // succesfull
                     -1 => NotFound("Empty list of set"), // empty sets
+                    -3 => StatusCode(515 , "Setul nu poate fi sters. Un client este la platirea comenzii cu acest produs"),
                     0 => BadRequest("General exception thrown"), // exception thrown
                     _ => StatusCode(500, "General error!Contact admin")
                 };
@@ -480,6 +486,7 @@ namespace E_Commerce_BackEnd.Controllers
             return responseFromBulkActivationSets switch
             {
                 1 => Ok("Succesfully activated the selected sets"),
+                -3 => StatusCode(515 , "Setul nu poate fi activat. Un client este la platirea comenzii cu acest produs"),
                 -1 => BadRequest("General error thrown"),
                 _ => StatusCode(500, "Server error")
             };
@@ -495,6 +502,7 @@ namespace E_Commerce_BackEnd.Controllers
             return responseFromBulkDeletionSets switch
             {
                 1 => Ok("Succesfully deleted the selected sets"),
+                -3 => StatusCode(515 , "Setul nu poate fi sters. Un client este la platirea comenzii cu acest produs"),
                 -1 => BadRequest("General error thrown"),
                 _ => StatusCode(500, "Server error")
             };
@@ -513,6 +521,7 @@ namespace E_Commerce_BackEnd.Controllers
                 {
                     1 => Ok("Succesfull deletion"), // succesfull
                     -2 => NotFound("Empty list of produse / seturi"), // empty products/sets
+                    -3 => StatusCode(515 , "Setul nu poate fi sters. Un client este la platirea comenzii cu acest produs"),
                     -1 => BadRequest("General exception thrown"), // exception thrown
                     _ => StatusCode(500, "General error!Contact admin")
                 };
@@ -537,13 +546,13 @@ namespace E_Commerce_BackEnd.Controllers
 
                 var updateResponse = await _seturiService.AddOrUpdateSet(modifiedSetToDto, decodedId, false);
 
-                if (updateResponse == 1)
+                return updateResponse switch
                 {
-                    return Ok("Succesfully modfied the set");
-                }
-               
-                return BadRequest("An error occured when updating the set");
-                
+                    1 => Ok("Succesfully modfied the set"),
+                    -3 => StatusCode(515,
+                        "Setul nu poate fi modificat. Un client este la platirea comenzii cu acest produs"),
+                    _ => BadRequest("An error occured when updating the set")
+                };
             }
             return StatusCode(555 , "Invalid decoded set ID ");
         }
@@ -635,11 +644,12 @@ namespace E_Commerce_BackEnd.Controllers
             {
                 var inelImageDeletionResponse = await _inelePrindereService.DeleteInelPrindereImage(decodedId);
 
-                if (inelImageDeletionResponse == 1)
+                return inelImageDeletionResponse switch
                 {
-                    return Ok("Deleted Succesfully");
-                }
-                return BadRequest("An error happenned when deleting the product");
+                    1 => Ok("Deleted Succesfully"),
+                    -3 => StatusCode(515, "Inel locked.Client is in buying session"),
+                    _ => BadRequest("An error happenned when deleting the product")
+                };
             }
             
             return BadRequest("Invalid id material");
@@ -672,6 +682,7 @@ namespace E_Commerce_BackEnd.Controllers
                     1 => Ok("Modified succesfully"),
                     -1 => BadRequest("NullReferenceException "),
                     -2 => StatusCode(515, "Duplicate image name in the bucket"),
+                    -3 => NoContent(), // Inel locked. Client in buying session
                     _ => StatusCode(500, "General error occured")
                 };
             }
@@ -711,11 +722,12 @@ namespace E_Commerce_BackEnd.Controllers
             {
                 var deleteInelResponse = await _inelePrindereService.DeleteInelPrindere(decodedId);
 
-                if (deleteInelResponse == 1)
+                return deleteInelResponse switch
                 {
-                    return Ok("Succesfully deleted inel");
-                }
-                return BadRequest("An error happenned when deleting the material");
+                    1 => Ok("Succesfully deleted inel"),
+                    -3 => StatusCode(515, "Inel cannot be deleted. Client is in buying session"),
+                    _ => BadRequest("An error happenned when deleting the material")
+                };
             }
 
             return BadRequest("An error happenned when deleting the material");
@@ -728,12 +740,12 @@ namespace E_Commerce_BackEnd.Controllers
             var responseFromBulkDeletionOnInele =
                 await _inelePrindereService.DeleteSelected(deleteOperation);
 
-            if (responseFromBulkDeletionOnInele == 1)
+            return responseFromBulkDeletionOnInele switch
             {
-                return Ok("Deleted succesfully the selected inele");
-            }
-
-            return BadRequest("Error on deleting the selected inele");
+                1 => Ok("Deleted succesfully the selected inele"),
+                -3 => StatusCode(515, "Inel cannot be deleted. Client is in buying session"),
+                _ => BadRequest("Error on deleting the selected inele")
+            };
         }
         
         [HttpGet("tipuri_galerie")]
@@ -820,6 +832,7 @@ namespace E_Commerce_BackEnd.Controllers
                     1 => Ok("Modified succesfully"),
                     -1 => BadRequest("NullReferenceException "),
                     -2 => StatusCode(515, "Duplicate image name in the bucket"),
+                    -3 => NoContent(), // Gallery locked. Cannot update. Client is in buying session
                     _ => StatusCode(500, "General error occured")
                 };
             }
@@ -864,11 +877,12 @@ namespace E_Commerce_BackEnd.Controllers
             {
                 var deleteTipGalerieResponse = await _tipuriGalerieService.DeleteTipGalerie(decodedId);
 
-                if (deleteTipGalerieResponse == 1)
+                return deleteTipGalerieResponse switch
                 {
-                    return Ok("Succesfully deleted tip galerie");
-                }
-                return BadRequest("An error happenned when deleting the tip galerie");
+                    1 => Ok("Succesfully deleted tip galerie"),
+                    -3 => StatusCode(515, "Tip galerie folosit intr-o tranzactie"),
+                    _ => BadRequest("An error happenned when deleting the tip galerie")
+                };
             }
 
             return BadRequest("An error happenned when deleting thetip galerie");
@@ -881,12 +895,12 @@ namespace E_Commerce_BackEnd.Controllers
             var responseFromBulkDeletionOnTipuriGalerie =
                 await _tipuriGalerieService.DeleteSelected(deleteOperation);
 
-            if (responseFromBulkDeletionOnTipuriGalerie == 1)
+            return responseFromBulkDeletionOnTipuriGalerie switch
             {
-                return Ok("Deleted succesfully the selected tipuri galerie");
-            }
-
-            return BadRequest("Error on deleting the selected tipuri galerie");
+                1 => Ok("Deleted succesfully the selected tipuri galerie"),
+                -3 => StatusCode(515, "Gallery locked. Client is buying ."),
+                _ => BadRequest("Error on deleting the selected tipuri galerie")
+            };
         }
         
         // ----------------------------
@@ -945,11 +959,12 @@ namespace E_Commerce_BackEnd.Controllers
             {
                 var tipGalerieImageDeletionResponse = await _tipuriLinieService.DeleteTipLinieImage(decodedId);
 
-                if (tipGalerieImageDeletionResponse == 1)
+                return tipGalerieImageDeletionResponse switch
                 {
-                    return Ok("Deleted Succesfully");
-                }
-                return BadRequest("An error happenned when deleting the product");
+                    1 => Ok("Deleted Succesfully"),
+                    -3 => StatusCode(515, "Line type locked. Wait for client to finish buying session"),
+                    _ => BadRequest("An error happenned when deleting the product")
+                };
             }
             
             return BadRequest("Invalid id tip linie");
@@ -981,6 +996,7 @@ namespace E_Commerce_BackEnd.Controllers
                     1 => Ok("Modified succesfully"),
                     -1 => BadRequest("NullReferenceException "),
                     -2 => StatusCode(515, "Duplicate image name in the bucket"),
+                    -3 => NoContent(), // 204 , Locked , cannot delete . Client is in buying session
                     _ => StatusCode(500, "General error occured")
                 };
             }
@@ -1025,11 +1041,12 @@ namespace E_Commerce_BackEnd.Controllers
             {
                 var deleteTipLinieResponse = await _tipuriLinieService.DeleteTipLinie(decodedId);
 
-                if (deleteTipLinieResponse == 1)
+                return deleteTipLinieResponse switch
                 {
-                    return Ok("Succesfully deleted tip linie");
-                }
-                return BadRequest("An error happenned when deleting the tip galerie");
+                    1 => Ok("Succesfully deleted tip linie"),
+                    -3 => StatusCode(515, "Line type is locked.Wait for client to finish buying session"),
+                    _ => BadRequest("An error happenned when deleting the tip galerie")
+                };
             }
 
             return BadRequest("An error happenned when deleting the tip linie");
@@ -1042,12 +1059,12 @@ namespace E_Commerce_BackEnd.Controllers
             var responseFromBulkDeletionOnTipuriLinie =
                 await _tipuriLinieService.DeleteSelected(deleteOperation);
 
-            if (responseFromBulkDeletionOnTipuriLinie == 1)
+            return responseFromBulkDeletionOnTipuriLinie switch
             {
-                return Ok("Deleted succesfully the selected tipuri linie");
-            }
-
-            return BadRequest("Error on deleting the selected tipuri linie");
+                1 => Ok("Deleted succesfully the selected tipuri linie"),
+                -3 => StatusCode(515, "Line type locked. Cannot delete"),
+                _ => BadRequest("Error on deleting the selected tipuri linie")
+            };
         }
         
         // VOUCHERS
@@ -1169,7 +1186,7 @@ namespace E_Commerce_BackEnd.Controllers
         public async Task<IActionResult> DeleteSelectedVoucherById([FromBody] BulkOperationsDto deleteOperation)
         {
             var responseFromBulkDeletionOnTipuriLinie =
-                await _tipuriLinieService.DeleteSelected(deleteOperation);
+                await _voucherService.DeleteSelected(deleteOperation);
 
             if (responseFromBulkDeletionOnTipuriLinie == 1)
             {
@@ -1367,7 +1384,6 @@ namespace E_Commerce_BackEnd.Controllers
 
           
             var convertToDto = JsonConvert.DeserializeObject<ManoperaPageModification>(manoperaUpdated);
-            Console.WriteLine("Nume nou {0} , metri noi {1}" , convertToDto.NumeManopera , convertToDto.MetruTotalFolosit);
 
             if (convertToDto == null)
             {
@@ -1386,6 +1402,7 @@ namespace E_Commerce_BackEnd.Controllers
                 -1 => BadRequest("General error thrown when executing transaction (update or add)"), 
                 // check ManopereService in ModifyOrAddManopera(exception thrown : ArgumentNullException || InvalidOperationException)
                 -2 => NotFound("Either a ring type or a line type or a galery type does not exist"),
+                -3 => StatusCode(515 , "Manopera este blocata. Un client cumpara un produs ce foloseste aceasta manopera"),
                 // server error     
                 _ => StatusCode(500, "General error occured. Check logs")
             };
@@ -1412,7 +1429,7 @@ namespace E_Commerce_BackEnd.Controllers
 
         [HttpGet("generalSettings")]
         [Authorize]
-        public async Task<IActionResult> ModifyGeneralSettings()
+        public async Task<IActionResult> GetGeneralSettings()
         {
             var response = await _generalSettingsService.GetGeneralSettingsData();
             return Ok(response);

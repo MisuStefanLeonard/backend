@@ -19,12 +19,14 @@ using E_Commerce_BackEnd.Services.uService;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
 using E_Commerce_BackEnd.Services.Helpers.Resolvers;
+using E_Commerce_BackEnd.Services.Helpers.UserHelpers;
 using E_Commerce_BackEnd.Services.uAdminService;
 using E_Commerce_BackEnd.Services.uAdressService;
 using E_Commerce_BackEnd.Services.uBucketService;
 using E_Commerce_BackEnd.Services.uGeneralService;
 using E_Commerce_BackEnd.Services.uInelePrindereService;
 using E_Commerce_BackEnd.Services.uManopereService;
+using E_Commerce_BackEnd.Services.uOrdersService;
 using E_Commerce_BackEnd.Services.uProductsService;
 using E_Commerce_BackEnd.Services.uReviewService;
 using E_Commerce_BackEnd.Services.uSeturiService;
@@ -36,6 +38,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.RateLimiting;
 using Quartz;
+using Quartz.Impl;
 using Sqids;
 
 
@@ -88,18 +91,20 @@ builder.Services.AddQuartz(q =>
         {
             trigger.ForJob(cartCleanUpJobKey)
                 .WithIdentity("cart-clean-up-trigger", "cart-trigger")
-                .WithCronSchedule("0 0 0 ? * 2/3 *");
+                .WithCronSchedule("0 0 */12 ? * *")
+                .StartNow();
                 //  At 00:00:00am, every 3 days starting on Monday, every month 
                 
         });
     
-    q.AddJob<CartCleanUp>(sessionTokenCleanUpJobKey)
+    q.AddJob<SessionTokenCleanUp>(sessionTokenCleanUpJobKey)
         .AddTrigger(trigger =>
         {
             trigger.ForJob(sessionTokenCleanUpJobKey)
-                .WithIdentity("session-token-clean-up-trigger", "session-tokne-trigger")
-                .WithCronSchedule("0 0 0 */7 * ?");
-            //  At 00:00:00am, every 3 days starting on Monday, every month 
+                .WithIdentity("session-token-clean-up-trigger", "session-token-trigger")
+                .WithCronSchedule("0 0 */12 ? * *")
+                .StartNow();
+            //  Every 12 hours
                 
         });
 
@@ -109,6 +114,7 @@ builder.Services.AddQuartzHostedService(opt =>
 {
     opt.WaitForJobsToComplete = true;
 });
+
 // Mapper configuration
 builder.Services.AddAutoMapper((serviceProvider, cfg) =>
 {
@@ -156,6 +162,7 @@ builder.Services.AddScoped<IGeneralSettingsService, GeneralSettingsService>();
 builder.Services.AddScoped<IInelePrindereService, InelePrindereService>();
 builder.Services.AddScoped<IVoucherService, VoucherService>();
 builder.Services.AddScoped<IManopereService, ManopereService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IBucketAcces, BucketAccess>();
 builder.Services.AddScoped<IBucketService, BucketService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
@@ -166,7 +173,7 @@ builder.Services.AddTransient<JwtTokenMiddleware>();
 builder.Services.AddTransient<AdminMiddleware>();
 builder.Services.AddTransient<CartMiddleware>();
 builder.Services.AddScoped<DocumentProcessing>();
-
+builder.Services.AddSingleton<UserHelpers>();
 builder.Services.AddSingleton<SqidsEncoder<int>>();
 
 builder.Services.AddMemoryCache();
@@ -193,7 +200,7 @@ builder.Services.AddAuthentication(x =>
     options.Cookie.HttpOnly = true;
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     options.Cookie.SameSite = SameSiteMode.Lax; // Prevent CSRF
-    options.ExpireTimeSpan = TimeSpan.FromDays(1);
+    options.ExpireTimeSpan = TimeSpan.FromDays(7);
     options.LoginPath = "/signin-google";
     options.LogoutPath = "/logout";
 })

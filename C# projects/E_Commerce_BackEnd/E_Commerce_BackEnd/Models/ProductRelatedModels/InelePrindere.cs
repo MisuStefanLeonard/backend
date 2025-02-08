@@ -15,6 +15,8 @@ public class InelePrindere
     [StringLength(100)] 
     public string? CaleRelativa { get; set; }
     public bool IsDeleted { get; set; }
+    public bool IsLocked { get; set; }
+
     
     public ICollection<Manopere>? InelPeManopere { get; }
 

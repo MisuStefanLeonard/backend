@@ -30,7 +30,7 @@ public interface IProductService
     public Task<int> ToggleActivationStateInShop(string productCode, bool activation);
     public Task<int> DeleteSelectedProducts(BulkOperationsDto bulkOperationsDto);
     public Task<int> ActivateSelectedProducts(BulkOperationsDto bulkOperationsDto);
-    public Task<string> GeneratePresignedUrl(string caleImagini, string fisierInBucket); 
+    
     #endregion
     
     #region GetProductOptionsData

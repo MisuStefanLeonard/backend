@@ -67,6 +67,12 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnName("data_emitere_comanda")
                         .HasDefaultValueSql("NOW()");
 
+                    b.Property<string>("EmailPeComanda")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar")
+                        .HasColumnName("email_pe_comanda");
+
                     b.Property<int>("IdAdresaFacturare")
                         .HasColumnType("integer")
                         .HasColumnName("id_adresa_facturare");
@@ -84,6 +90,30 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnType("tinyint")
                         .HasDefaultValue((sbyte)1);
 
+                    b.Property<sbyte>("IsOrderPayed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("is_order_payed");
+
+                    b.Property<string>("NrTelefonPeComanda")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar")
+                        .HasColumnName("nr_telefon_pe_comanda");
+
+                    b.Property<string>("NumePeComanda")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar")
+                        .HasColumnName("nume_pe_comanda");
+
+                    b.Property<string>("PrenumePeComanda")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar")
+                        .HasColumnName("prenume_pe_comanda");
+
                     b.Property<decimal>("PretTransport")
                         .HasPrecision(4, 2)
                         .HasColumnType("decimal")
@@ -98,6 +128,18 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .IsRequired()
                         .HasColumnType("longtext")
                         .HasColumnName("tip_plata");
+
+                    b.Property<string>("UniqueConfirmationToken")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar")
+                        .HasColumnName("confirmation_token");
+
+                    b.Property<sbyte>("UniqueConfirmationTokenUsed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("is_confirmation_token_used");
 
                     b.HasKey("IdComanda");
 
@@ -171,6 +213,11 @@ namespace E_Commerce_BackEnd.Migrations.V1
                     b.Property<int?>("IdSet")
                         .HasColumnType("integer")
                         .HasColumnName("id_set");
+
+                    b.Property<string>("IdentificatorSet")
+                        .IsRequired()
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("identificator_set");
 
                     b.Property<string>("InaltimeAleasaPentruSet")
                         .HasColumnType("varchar(4)")
@@ -300,8 +347,7 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnType("int")
                         .HasColumnName("id_manopera");
 
-                    b.Property<int?>("IdProdus")
-                        .IsRequired()
+                    b.Property<int>("IdProdus")
                         .HasColumnType("int")
                         .HasColumnName("id_produs");
 
@@ -461,6 +507,12 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasDefaultValue((sbyte)0)
                         .HasColumnName("isDeleted");
 
+                    b.Property<sbyte>("IsLocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("is_locked");
+
                     b.HasKey("IdInel");
 
                     b.ToTable("inele_prindere", (string)null);
@@ -491,6 +543,12 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasMaxLength(4)
                         .HasColumnType("varchar(4)")
                         .HasColumnName("inaltime_maxima");
+
+                    b.Property<sbyte>("IsLocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("is_locked");
 
                     b.Property<decimal>("MaterialFolosit")
                         .HasPrecision(6, 2)
@@ -605,6 +663,12 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnType("tinyint")
                         .HasDefaultValue((sbyte)0)
                         .HasColumnName("isDeleted");
+
+                    b.Property<sbyte>("IsLocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("is_locked");
 
                     b.Property<string>("NumeProdus")
                         .HasMaxLength(50)
@@ -737,6 +801,12 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasDefaultValue((sbyte)0)
                         .HasColumnName("isDeleted");
 
+                    b.Property<sbyte>("IsLocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("is_locked");
+
                     b.Property<string>("NumeSet")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -787,6 +857,12 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasDefaultValue((sbyte)0)
                         .HasColumnName("isDeleted");
 
+                    b.Property<sbyte>("IsLocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("is_locked");
+
                     b.Property<string>("NumeTipGalerie")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -828,6 +904,12 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnType("tinyint")
                         .HasDefaultValue((sbyte)0)
                         .HasColumnName("isDeleted");
+
+                    b.Property<sbyte>("IsLocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("is_locked");
 
                     b.Property<string>("NumeTipLinie")
                         .IsRequired()
@@ -1020,7 +1102,7 @@ namespace E_Commerce_BackEnd.Migrations.V1
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasMaxLength(50)
+                        .HasMaxLength(100)
                         .HasColumnType("varchar")
                         .HasColumnName("email");
 
@@ -1035,12 +1117,12 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnName("guest");
 
                     b.Property<string>("NrTelefon")
-                        .HasMaxLength(10)
+                        .HasMaxLength(20)
                         .HasColumnType("varchar")
                         .HasColumnName("nr_telefon");
 
                     b.Property<string>("Nume")
-                        .HasMaxLength(10)
+                        .HasMaxLength(20)
                         .HasColumnType("varchar")
                         .HasColumnName("nume");
 
@@ -1056,7 +1138,7 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnName("parola");
 
                     b.Property<string>("Prenume")
-                        .HasMaxLength(20)
+                        .HasMaxLength(30)
                         .HasColumnType("varchar")
                         .HasColumnName("prenume");
 

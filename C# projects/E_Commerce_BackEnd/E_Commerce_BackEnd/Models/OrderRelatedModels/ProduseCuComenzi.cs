@@ -10,7 +10,9 @@ public class ProduseCuComenzi
     public int IdProduseCuComenzi { get; init; }
     public int NrBucati { get; set; }
     public decimal PretCumparat{ get; init; }
-    public string? InaltimeAleasaPentruSet { get; init; } 
+    public string? InaltimeAleasaPentruSet { get; init; }
+
+    public string IdentificatorSet { get; init; } = null!;
     // Fk
     public int? IdSet { get; set; }
     public Seturi? Set { get; set; }

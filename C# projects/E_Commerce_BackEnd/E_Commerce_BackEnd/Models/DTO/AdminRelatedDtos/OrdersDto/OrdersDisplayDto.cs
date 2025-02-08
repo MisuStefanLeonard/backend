@@ -1,5 +1,5 @@
+using E_Commerce_BackEnd.Models.DTO.ProduseDtos.VouchereDtos;
 using E_Commerce_BackEnd.Models.Enums;
-using E_Commerce_BackEnd.Models.OrderRelatedModels;
 using Sqids;
 
 namespace E_Commerce_BackEnd.Models.DTO.AdminRelatedDtos.OrdersDto;
@@ -19,4 +19,5 @@ public class OrdersDisplayDto
     public string AwbComandaDto { get; init; } = null!;
     public bool IsCancelableDto { get; set; }
     public decimal? PretTotalComanda { get; set; } = 0;
+    // public VouchereDto? VoucherPeComanda { get; set; }
 }

@@ -41,7 +41,8 @@ public sealed class SessionTokenCleanUp : IJob
             {
                 await _unitOfWork.RollBackTransactionAsync(cleanUpSessionTokenTransaction);
             }
-            Console.WriteLine(e);
+            _logger.LogInformation("Error thrown in seesionTokenCleanup");
+            _logger.LogError(e.StackTrace);
             throw;
         }
     }

@@ -42,11 +42,6 @@ public class JwtTokenMiddleware : IMiddleware
                 await next(context);
                 return;
             }
-
-            foreach (var cookie in context.Request.Cookies)
-            {
-                _logger.LogInformation(cookie.Key);
-            }
         
             if (context.Request.Cookies.TryGetValue("userLoggedIn", out var isLoggedIn) &&
                 context.Request.Cookies.TryGetValue("session_tok" , out var refreshToken))
@@ -60,6 +55,13 @@ public class JwtTokenMiddleware : IMiddleware
                 else
                 {
                     var response = await _tokenService.TokenValidation("refresh", refreshToken);
+                    if (response.Item1 == null)
+                    {
+                        _logger.LogWarning("Refresh token expired");
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        await context.Response.WriteAsync("Refresh token expired");
+                        return;
+                    }
                     principalUser = response.Item1;
                     var cookieOptions = new CookieOptions()
                     {
@@ -84,8 +86,6 @@ public class JwtTokenMiddleware : IMiddleware
 
                 if (isLoggedIn == "1")
                 {
-                    
-                  
                     context.User = principalUser;
                     _logger.LogInformation("User successfully set.");
                    

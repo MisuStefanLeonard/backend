@@ -18,6 +18,7 @@ public class TipuriLinie
     [StringLength(100)] 
     public string? CaleRelativa { get; set; } 
     public bool IsDeleted { get; set; }
+    public bool IsLocked { get; set; }
     public ICollection<Manopere>? TipLiniePeManopere { get; }
 
     public TipuriLinie()

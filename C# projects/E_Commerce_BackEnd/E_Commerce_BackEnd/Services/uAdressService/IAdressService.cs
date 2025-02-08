@@ -8,6 +8,6 @@ public interface IAdressService
 {
     public Task<IList<AdreseDto>?> GetAllUsersAdresses(int userId);
     public Task<int> SaveAddress(AdreseDto adressDto , int userId);
-
-    public Task<int> DeleteAddress(int userId,string alias);
+    // public Task<int> DeleteAddress(int userId,string alias);
+    public Task<int> ModifyAddress(int userId, AdreseDto newAddressData);
 }

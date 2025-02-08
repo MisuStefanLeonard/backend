@@ -239,6 +239,11 @@ public class ManopereService : IManopereService
                                         && m.TipManopera == TipManopere.Standard)
                     .FirstAsync();
 
+                if (manoperaToBeUpdated.IsLocked)
+                {
+                    return -3;
+                }
+
                 _mapper.Map(manopera, manoperaToBeUpdated);
                 
                 manoperaToBeUpdated.IdTipGalerie = galeryTypeInDb.IdTipGalerie;
@@ -252,7 +257,8 @@ public class ManopereService : IManopereService
                 return 1;
 
             }
-            else if(!isUpdating && idManopera == null)
+            
+            if(!isUpdating && idManopera == null)
             {
                 var newManoperaToBeAdded = new Manopere
                 {

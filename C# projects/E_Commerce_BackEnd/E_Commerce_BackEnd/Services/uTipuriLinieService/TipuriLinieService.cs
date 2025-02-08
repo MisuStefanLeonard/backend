@@ -103,6 +103,11 @@ public class TipuriLinieService : ITipuriLinieService
             {
                 throw new Exception("tip linie  to be deleted is not in the database");
             }
+            
+            if (tipLinieToBeDeleted.IsLocked)
+            {
+                return -3; // Line tye locked.
+            }
 
             if (tipLinieToBeDeleted.CaleRelativa is not null)
             {
@@ -157,6 +162,11 @@ public class TipuriLinieService : ITipuriLinieService
             {
                 throw new Exception("Image of tip linie  that needs deletion is not in the database");
             }
+            
+            if (imageToDeleteOnTipLinie.IsLocked)
+            {
+                return -3;
+            }
 
             if (imageToDeleteOnTipLinie.CaleRelativa is not null)
             {
@@ -209,6 +219,12 @@ public class TipuriLinieService : ITipuriLinieService
 
                 if (tipLinieToBeDeleted is not null)
                 {
+                    
+                    if (tipLinieToBeDeleted.IsLocked)
+                    {
+                        return -3;
+                    }
+
                     var hasManopereOnTipGalerie = tipLinieToBeDeleted.TipLiniePeManopere.IsNullOrEmpty();
                     if (hasManopereOnTipGalerie)
                     {
@@ -316,6 +332,11 @@ public class TipuriLinieService : ITipuriLinieService
                 if (tipLinieToBeModified == null)
                 {
                     throw new NullReferenceException("tip galerie to be modified is null");
+                }
+                
+                if (tipLinieToBeModified.IsLocked)
+                {
+                    return -3;
                 }
 
                 var oldImageName = tipLinieToBeModified.CaleRelativa;

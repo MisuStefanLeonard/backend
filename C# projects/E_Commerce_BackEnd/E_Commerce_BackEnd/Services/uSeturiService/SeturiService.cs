@@ -181,6 +181,7 @@ public class SeturiService : ISeturiService
         {
             return null;
         }
+        
 
         // Retrieve all products associated with the set
         var listOfProductsOnSets = await productWithSetsRepository
@@ -301,6 +302,13 @@ public class SeturiService : ISeturiService
                 .FindQueryable(set => set.IdSet == idSet)
                 .FirstAsync();
 
+            if (setToDelete.IsLocked)
+            {
+                return -3;
+            }
+            
+            
+
             if (setToDelete.CombinatieSetPeComanda.IsNullOrEmpty())
             {
                 await setsRepository.DeleteAsync(setToDelete);
@@ -350,9 +358,14 @@ public class SeturiService : ISeturiService
                 var setToBeDeleted = await setsRepository
                     .FindQueryable(set => set.IdSet == int.Parse(item.ToString()!))
                     .FirstOrDefaultAsync();
+                
 
                 if (setToBeDeleted is not null)
                 {
+                    if (setToBeDeleted.IsLocked)
+                    {
+                        return -3;
+                    }
                     var hasOrders = setToBeDeleted.CombinatieSetPeComanda.IsNullOrEmpty();
                     if (hasOrders)
                     {
@@ -366,7 +379,7 @@ public class SeturiService : ISeturiService
                 }
                 else
                 {
-                    _logger.LogInformation("Inel already has been deleted (bulk operation delete)");
+                    _logger.LogInformation("Set already has been deleted (bulk operation delete)");
                 }
 
             }
@@ -409,6 +422,12 @@ public class SeturiService : ISeturiService
             var setToUpdate = await setsRepository
                 .FindQueryable(set => set.IdSet == idSet)
                 .FirstAsync();
+            
+            // set locked
+            if (setToUpdate.IsLocked)
+            {
+                return -3;
+            }
 
 
             setToUpdate.SetActivInMagazin = activationState;
@@ -454,9 +473,13 @@ public class SeturiService : ISeturiService
                 var setToUpdate = await setsRepository
                     .FindQueryable(set => set.IdSet == int.Parse(item.ToString()!))
                     .FirstOrDefaultAsync();
-
+                
                 if (setToUpdate is not null)
                 {
+                    if (setToUpdate.IsLocked)
+                    {
+                        return -3;
+                    }
                     setToUpdate.SetActivInMagazin = true;
                     setsToActivate.Add(setToUpdate);
                 }
@@ -491,11 +514,23 @@ public class SeturiService : ISeturiService
         try
         {
             deleteTransaction = await _unitOfWork.BeginTransactionAsync();
+            
             var productWithSetsRepository = _unitOfWork.Repository<AsociereSeturi>();
+
+            var findSet = await _unitOfWork.Repository<Seturi>()
+                .FindQueryable(set => set.IdSet == idSet)
+                .FirstOrDefaultAsync();
+
+            if (findSet is { IsLocked: true })
+            {
+                return -3;
+            }
            
             var findAllProductVariationsToDelete = await productWithSetsRepository
                 .FindQueryable(asoc => asoc.IdProdus == idProdus && asoc.IdSet == idSet)
                 .ToListAsync();
+            
+            
 
             if (findAllProductVariationsToDelete.Count == 0)
             {
@@ -537,7 +572,7 @@ public class SeturiService : ISeturiService
             var dimensionsRepository = _unitOfWork.Repository<Dimensiuni>();
             var manopereRepository = _unitOfWork.Repository<Manopere>();
             var asociereSeturiRepository = _unitOfWork.Repository<AsociereSeturi>();
-            _logger.LogInformation("INAINTE DE VREO OPERATIE ");
+           
             foreach (var product in modifiedSet.ProductsOnSet)
             {
                 _logger.LogInformation($"Nume produs : {product.NumeProdusDto} - {product.TipProdusDto} ");
@@ -545,6 +580,14 @@ public class SeturiService : ISeturiService
             
             if (!isAdding)
             {
+                var findSet = await _unitOfWork.Repository<Seturi>()
+                    .FindQueryable(set => set.IdSet == idSet).FirstOrDefaultAsync();
+                // set locked
+                if (findSet != null)
+                {
+                    return -3;
+                }
+                
                 var listOfNewOptions = new List<AsociereSeturi>();
 
                 var oldOptions = await asociereSeturiRepository

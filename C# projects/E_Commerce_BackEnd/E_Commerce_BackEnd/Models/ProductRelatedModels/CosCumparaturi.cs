@@ -15,8 +15,8 @@ public class CosCumparaturi
     public Conturi? Cont { get; init; } 
     public int? IdCont { get; init; }
     
-    public Produse? Produs { get; init; } 
-    public int? IdProdus { get; init; }
+    public Produse Produs { get; init; } 
+    public int IdProdus { get; init; }
 
     public Culori Culoare { get; init; } = null!;
     public int IdCuloare { get; init; }

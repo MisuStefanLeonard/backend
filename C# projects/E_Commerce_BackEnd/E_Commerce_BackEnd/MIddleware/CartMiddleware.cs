@@ -25,7 +25,6 @@ public class CartMiddleware : IMiddleware
             });
            
             _logger.LogInformation("CART SESSION COOKIE SET");
-            
         }
        
         await next(context);

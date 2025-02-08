@@ -2,6 +2,7 @@ using E_Commerce_BackEnd.Models.DTO;
 using E_Commerce_BackEnd.Models.UserRelatedModels;
 using E_Commerce_BackEnd.Services.uAdminService;
 using E_Commerce_BackEnd.Services.uAdressService;
+using E_Commerce_BackEnd.Services.uGeneralService;
 using E_Commerce_BackEnd.Services.uService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
@@ -22,16 +23,18 @@ public class UserController : ControllerBase
     private readonly ILogger<Adrese> _adreseLogger;
     private readonly IAdminService _adminService;
     private readonly IMemoryCache _cache;
+    private readonly IGeneralSettingsService _generalSettingsService;
     
 
     public UserController(IUserService userService, IAdressService adressService, 
-        ILogger<Adrese> adreseLogger, IAdminService adminService, IMemoryCache cache)
+        ILogger<Adrese> adreseLogger, IAdminService adminService, IMemoryCache cache, IGeneralSettingsService generalSettingsService)
     {
         _userService = userService;
         _adressService = adressService;
         _adreseLogger = adreseLogger;
         _adminService = adminService;
         _cache = cache;
+        _generalSettingsService = generalSettingsService;
     }
     
     [HttpGet("profile")]
@@ -157,19 +160,18 @@ public class UserController : ControllerBase
 
     [HttpPut("profile/addresses")]
     [Authorize]
-    public async Task<IActionResult> DeleteAddress([FromBody] DeleteAddressDto deleteAddressDto)
+    public async Task<IActionResult> ModifyAddress([FromBody] ModifyAddressDto modifiedAddress)
     {
         var userId = int.Parse(HttpContext.User.FindFirst(claim => claim.Type == "user_id")!.Value);
 
-        var response = await _adressService.DeleteAddress(userId, deleteAddressDto.AddresToDeleteAliasDto!);
+        var response = await _adressService.ModifyAddress(userId, modifiedAddress.NewAddressData);
 
-        if (response == 1)
+        return response switch
         {
-            return Ok("Address deleted succesfully");
-        }
-
-        return BadRequest("Error when deleting the address");
-
+            1 => Ok("Address modified succesfully"),
+            -3 => NotFound("Address not found in db."),
+            _ => BadRequest("Error when deleting the address")
+        };
     }
 
     [HttpGet("admin/emailChanged/{changeRequestId}")]
@@ -213,6 +215,14 @@ public class UserController : ControllerBase
             -1 => NotFound("An error happened when sending the email"),
             _ => StatusCode(500, "Server error")
         };
+    }
+
+    [HttpGet("settings")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetGeneralSettings()
+    {
+        var response = await _generalSettingsService.GetGeneralSettingsData();
+        return Ok(response);
     }
     
 }

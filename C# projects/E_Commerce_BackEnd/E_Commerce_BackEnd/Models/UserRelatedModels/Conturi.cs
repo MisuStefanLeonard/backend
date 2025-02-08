@@ -7,16 +7,16 @@ public  class Conturi
 {
     public int IdCont { get; init; } //
     [StringLength(10)]
-    public string? Nume { get; init; } // 
+    public string? Nume { get; set; } // 
     [StringLength(20)]
-    public string? Prenume { get; init; } // 
+    public string? Prenume { get; set; } // 
     public bool? Gen { get; init; } //
     [StringLength(10)]
-    public string? NrTelefon { get; init; } // 
+    public string? NrTelefon { get; set; } // 
     [StringLength(15)]
     public string? Username { get; init; } //  username
     [StringLength(50)]
-    public string? Email { get; init; } // email
+    public string? Email { get; set; } // email
     [StringLength(150)]
     public string? Parola { get; init; } // parola
     public  DateTime? DataCreare { get; init; }

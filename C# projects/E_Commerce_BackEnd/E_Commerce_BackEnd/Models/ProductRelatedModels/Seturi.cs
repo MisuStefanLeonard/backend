@@ -20,6 +20,7 @@ public class Seturi
     public decimal PretSet { get; init; }
     public decimal PretRedusSet { get; init; }
     public bool SetActivInMagazin { get; set; }
+    public bool IsLocked { get; set; }
     public bool IsDeleted { get; set; }
     public ICollection<AsociereSeturi>? SAsociereSeturi { get; init; } = new List<AsociereSeturi>();
     public ICollection<ProduseCuComenzi>? CombinatieSetPeComanda { get; init; } = new List<ProduseCuComenzi>();

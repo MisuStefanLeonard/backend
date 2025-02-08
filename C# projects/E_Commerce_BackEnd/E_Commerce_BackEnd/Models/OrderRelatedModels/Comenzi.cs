@@ -17,8 +17,15 @@ public class Comenzi
     public StatusComanda StatusComanda { get; init; }
     public TipPlata TipPlata { get; init; }
     [StringLength(50)]
-    public string AwbComanda { get; init; } = null!;
+    public string AwbComanda { get; set; } = null!;
     public decimal PretTransport { get; init; }
+    public string NumePeComanda { get; init; } = null!;
+    public string PrenumePeComanda { get; init; } = null!;
+    public string NrTelefonPeComanda { get; init; } = null!;
+    public string EmailPeComanda { get; init; } = null!;
+    public string UniqueConfirmationToken { get; init; } = null!;
+    public bool UniqueConfirmationTokenUsed { get; set; }
+    public bool IsOrderPayed { get; set; }
     public bool IsCancelable { get; set; }
     
     // Foreign Keys

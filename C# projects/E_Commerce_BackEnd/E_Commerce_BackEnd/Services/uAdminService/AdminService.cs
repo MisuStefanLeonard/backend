@@ -228,18 +228,34 @@ public partial class AdminService : IAdminService
                     
                     var changeRequestId = Guid.NewGuid();
                     await _emailService.SendEmailAsync(
-                        updatedData.EmailDto!,
-                        "Schimbare email",
-                        "<p style='font-size: 16px;'>Email-ul dumneavoastra a fost schimbat de catre admin.</p>" +
-                        "<p style='font-size: 16px;'>Daca nu dumneavoastra ati solicitat aceasta schimbare, " +
-                        "<span style='color: red; font-weight: bold;'>NU</span> intrati pe acest link si contactati-ne rapid la " +
-                        "<a href='mailto:office@texx.ro'>office@texx.ro</a></p>" +
-                        "<p style='font-size: 16px'>Daca dumneavoastra ati avut contact cu administratorul, intrati pe acest link pentru schimbare email-ului" +
-                        $"</p><a href='http://localhost:3000/user/admin/emailChanged?changeRequestId={changeRequestId}'>LINK</a>" +
-                        "<br/><br/>" +
-                        "<p style='font-size: 24px'>ACEST LINK VA EXPIRA INTR-O ORA.</p>" +
-                        "<p style='font-size: 16px'>texx.ro va doreste o zi buna in continuare!</p>"
-                    );
+                            updatedData.EmailDto!,
+                            "Schimbare Email / Email Change Notification",
+                            // Romanian Section 🇷🇴
+                            "<p style='font-size: 18px; font-weight: bold;'>Schimbare Email</p>" +
+                            "<p style='font-size: 16px;'>Email-ul dumneavoastră a fost schimbat de către admin.</p>" +
+                            "<p style='font-size: 16px;'>Dacă nu dumneavoastră ați solicitat această schimbare, " +
+                            "<span style='color: red; font-weight: bold;'>NU</span> intrați pe acest link și contactați-ne rapid la " +
+                            "<a href='mailto:office@texx.ro'>office@texx.ro</a>.</p>" +
+                            "<p style='font-size: 16px;'>Dacă dumneavoastră ați avut contact cu administratorul, intrați pe acest link pentru schimbarea email-ului:</p>" +
+                            $"<a href='http://localhost:3000/user/admin/emailChanged?changeRequestId={changeRequestId}'>LINK</a>" +
+                            "<br/><br/>" +
+                            "<p style='font-size: 24px; font-weight: bold;'>ACEST LINK VA EXPIRA ÎNTR-O ORĂ.</p>" +
+                            "<p style='font-size: 16px;'>texx.ro vă dorește o zi bună în continuare!</p>" +
+
+                            "<hr style='margin: 20px 0;'/>" + // Separator between languages
+
+                            // English Section 🇬🇧
+                            "<p style='font-size: 18px; font-weight: bold;'>Email Change Notification</p>" +
+                            "<p style='font-size: 16px;'>Your email has been changed by an administrator.</p>" +
+                            "<p style='font-size: 16px;'>If you did not request this change, " +
+                            "<span style='color: red; font-weight: bold;'>DO NOT</span> click on this link and contact us immediately at " +
+                            "<a href='mailto:office@texx.ro'>office@texx.ro</a>.</p>" +
+                            "<p style='font-size: 16px;'>If you have been in contact with the administrator, click on this link to confirm your email change:</p>" +
+                            $"<a href='http://localhost:3000/user/admin/emailChanged?changeRequestId={changeRequestId}'>LINK</a>" +
+                            "<br/><br/>" +
+                            "<p style='font-size: 24px; font-weight: bold;'>THIS LINK WILL EXPIRE IN ONE HOUR.</p>" +
+                            "<p style='font-size: 16px;'>texx.ro wishes you a great day!</p>"
+                        );
                     _mapper.Map(updatedData, userToBeModified);
                     userToBeModified.Verificat = false;
                     userToBeModified.OraLinkConfirmare = DateTime.UtcNow.AddHours(1);
@@ -482,49 +498,31 @@ public partial class AdminService : IAdminService
         }
     }
 
+   
+    
    public async Task<IList<MainOrdersDisplayDto>> GetAllOrders()
 {
-    var productsOnOrdersRepository = _unitOfWork.Repository<ProduseCuComenzi>();
+    // var productsOnOrdersRepository = _unitOfWork.Repository<ProduseCuComenzi>();
 
-    var allOrders = await productsOnOrdersRepository
+    var allOrders = await _unitOfWork.Repository<Comenzi>()
         .GetSimpleQueryable()
-        .Select(order => new
+        .Select(order => new MainOrdersDisplayDto
         {
-            order.IdComanda,
-            IdContDto = order.Comanda.CAdresaFacturare.IdCont,
-            order.Comanda.DataEmitereComanda,
-            order.Comanda.StatusComanda,
-            order.Comanda.TipPlata,
-            order.Comanda.AwbComanda,
-            order.Set,
-            IsSet = order.Set != null,
-            ProductPrice = order.Set == null ? 
-                order.PcManopera == null 
-                    ? order.PretCumparat * order.NrBucati 
-                    : (order.PretCumparat * ((Convert.ToDecimal(order.PcDimensiune!.Lungime) / 100) * order.PcManopera.MaterialFolosit) 
-                       + order.PcManopera.PretCurentTipGalerie * ((Convert.ToDecimal(order.PcDimensiune!.Lungime) / 100) * order.PcManopera.MaterialFolosit) 
-                       + order.PcManopera.PretCurentTipLinie * ((Convert.ToDecimal(order.PcDimensiune!.Lungime) / 100) * order.PcManopera.MaterialFolosit))
-                      * order.NrBucati
-                
-                : 0, 
-            SetPrice = order.Set != null ? order.PretCumparat : 0 
+            IdComandaDto = order.IdComanda,
+            IdContDto = order.CAdresaLivrare.IdCont,
+            DataEmitereComandaDto = order.DataEmitereComanda,
+            StatusComandaDto = order.StatusComanda,
+            TipPlataDto = order.TipPlata,
+            AwbComandaDto = order.AwbComanda,
+            PretTotalComanda = order.PcComenzi!
+                .GroupBy(item => item.IdentificatorSet != "21" ? item.IdentificatorSet : item.IdProduseCuComenzi.ToString()) // Group by bundle or product
+                .Select(group => group.First().PretCumparat * group.First().NrBucati) // Get price per group
+                .Sum() // Sum up all group totals for the order
+
+
         })
-        .GroupBy(order => order.IdComanda)
-        .Select(group => new MainOrdersDisplayDto
-        {
-            IdComandaDto = group.Key,
-            IdContDto = group.First().IdContDto,
-            DataEmitereComandaDto = group.First().DataEmitereComanda,
-            StatusComandaDto = group.First().StatusComanda,
-            TipPlataDto = group.First().TipPlata,
-            AwbComandaDto = group.First().AwbComanda,
-            // Sum the product prices excluding set products and add the distinct set price once
-            PretTotalComanda = group.Where(x => !x.IsSet).Sum(x => x.ProductPrice) 
-                                + group.Where(x => x.IsSet).Select(x => x.SetPrice).First()
-                          
-        })
-        .OrderByDescending(order => order.DataEmitereComandaDto)
         .ToListAsync();
+    
 
     return allOrders;
 }

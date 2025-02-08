@@ -67,6 +67,11 @@ public partial class ProductService : IProductService
                 return -1;
             }
 
+            if (produs.IsLocked)
+            {
+                return -3; // Product is being bought !!, cannot modify
+            }
+
 
             var areOrdersOnProduct = produs.ComenziProduse.IsNullOrEmpty();
 
@@ -176,6 +181,11 @@ public partial class ProductService : IProductService
             }
             else
             {
+                //Check for product locking
+                if (productToBeModified!.IsLocked)
+                {
+                    throw new DbUpdateException("Product is locked");
+                }
                 // If updating an existing product
                 _mapper.Map(modifiedProduct, productToBeModified);
                 await productRepository.UpdateAsync(productToBeModified!);
@@ -470,6 +480,10 @@ public partial class ProductService : IProductService
                 await _unitOfWork.RollBackTransactionAsync(modifyingTransaction);
             }
             _logger.LogError(ex, "An error occurred while updating the product");
+            if (ex is DbUpdateException)
+            {
+                return [];
+            }
             throw;
         }
     }
@@ -725,18 +739,20 @@ public partial class ProductService : IProductService
             }
             else
             {
+                // product locked , cannot update
+                if (findProductAlreadyInDb.IsLocked)
+                {
+                    throw new DbUpdateException("Unul sau mai multe produse este blocat . Un utilizator cumpara acel / acele produs / produse");
+                }
                 var productId = findProductAlreadyInDb.IdProdus;
                 var productCode = findProductAlreadyInDb.CodProdus;
                 _logger.LogInformation($"Updating product with code {productCode}");
                 if (idProducator != 0)
                 {
-                    _logger.LogInformation($"Updating product with code 1 {productCode}");
-
+                    
                     var manufacturer = await producatoriRepository
                         .GetByIdAsync(idProducator);
-
-                    _logger.LogInformation($"Updating product with code 2 {productCode}");
-
+                    
                     if (manufacturer == null)
                     {
                         _logger.LogError($"No producator with id -> {idProducator} was found");
@@ -1152,7 +1168,7 @@ public partial class ProductService : IProductService
         }
         catch (DbUpdateException e)
         {
-            Console.WriteLine(e.Message);
+            _logger.LogError(e.Message);
             throw;
         }
     }
@@ -1174,6 +1190,12 @@ public partial class ProductService : IProductService
             {
                 _logger.LogInformation("Product not found to delete the type on it");
                 return 0;
+            }
+
+            if (productInDb.IsLocked)
+            {
+                // Check product locked
+                return -3;
             }
         
             _logger.LogInformation("Succesfully found the product to delete the type on it");
@@ -1238,6 +1260,12 @@ public partial class ProductService : IProductService
                 _logger.LogInformation("Product not found to delete the type on it");
                 return 0;
             }
+            
+            if (product.IsLocked)
+            {
+                // Check product locked
+                return -3;
+            }
 
             var dimensiuneToDeleteOnProduct = await dimensionsRepository
                 .FindQueryable(d => d.Lungime == lungime && d.Latime == latime && d.RecomandarePat == recomandarePat)
@@ -1301,6 +1329,12 @@ public partial class ProductService : IProductService
             {
                 _logger.LogInformation("Product not found to delete the type on it");
                 return 0;
+            }
+            
+            if (product.IsLocked)
+            {
+                // Check product locked
+                return -3;
             }
 
             var colorCodeAssociatedWithColor = await colorCodesRepository
@@ -1397,6 +1431,12 @@ public partial class ProductService : IProductService
                 _logger.LogInformation("Product not found to delete the image on it");
                 return 0;
             }
+            
+            if (product.IsLocked)
+            {
+                // Check product locked
+                return -3;
+            }
 
             var colorCodeAssociatedWithColor = await colorCodesRepository
                 .FindQueryable(cc => cc.CodCuloare == codCuloare)
@@ -1485,6 +1525,12 @@ public partial class ProductService : IProductService
                 _logger.LogInformation("Product that needs to be toggled is not in the database");
                 return -1;
             }
+            
+            if (productToBeToggled.IsLocked)
+            {
+                // Check product locked
+                return -3;
+            }
 
             productToBeToggled.ActivInMagazin = activation;
 
@@ -1509,27 +1555,48 @@ public partial class ProductService : IProductService
     public async Task<int> DeleteSelectedProducts(BulkOperationsDto bulkOperationsDto)
     {
         IDbContextTransaction? deletingTransaction = null;
-        var productsToDelete = new List<Produse>();
         try
         {
             deletingTransaction = await _unitOfWork.BeginTransactionAsync();
             var productRepository = _unitOfWork.Repository<Produse>();
             
-            // Fetch the products to delete
-            foreach (var productCode in bulkOperationsDto.SelectedItemsToDoBulkOperations!)
-            {
-                var productToDelete = await productRepository
-                    .FindQueryable(p => p.CodProdus == productCode.ToString())
-                    .FirstOrDefaultAsync();
+            var stringCollection = bulkOperationsDto.SelectedItemsToDoBulkOperations!.Select(obj => obj.ToString()).ToList();
 
-                if (productToDelete is null)
-                {
-                    throw new Exception($"Product with code {productCode} is not in the database");
-                }
-                productToDelete.IsDeleted = true;
-                productToDelete.ActivInMagazin = false;
-                productsToDelete.Add(productToDelete);
+            var productsToDelete = await productRepository
+                .FindQueryable(p => stringCollection.Contains(p.CodProdus))
+                .ToListAsync();
+
+            var isAnyProductLocked = productsToDelete.Any(p => p.IsLocked);
+
+            if (isAnyProductLocked)
+            {
+                throw new DbUpdateException($"One of the product is locked . Cannot delete anything");
             }
+
+            if (!productsToDelete.IsNullOrEmpty())
+            {
+                foreach (var produs in productsToDelete)
+                {
+                    produs.IsDeleted = true;
+                    produs.ActivInMagazin = false;
+                }
+            }
+            
+            // Fetch the products to delete
+            // foreach (var productCode in bulkOperationsDto.SelectedItemsToDoBulkOperations!)
+            // {
+            //     var productToDelete = await productRepository
+            //         .FindQueryable(p => p.CodProdus == productCode.ToString())
+            //         .FirstOrDefaultAsync();
+            //
+            //     if (productToDelete is null)
+            //     {
+            //         throw new Exception($"Product with code {productCode} is not in the database");
+            //     }
+            //     productToDelete.IsDeleted = true;
+            //     productToDelete.ActivInMagazin = false;
+            //     productsToDelete.Add(productToDelete);
+            // }
 
          
             await productRepository.UpdateRangeAsync(productsToDelete);
@@ -1546,37 +1613,41 @@ public partial class ProductService : IProductService
                 _logger.LogError($"Error message is \n {ex.Message}");
                 await _unitOfWork.RollBackTransactionAsync(deletingTransaction);
             }
-            return -1;
+            if (ex is not DbUpdateException) return -1;
+            
+            _logger.LogError("Product is being bought . Cannot update");
+            return -3;
         }
     }
 
     public async Task<int> ActivateSelectedProducts(BulkOperationsDto bulkOperationsDto)
     {
         IDbContextTransaction? updatingTransaction = null;
-        var productsToUpdate = new List<Produse>();
         try
         {
             updatingTransaction = await _unitOfWork.BeginTransactionAsync();
             var productRepository = _unitOfWork.Repository<Produse>();
             
-            // Fetch the products to delete
-            foreach (var productCode in bulkOperationsDto.SelectedItemsToDoBulkOperations!)
-            {
-                var productToUpdate = await productRepository
-                    .FindQueryable(p => p.CodProdus == productCode.ToString())
-                    .FirstOrDefaultAsync();
+            var stringCollection = bulkOperationsDto.SelectedItemsToDoBulkOperations!.Select(obj => obj.ToString()).ToList();
 
-                if (productToUpdate is null)
-                {
-                    throw new Exception($"Product with code {productCode} is not in the database");
-                }
-                
-                productToUpdate.ActivInMagazin = true;
-                productsToUpdate.Add(productToUpdate);
+            var productsToActivate = await productRepository
+                .FindQueryable(p => stringCollection.Contains(p.CodProdus))
+                .ToListAsync();
+
+            var isAnyProductLocked = productsToActivate.Any(p => p.IsLocked);
+
+            if (isAnyProductLocked)
+            {
+                throw new DbUpdateException($"One of the product is locked . Cannot activate it");
             }
 
-         
-            await productRepository.UpdateRangeAsync(productsToUpdate);
+            if (!productsToActivate.IsNullOrEmpty())
+            {
+                foreach (var produs in productsToActivate)
+                {
+                    produs.ActivInMagazin = true;
+                }
+            }
 
             // Commit the transaction
             await _unitOfWork.CommitTransactionAsync(updatingTransaction);
@@ -1590,13 +1661,13 @@ public partial class ProductService : IProductService
                 _logger.LogError($"Error message is \n {ex.Message}");
                 await _unitOfWork.RollBackTransactionAsync(updatingTransaction);
             }
-            return -1;
-        }
-    }
 
-    public Task<string> GeneratePresignedUrl(string caleImagine, string fisierInBucket)
-    {
-        throw new NotImplementedException();
+            if (ex is not DbUpdateException) return -1;
+            
+            _logger.LogError("Product is being bought . Cannot update");
+            return -3;
+
+        }
     }
 
     
@@ -1922,7 +1993,7 @@ public partial class ProductService : IProductService
                     entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
 
                     // If cache does not exist, run the retrieval and mapping logic
-                    var rings = await ringTypesRepository.GetAllAsync();
+                    var rings = await ringTypesRepository.FindQueryable(ring => ring.CuloareInel != "STAN" && ring.IsDeleted == false).ToListAsync();
                     var mappedRings = rings.IsNullOrEmpty() ? new List<TipIneleDto>() : _mapper.Map<IList<TipIneleDto>>(rings);
 
                     // Generate presigned URLs for each ring type
@@ -1942,7 +2013,7 @@ public partial class ProductService : IProductService
                 {
                     entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
                     var rejansaRepository = _unitOfWork.Repository<TipuriGalerie>();
-                    var rejanse = await rejansaRepository.GetAllAsync();
+                    var rejanse = await rejansaRepository.FindQueryable(gallery => gallery.NumeTipGalerie != "STAN" && gallery.IsDeleted == false).ToListAsync();
                     var mappedRejanse = rejanse.IsNullOrEmpty() ? new List<TipRejansaDto>() : _mapper.Map<IList<TipRejansaDto>>(rejanse);
 
                     var rejansaTasks = mappedRejanse.Select(async rejansa =>
@@ -1964,7 +2035,7 @@ public partial class ProductService : IProductService
                 {
                     entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
                     var liningTypesRepository = _unitOfWork.Repository<TipuriLinie>();
-                    var linings = await liningTypesRepository.GetAllAsync();
+                    var linings = await liningTypesRepository.FindQueryable(lineType => lineType.NumeTipLinie != "STAN" && lineType.IsDeleted == false).ToListAsync();;
                     var mappedLinings = linings.IsNullOrEmpty() ? new List<TipLinieDto>() : _mapper.Map<IList<TipLinieDto>>(linings);
 
                     var liningTasks = mappedLinings.Select(async lineType =>
@@ -1991,7 +2062,10 @@ public partial class ProductService : IProductService
                             .ThenInclude(p => p.CodCuloare)
                     .Include(p => p.PTipuriPeProduse)
                     .Include(p => p.ProductReviews)
-                    .Where(product => product.CodProdus == codProdus.ToUpper() && product.TipulProdusului == tipProdus.ToLower())
+                    .Where(product => product.CodProdus == codProdus.ToUpper() 
+                                      && product.TipulProdusului == tipProdus.ToLower()
+                                      && !product.IsDeleted
+                                      && product.ActivInMagazin)
                     .Select(product => new ProductPageForUser
                     {
                         IdProdus = product.IdProdus,
@@ -2081,7 +2155,11 @@ public partial class ProductService : IProductService
                             .ThenInclude(p => p.CodCuloare)
                     .Include(p => p.PTipuriPeProduse)
                     .Include(p => p.ProductReviews)
-                    .Where(product => product.CodProdus == codProdus.ToUpper() && product.TipulProdusului == tipProdus.ToLower())
+                    .Where(product => product.CodProdus == codProdus.ToUpper() 
+                                                  && product.TipulProdusului == tipProdus.ToLower() 
+                                                  && !product.IsDeleted
+                                                  && product.ActivInMagazin
+                                      )
                     .Select(product => new ProductPageForUser
                     {
                         IdProdus = product.IdProdus,
@@ -2175,7 +2253,7 @@ public partial class ProductService : IProductService
         {
             if (e.InnerException is ArgumentNullException)
             {
-                _logger.LogError("Product does not exist anymore");
+                _logger.LogError("Product does not exist anymore / Or has been deactivated");
                 return new KeyValuePair<int, ProductPageForUser?>(1,null);
             }
             Console.WriteLine(e.Message);

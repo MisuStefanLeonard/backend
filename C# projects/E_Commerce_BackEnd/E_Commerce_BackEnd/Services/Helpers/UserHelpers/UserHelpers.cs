@@ -9,33 +9,33 @@ namespace E_Commerce_BackEnd.Services.Helpers.UserHelpers
     public class UserHelpers
     {
         private const decimal RONtoEUR = (decimal)0.2;
-        private const decimal EURtoRON = (decimal)5;
-
-        private UserHelpers()
-        {
-            
-        }
-
-        static UserHelpers()
-        {
-            
-        }
-
-        public static UserHelpers Instance { get; } = new ();
+        private const decimal EURtoRON = 5;
+        private const string Chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        // private UserHelpers()
+        // {
+        //     
+        // }
+        //
+        // static UserHelpers()
+        // {
+        //     
+        // }
+        //
+        // public static UserHelpers Instance { get; } = new ();
 
         public static string Token(int size, int size2, string userEmail)
         {
             var seed = GenerateSeed(userEmail);
             var generateRandom = new Random(seed);
 
-            const string chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+           
             var builder = new StringBuilder();
 
             
-            for (int i = 0; i < size; i++)
+            for (var i = 0; i < size; i++)
             {
-                var index = generateRandom.Next(chars.Length);
-                builder.Append(chars[index]);
+                var index = generateRandom.Next(Chars.Length);
+                builder.Append(Chars[index]);
             }
 
             while (builder.Length < 60)
@@ -47,9 +47,9 @@ namespace E_Commerce_BackEnd.Services.Helpers.UserHelpers
            
             while (builder.Length < 100)
             {
-                var index = generateRandom.Next(chars.Length);
-                builder.Append(chars[index]);
-                int nextNum = generateRandom.Next(size2);
+                var index = generateRandom.Next(Chars.Length);
+                builder.Append(Chars[index]);
+                var nextNum = generateRandom.Next(size2);
                 builder.Append(nextNum);
             }
 
@@ -59,6 +59,20 @@ namespace E_Commerce_BackEnd.Services.Helpers.UserHelpers
             }
 
             return builder.ToString();
+        }
+
+        public static string GenerateRandomToken_50_Length()
+        {
+            var token = new StringBuilder();
+            token.Append(Guid.NewGuid().ToString("N"));
+            var random = new Random();
+            while (token.Length < 50)
+            {
+                var chooseRandomIndexFromChars = random.Next(Chars.Length);
+                token.Append(Chars[chooseRandomIndexFromChars]);
+            }
+
+            return token.ToString();
         }
 
 
@@ -80,28 +94,7 @@ namespace E_Commerce_BackEnd.Services.Helpers.UserHelpers
         {
             return BCrypt.Net.BCrypt.EnhancedVerify(plainTextPassword, cryptedPassword);
         }
-
-        public static string GenerateRandomPassword()
-        {
-            var randomizer = RandomizerFactory.GetRandomizer(new FieldOptionsText
-            {
-                UseUppercase = true,
-                UseLowercase = true,
-                UseNumber = true,
-                UseSpecial = true,
-                Min = 16,
-                Max = 16
-            });
-
-            var randomPassword = randomizer.Generate();
-
-            while (randomPassword == null)
-            {
-                randomPassword = randomizer.Generate();
-            }
-            
-            return randomPassword;
-        }
+        
 
         /// <summary>
         /// Conversion method from RON to EUR

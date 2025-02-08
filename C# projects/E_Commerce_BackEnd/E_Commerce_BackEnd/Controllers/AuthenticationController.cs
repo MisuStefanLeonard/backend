@@ -74,10 +74,11 @@ namespace E_Commerce_BackEnd.Controllers
         public async Task<ActionResult<Conturi>> LoginAccount([FromBody]LoginDto loginDto)
         {
            
-            if (Request.Cookies.TryGetValue("session_tok", out _))
-            {
-                return BadRequest("You are already logged in!");
-            }
+            // if (Request.Cookies.TryGetValue("session_tok", out _))
+            // {
+            //     return StatusCode(515,"You are already logged in!");
+            // }
+            
             var user = await _userService.LoginAccountAsync(loginDto);
             var isAdmin = user is { RoleProp: "Admin" };
             if (user == null)
@@ -302,9 +303,10 @@ namespace E_Commerce_BackEnd.Controllers
                 SameSite = SameSiteMode.Strict,
             };
 
+            
             if (Request.Cookies.TryGetValue("session_tok", out var refreshToken))
             {
-                Console.WriteLine("IN session tok");
+               
                 var response = await _userService.LogoutAsync(refreshToken);
                 if (response == -1)
                 {

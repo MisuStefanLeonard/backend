@@ -35,8 +35,9 @@ public class Produse
     public bool ActivInMagazin { get; set; }
     public decimal PretDeBaza { get; set; } // caz in care avem o perdea/draperie
     public decimal PretDeBazaRedus { get; set; } // caz in care avem perdea/draperie
-    public bool AfiseazaInNoutati { get; set; } = false;
-    public bool ProdusLimitat { get; set; } = false;
+    public bool IsLocked { get; set; }
+    public bool AfiseazaInNoutati { get; set; } 
+    public bool ProdusLimitat { get; set; }
 
     // Foreign keys
     public int? IdProducator { get; init; }

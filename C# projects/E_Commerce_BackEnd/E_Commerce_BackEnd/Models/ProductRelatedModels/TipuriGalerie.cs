@@ -14,6 +14,7 @@ public class TipuriGalerie
     public decimal IncretireRejansa { get; init; }
     public decimal PretTipGalerie { get; init; }
     public bool IsDeleted { get; set; }
+    public bool IsLocked { get; set; }
     public bool SePrindeCuInele { get; set; }
     [StringLength(100)] 
     public string? CaleRelativa { get; set; }

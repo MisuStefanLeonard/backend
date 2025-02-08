@@ -17,6 +17,7 @@ public class Manopere
     public decimal PretCurentTipGalerie { get; init; }
     public decimal MaterialFolosit { get; init; }
     public TipManopere TipManopera { get; init; }
+    public bool IsLocked { get; set; }
     public string? InaltimeMaxima { get; init; }
     
     public ICollection<ProduseCuComenzi>? ManopereCuComenzi { get;  }

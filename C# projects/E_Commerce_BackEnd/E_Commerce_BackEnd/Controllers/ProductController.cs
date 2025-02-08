@@ -178,6 +178,31 @@ public class ProductController : ControllerBase
         {
             emptyGuid = Guid.Parse(getSessionId.Split('|')[0]);
         }
+        
+        if (Request.Cookies.ContainsKey("userLoggedIn") && Request.Cookies.ContainsKey("session_tok"))
+        {
+            // jwt expired 
+            if(!Request.Cookies.ContainsKey("JWTToken"))
+            {
+                if (Request.Cookies.TryGetValue("session_tok", out var refreshToken))
+                {
+                    var getValidToken = await _tokenService.TokenValidation("refresh", refreshToken);
+                    HttpContext.User = getValidToken.Item1!;
+                    var cookieOptions = new CookieOptions()
+                    {
+                        HttpOnly = true,
+                        Secure = true,
+                        SameSite = SameSiteMode.Strict,
+                        Expires = DateTime.UtcNow.AddMinutes(15)
+
+                    };
+                    var generateNewJwt = await _tokenService.GenerateJwtAccesToken(getValidToken.Item2!);
+                    Response.Cookies.Append("JWTToken" , generateNewJwt , cookieOptions);
+                }
+            }
+        }
+        
+        
         int? userId = null;
         var idClaim = HttpContext.User.FindFirst("user_id");
         if (idClaim != null)
@@ -212,16 +237,31 @@ public class ProductController : ControllerBase
         if (Request.Cookies.TryGetValue("ASP.NET_COOKIE_cartSession", out var sessionId))
         {
             convertToJson.SessionId = Guid.Parse(sessionId.Split('|')[0]);
-          
-            if (Request.Cookies.TryGetValue("JWTToken", out var jwt) && Request.Cookies.TryGetValue("session_tok", out var refresh))
+            
+            if (Request.Cookies.ContainsKey("userLoggedIn") && Request.Cookies.ContainsKey("session_tok"))
             {
-                var validateJwt = await _tokenService.TokenValidation(jwt,refresh);
-                if (validateJwt == null)
+                // jwt expired 
+                if(!Request.Cookies.ContainsKey("JWTToken"))
                 {
-                    return Unauthorized("Jwt token not valid!Session expired ");
+                    if (Request.Cookies.TryGetValue("session_tok", out var refreshToken))
+                    {
+                        var getValidToken = await _tokenService.TokenValidation("refresh", refreshToken);
+                        HttpContext.User = getValidToken.Item1!;
+                        var cookieOptions = new CookieOptions()
+                        {
+                            HttpOnly = true,
+                            Secure = true,
+                            SameSite = SameSiteMode.Strict,
+                            Expires = DateTime.UtcNow.AddMinutes(15)
+
+                        };
+                        var generateNewJwt = await _tokenService.GenerateJwtAccesToken(getValidToken.Item2!);
+                        Response.Cookies.Append("JWTToken" , generateNewJwt , cookieOptions);
+                       
+                    }
+                    convertToJson.IdCont = int.Parse(HttpContext.User.FindFirst("user_id")!.Value);
+                    convertToJson.SessionId = Guid.Empty;
                 }
-                convertToJson.IdCont = int.Parse(HttpContext.User.FindFirst("user_id")!.Value);
-                convertToJson.SessionId = Guid.Empty;
             }
         }
         else
@@ -280,17 +320,34 @@ public class ProductController : ControllerBase
                 Response.Cookies.Append("ASP.NET_COOKIE_cartSession",sessionId.Split('|')[0]+$"|{currentDateTime}",refreshCartSession);
                 /* Cart session renewal for checkout endpoint.  */
             }
-            if (Request.Cookies.TryGetValue("JWTToken", out var jwt) && Request.Cookies.TryGetValue("session_tok", out var refresh))
+            
+            if (Request.Cookies.ContainsKey("userLoggedIn") && Request.Cookies.ContainsKey("session_tok"))
             {
-                var validateJwt = await _tokenService.TokenValidation(jwt,refresh);
-                if (validateJwt == null)
+                // jwt expired 
+                if(!Request.Cookies.ContainsKey("JWTToken"))
                 {
-                    return Unauthorized("Jwt token not valid!Session expired ");
+                    if (Request.Cookies.TryGetValue("session_tok", out var refreshToken))
+                    {
+                        var getValidToken = await _tokenService.TokenValidation("refresh", refreshToken);
+                        HttpContext.User = getValidToken.Item1!;
+                        var cookieOptions = new CookieOptions()
+                        {
+                            HttpOnly = true,
+                            Secure = true,
+                            SameSite = SameSiteMode.Strict,
+                            Expires = DateTime.UtcNow.AddMinutes(15)
+
+                        };
+                        var generateNewJwt = await _tokenService.GenerateJwtAccesToken(getValidToken.Item2!);
+                        Response.Cookies.Append("JWTToken" , generateNewJwt , cookieOptions);
+                     
+                      
+                    }
                 }
                 id = int.Parse(HttpContext.User.FindFirst("user_id")!.Value);
                 sessionIdentifier = Guid.Empty;
-                
             }
+            
         }
         else
         {
@@ -319,6 +376,30 @@ public class ProductController : ControllerBase
         {
             sessionId = Guid.Parse(guid.Split('|')[0]);
         }
+        
+        if (Request.Cookies.ContainsKey("userLoggedIn") && Request.Cookies.ContainsKey("session_tok"))
+        {
+            // jwt expired 
+            if(!Request.Cookies.ContainsKey("JWTToken"))
+            {
+                if (Request.Cookies.TryGetValue("session_tok", out var refreshToken))
+                {
+                    var getValidToken = await _tokenService.TokenValidation("refresh", refreshToken);
+                    HttpContext.User = getValidToken.Item1!;
+                    var cookieOptions = new CookieOptions()
+                    {
+                        HttpOnly = true,
+                        Secure = true,
+                        SameSite = SameSiteMode.Strict,
+                        Expires = DateTime.UtcNow.AddMinutes(15)
+
+                    };
+                    var generateNewJwt = await _tokenService.GenerateJwtAccesToken(getValidToken.Item2!);
+                    Response.Cookies.Append("JWTToken" , generateNewJwt , cookieOptions);
+                }
+            }
+        }
+        
        
         var userId = 0;
         var getUserId = HttpContext.User.FindFirst("user_id");
@@ -351,13 +432,28 @@ public class ProductController : ControllerBase
         if (Request.Cookies.TryGetValue("ASP.NET_COOKIE_cartSession", out var sessionId))
         {
             convertToJson.SessionId = Guid.Parse(sessionId.Split('|')[0]);
-          
-            if (Request.Cookies.TryGetValue("JWTToken", out var jwt) && Request.Cookies.TryGetValue("session_tok", out var refresh))
+            
+            if (Request.Cookies.ContainsKey("userLoggedIn") && Request.Cookies.ContainsKey("session_tok"))
             {
-                var validateJwt = await _tokenService.TokenValidation(jwt,refresh);
-                if (validateJwt == null)
+                // jwt expired 
+                if(!Request.Cookies.ContainsKey("JWTToken"))
                 {
-                    return Unauthorized("Jwt token not valid!Session expired ");
+                    if (Request.Cookies.TryGetValue("session_tok", out var refreshToken))
+                    {
+                        var getValidToken = await _tokenService.TokenValidation("refresh", refreshToken);
+                        HttpContext.User = getValidToken.Item1!;
+                        var cookieOptions = new CookieOptions()
+                        {
+                            HttpOnly = true,
+                            Secure = true,
+                            SameSite = SameSiteMode.Strict,
+                            Expires = DateTime.UtcNow.AddMinutes(15)
+
+                        };
+                        var generateNewJwt = await _tokenService.GenerateJwtAccesToken(getValidToken.Item2!);
+                        Response.Cookies.Append("JWTToken" , generateNewJwt , cookieOptions);
+                       
+                    }
                 }
                 convertToJson.IdCont = int.Parse(HttpContext.User.FindFirst("user_id")!.Value);
                 convertToJson.SessionId = Guid.Empty;
@@ -389,6 +485,29 @@ public class ProductController : ControllerBase
         if (Request.Cookies.TryGetValue("ASP.NET_COOKIE_cartSession", out var guid))
         {
             sessionId = Guid.Parse(guid.Split('|')[0]);
+        }
+        
+        if (Request.Cookies.ContainsKey("userLoggedIn") && Request.Cookies.ContainsKey("session_tok"))
+        {
+            // jwt expired 
+            if(!Request.Cookies.ContainsKey("JWTToken"))
+            {
+                if (Request.Cookies.TryGetValue("session_tok", out var refreshToken))
+                {
+                    var getValidToken = await _tokenService.TokenValidation("refresh", refreshToken);
+                    HttpContext.User = getValidToken.Item1!;
+                    var cookieOptions = new CookieOptions()
+                    {
+                        HttpOnly = true,
+                        Secure = true,
+                        SameSite = SameSiteMode.Strict,
+                        Expires = DateTime.UtcNow.AddMinutes(15)
+
+                    };
+                    var generateNewJwt = await _tokenService.GenerateJwtAccesToken(getValidToken.Item2!);
+                    Response.Cookies.Append("JWTToken" , generateNewJwt , cookieOptions);
+                }
+            }
         }
        
         var userId = 0;

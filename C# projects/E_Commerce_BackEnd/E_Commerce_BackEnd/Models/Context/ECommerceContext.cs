@@ -14,47 +14,46 @@ public class ECommerceContext : DbContext
     
     public ECommerceContext(){}
 
-    #region DbSet
-
-    /// <summary>
-    /// User related tables !!!
-    /// </summary>
-    public  DbSet<Locatii> DbLocatii { get; set; }
-    public  DbSet<Adrese> DbAdrese { get; set; }
-    public  DbSet<Conturi> DbConturi { get; set; }
-
-    /// <summary>
-    /// Order and addresses related tables !!!
-    /// </summary>
-    public  DbSet<DetaliiFactura> DbDetaliiFactura { get; set; }
-    public  DbSet<Comenzi> DbComenzi { get; set; }
-    public  DbSet<ProduseCuComenzi> DbProduseCuComenzi { get; set; }
-
-    /// <summary>
-    /// Products related tables !!!
-    /// </summary>
-    public  DbSet<Dimensiuni> DbDimensiuni { get; set; }
-    public  DbSet<Producatori> DbProducatori { get; set; }
-    public  DbSet<CodCulori> DbCodCulori { get; set; }
-    public  DbSet<Culori> DbCulori { get; set; }
-    public  DbSet<Produse> DbProduse { get; set; }
-    public  DbSet<Seturi> DbSeturi { get; set; }
-    public  DbSet<Imagini> DbImagini { get; set; }
-    public  DbSet<Manopere> DbManopere { get; set; }
-    public  DbSet<TipuriProduse> DbTipuriProduse { get; set; }
-    public  DbSet<TipuriPeProduse> DbTipuriPeProduse { get; set; }
-    public  DbSet<AsociereSeturi> DbAsociereSeturi { get; set; }
-    public  DbSet<ProduseCuCulori> DbProduseCuCulori { get; set; }
-    public  DbSet<ProduseCuDimensiuni> DbProduseCuDimensiuni { get; set; }
-
-    /// <summary>
-    /// Vouchers and products related tables
-    /// </summary>
-    public  DbSet<Vouchere> DbVouchere { get; set; }
-   
-
-    #endregion
-   
+    // #region DbSet
+    //
+    // /// <summary>
+    // /// User related tables !!!
+    // /// </summary>
+    // public  DbSet<Locatii> DbLocatii { get; set; }
+    // public  DbSet<Adrese> DbAdrese { get; set; }
+    // public  DbSet<Conturi> DbConturi { get; set; }
+    //
+    // /// <summary>
+    // /// Order and addresses related tables !!!
+    // /// </summary>
+    // public  DbSet<DetaliiFactura> DbDetaliiFactura { get; set; }
+    // public  DbSet<Comenzi> DbComenzi { get; set; }
+    // public  DbSet<ProduseCuComenzi> DbProduseCuComenzi { get; set; }
+    //
+    // /// <summary>
+    // /// Products related tables !!!
+    // /// </summary>
+    // public  DbSet<Dimensiuni> DbDimensiuni { get; set; }
+    // public  DbSet<Producatori> DbProducatori { get; set; }
+    // public  DbSet<CodCulori> DbCodCulori { get; set; }
+    // public  DbSet<Culori> DbCulori { get; set; }
+    // public  DbSet<Produse> DbProduse { get; set; }
+    // public  DbSet<Seturi> DbSeturi { get; set; }
+    // public  DbSet<Imagini> DbImagini { get; set; }
+    // public  DbSet<Manopere> DbManopere { get; set; }
+    // public  DbSet<TipuriProduse> DbTipuriProduse { get; set; }
+    // public  DbSet<TipuriPeProduse> DbTipuriPeProduse { get; set; }
+    // public  DbSet<AsociereSeturi> DbAsociereSeturi { get; set; }
+    // public  DbSet<ProduseCuCulori> DbProduseCuCulori { get; set; }
+    // public  DbSet<ProduseCuDimensiuni> DbProduseCuDimensiuni { get; set; }
+    //
+    // /// <summary>
+    // /// Vouchers and products related tables
+    // /// </summary>
+    // public  DbSet<Vouchere> DbVouchere { get; set; }
+    //
+    //
+    // #endregion
     
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -101,12 +100,12 @@ public class ECommerceContext : DbContext
                 
 
             entity.Property(e => e.Nume)
-                .HasMaxLength(10)
+                .HasMaxLength(20)
                 .HasColumnName("nume")
                 .HasColumnType("varchar");
             
             entity.Property(e => e.Prenume)
-                .HasMaxLength(20)
+                .HasMaxLength(30)
                 .HasColumnName("prenume")
                 .HasColumnType("varchar");
             
@@ -117,7 +116,7 @@ public class ECommerceContext : DbContext
             entity.Property(e => e.NrTelefon)
                 .HasColumnName("nr_telefon")
                 .HasColumnType("varchar")
-                .HasMaxLength(10);
+                .HasMaxLength(20);
 
             entity.Property(e => e.Username)
                 .HasColumnName("username")
@@ -127,7 +126,7 @@ public class ECommerceContext : DbContext
             entity.Property(e => e.Email)
                 .HasColumnName("email")
                 .HasColumnType("varchar")
-                .HasMaxLength(50)
+                .HasMaxLength(100)
                 .IsRequired();
             
             entity.HasIndex(e => e.Email)
@@ -378,6 +377,50 @@ public class ECommerceContext : DbContext
                 .HasColumnName("pret_transport")
                 .HasColumnType("decimal")
                 .HasPrecision(4,2);
+            
+            entity.Property(e => e.NumePeComanda)
+                .HasColumnName("nume_pe_comanda")
+                .HasColumnType("varchar")
+                .HasMaxLength(20)
+                .IsRequired();
+            
+            entity.Property(e => e.PrenumePeComanda)
+                .HasColumnName("prenume_pe_comanda")
+                .HasColumnType("varchar")
+                .HasMaxLength(30)
+                .IsRequired();
+            
+            entity.Property(e => e.NrTelefonPeComanda)
+                .HasColumnName("nr_telefon_pe_comanda")
+                .HasColumnType("varchar")
+                .HasMaxLength(20)
+                .IsRequired();
+            
+            entity.Property(e => e.EmailPeComanda)
+                .HasColumnName("email_pe_comanda")
+                .HasColumnType("varchar")
+                .HasMaxLength(100)
+                .IsRequired();
+
+
+            entity.Property(e => e.UniqueConfirmationToken)
+                .HasColumnName("confirmation_token")
+                .HasColumnType("varchar")
+                .HasMaxLength(50)
+                .IsRequired();
+            
+            entity.Property(e => e.UniqueConfirmationTokenUsed)
+                .HasColumnName("is_confirmation_token_used")
+                .HasColumnType("tinyint")
+                .HasDefaultValue(false)
+                .IsRequired();
+            
+            entity.Property(e => e.IsOrderPayed)
+                .HasColumnName("is_order_payed")
+                .HasColumnType("tinyint")
+                .HasDefaultValue(false)
+                .IsRequired();
+            
 
             entity.Property(e => e.IsCancelable)
                 .HasColumnType("is_cancelable")
@@ -423,6 +466,11 @@ public class ECommerceContext : DbContext
             entity.Property(e => e.InaltimeAleasaPentruSet)
                 .HasColumnType("varchar(4)")
                 .HasColumnName("inaltime_set");
+            
+            entity.Property(e => e.IdentificatorSet)
+                .HasColumnType("varchar(50)")
+                .HasColumnName("identificator_set")
+                .IsRequired();
             
             entity.Property(e => e.IdCuloare)
                 .HasColumnName("id_culoare")
@@ -707,6 +755,12 @@ public class ECommerceContext : DbContext
                 .HasDefaultValue(true)
                 .IsRequired();
             
+            entity.Property(e => e.IsLocked)
+                .HasColumnType("tinyint")
+                .HasColumnName("is_locked")
+                .HasDefaultValue(false)
+                .IsRequired();
+            
 
             entity.Property(e => e.IdProducator)
                 .HasColumnType("integer")
@@ -773,6 +827,12 @@ public class ECommerceContext : DbContext
             entity.Property(e => e.IsDeleted)
                 .HasColumnName("isDeleted")
                 .HasColumnType("tinyint")
+                .HasDefaultValue(false)
+                .IsRequired();
+            
+            entity.Property(e => e.IsLocked)
+                .HasColumnType("tinyint")
+                .HasColumnName("is_locked")
                 .HasDefaultValue(false)
                 .IsRequired();
 
@@ -863,6 +923,12 @@ public class ECommerceContext : DbContext
                 .HasColumnType("varchar(4)")
                 .HasColumnName("inaltime_maxima")
                 .HasMaxLength(4);
+            
+            entity.Property(e => e.IsLocked)
+                .HasColumnType("tinyint")
+                .HasColumnName("is_locked")
+                .HasDefaultValue(false)
+                .IsRequired();
 
             entity.HasMany(e => e.ManopereCuComenzi)
                 .WithOne(pc => pc.PcManopera)
@@ -1070,6 +1136,12 @@ public class ECommerceContext : DbContext
                 .HasColumnName("cale_relativa")
                 .HasMaxLength(100);
             
+            entity.Property(e => e.IsLocked)
+                .HasColumnType("tinyint")
+                .HasColumnName("is_locked")
+                .HasDefaultValue(false)
+                .IsRequired();
+            
             
             entity.Property(e => e.IsDeleted)
                 .HasColumnName("isDeleted")
@@ -1080,8 +1152,7 @@ public class ECommerceContext : DbContext
             entity.HasMany(ip => ip.InelPeManopere)
                 .WithOne(man => man.InelPrindereLaManopera)
                 .HasForeignKey(man => man.IdInelPrindere)
-                .HasConstraintName("FK_Inele_Prindere")
-                ;
+                .HasConstraintName("FK_Inele_Prindere");
             
         });
 
@@ -1130,6 +1201,12 @@ public class ECommerceContext : DbContext
                 .HasColumnType("tinyint")
                 .HasDefaultValue(false)
                 .IsRequired();
+            
+            entity.Property(e => e.IsLocked)
+                .HasColumnType("tinyint")
+                .HasColumnName("is_locked")
+                .HasDefaultValue(false)
+                .IsRequired();
 
             entity.HasMany(tg => tg.TipGalerieManopere)
                 .WithOne(man => man.TipGalerieLaManopera)
@@ -1168,6 +1245,12 @@ public class ECommerceContext : DbContext
             entity.Property(e => e.IsDeleted)
                 .HasColumnName("isDeleted")
                 .HasColumnType("tinyint")
+                .HasDefaultValue(false)
+                .IsRequired();
+            
+            entity.Property(e => e.IsLocked)
+                .HasColumnType("tinyint")
+                .HasColumnName("is_locked")
                 .HasDefaultValue(false)
                 .IsRequired();
             

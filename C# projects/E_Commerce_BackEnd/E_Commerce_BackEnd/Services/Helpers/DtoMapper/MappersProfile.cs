@@ -104,6 +104,22 @@ public class MappersProfile : Profile
             .ForMember(dest => dest.IsDeleted,
                 opt => opt.MapFrom(src => src.IsDeletedDto));
         
+        CreateMap<AdreseDto, AdreseDto>()
+            .ForMember(dest => dest.AliasDto,
+                opt => opt.MapFrom(src => src.AliasDto))
+            .ForMember(dest => dest.TipAdresaDto,
+                opt => opt.MapFrom(src => src.TipAdresaDto))
+            .ForMember(dest => dest.BlocDto,
+                opt => opt.MapFrom(src => src.BlocDto))
+            .ForMember(dest => dest.NrBlocDto,
+                opt => opt.MapFrom(src => src.NrBlocDto))
+            .ForMember(dest => dest.StradaDto,
+                opt => opt.MapFrom(src => src.StradaDto))
+            .ForMember(dest => dest.NrStradaDto,
+                opt => opt.MapFrom(src => src.NrStradaDto))
+            .ForMember(dest => dest.IsDeletedDto,
+                opt => opt.MapFrom(src => src.IsDeletedDto));
+        
 
         CreateMap<Produse, ProduseDto>()
             .ForMember(dest => dest.CodProdusDto, opt => opt.MapFrom(src => src.CodProdus))

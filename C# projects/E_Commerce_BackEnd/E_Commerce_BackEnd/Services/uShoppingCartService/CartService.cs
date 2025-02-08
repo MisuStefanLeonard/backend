@@ -717,6 +717,7 @@ public class CartService : ICartService
         IDbContextTransaction? updateCartTransaction = null;
         try
         {
+            _logger.LogInformation($"id cont : {idCont}");
             updateCartTransaction = await _unitOfWork.BeginTransactionAsync();
             var updatedItemsForCheckout = await FetchCartProducts(idCont, sessionId, currency);
             
@@ -765,7 +766,7 @@ public class CartService : ICartService
             if (idCont != null)
             {
                 var clientsAddresses = await addressesRepository
-                    .FindQueryable(a => a.IdCont == idCont && !a.IsDeleted)
+                    .FindQueryable(a => a.IdCont == idCont )
                     .GroupBy(group => group.TipAdresa)
                     .Select(address => new
                     {
@@ -847,6 +848,7 @@ public class CartService : ICartService
         try
         {
             _logger.LogInformation($" id prod : {productInfo.IdProdus} id set : {productInfo.IdSet} identifactor set : {productInfo.IdentificatorSet}");
+            _logger.LogInformation($"id cont : {productInfo.IdCont} , seesion id : {productInfo.SessionId}");
             var itemsToDelete = new List<CosCumparaturi>();
             updateTransaction = await _unitOfWork.BeginTransactionAsync();
             var cartRepository = _unitOfWork.Repository<CosCumparaturi>();

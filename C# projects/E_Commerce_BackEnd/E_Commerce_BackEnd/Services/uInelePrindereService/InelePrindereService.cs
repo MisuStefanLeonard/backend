@@ -105,6 +105,11 @@ public class InelePrindereService : IInelePrindereService
             {
                 throw new Exception("Inel to be deleted is not in the database");
             }
+            
+            if (inelToBeDeleted.IsLocked)
+            {
+                return -3;
+            }
 
             if (inelToBeDeleted.CaleRelativa is not null)
             {
@@ -161,6 +166,11 @@ public class InelePrindereService : IInelePrindereService
             {
                 throw new Exception("Image of inel that needs deletion is not in the database");
             }
+            
+            if (imageToDeleteOnInel.IsLocked)
+            {
+                return -3;
+            }
 
             if (imageToDeleteOnInel.CaleRelativa is not null)
             {
@@ -214,6 +224,11 @@ public class InelePrindereService : IInelePrindereService
 
                 if (inelToBeDeleted is not null)
                 {
+                    
+                    if (inelToBeDeleted.IsLocked)
+                    {
+                        return -3;
+                    }
                     var hasManopereOnInel = inelToBeDeleted.InelPeManopere.IsNullOrEmpty();
                     if (hasManopereOnInel)
                     {
@@ -325,6 +340,11 @@ public class InelePrindereService : IInelePrindereService
                 if (inelToBeModified == null)
                 {
                     throw new NullReferenceException("Inel to be modified is null");
+                }
+                
+                if (inelToBeModified.IsLocked)
+                {
+                    return -3;
                 }
 
                 var oldImageName = inelToBeModified.CaleRelativa;

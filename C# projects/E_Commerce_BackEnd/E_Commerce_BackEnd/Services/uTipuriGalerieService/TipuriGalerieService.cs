@@ -107,6 +107,11 @@ public class TipuriGalerieService : ITipuriGalerieService
                 throw new Exception("tip galerie  to be deleted is not in the database");
             }
 
+            if (tipGalerieToBeDeleted.IsLocked)
+            {
+                return -3; // Tip galeri loced , client is buying;
+            }
+
             if (tipGalerieToBeDeleted.CaleRelativa is not null)
             {
                 await _bucketService.DeleteImageFromBucket($"{tipGalerieToBeDeleted.CaleRelativa}" , "tipuri_galerie");
@@ -164,6 +169,11 @@ public class TipuriGalerieService : ITipuriGalerieService
             {
                 throw new Exception("Image of tip galerie  that needs deletion is not in the database");
             }
+            
+            if (imageToDeleteOnTipGalerie.IsLocked)
+            {
+                return -3; // Tip galeri loced , client is buying;
+            }
 
             if (imageToDeleteOnTipGalerie.CaleRelativa is not null)
             {
@@ -207,6 +217,7 @@ public class TipuriGalerieService : ITipuriGalerieService
             deleteBulkTransaction = await _unitOfWork.BeginTransactionAsync();
             List<TipuriGalerie> tipuriGalerieToBeDeleted = [];
             List<TipuriGalerie> tipuriGalerieToBeUpdatedToDeleted = [];
+            
 
             foreach (var item in deleteSelected.SelectedItemsToDoBulkOperations!)
             {
@@ -214,9 +225,15 @@ public class TipuriGalerieService : ITipuriGalerieService
                     .FindQueryable(tp => tp.IdTipGalerie == int.Parse(item.ToString()!))
                     .Include(tp => tp.TipGalerieManopere)
                     .FirstOrDefaultAsync();
+                
 
                 if (tipGalerieToBeDeleted is not null)
                 {
+                    if (tipGalerieToBeDeleted.IsLocked)
+                    {
+                        return -3; // Gallery locked
+                    }
+                    
                     var hasManopereOnTipGalerie = tipGalerieToBeDeleted.TipGalerieManopere.IsNullOrEmpty();
                     if (hasManopereOnTipGalerie)
                     {
@@ -327,6 +344,11 @@ public class TipuriGalerieService : ITipuriGalerieService
                 if (tipGalerieToBeModified == null)
                 {
                     throw new NullReferenceException("tip galerie to be modified is null");
+                }
+
+                if (tipGalerieToBeModified.IsLocked)
+                {
+                    return -3;
                 }
 
                 var oldImageName = tipGalerieToBeModified.CaleRelativa;

@@ -4,18 +4,26 @@ using System.Security.Claims;
 using AutoMapper;
 using E_Commerce_BackEnd.Models.DTO;
 using E_Commerce_BackEnd.Models.DTO.AdminRelatedDtos.Accounts;
-using E_Commerce_BackEnd.Models.DTO.AdminRelatedDtos.OrdersDto;
+using E_Commerce_BackEnd.Models.DTO.ClientOrdersDto;
+using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ManopereDto.ManoperaForSet;
+using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductOptionsDto;
+using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.ProductPage.OptionsForCurtain;
+using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ShoppingCartDtos;
+using E_Commerce_BackEnd.Models.DTO.ProduseDtos.VouchereDtos;
 using E_Commerce_BackEnd.Models.DTO.Recaptcha;
-using E_Commerce_BackEnd.Models.OrderRelatedModels;
+using E_Commerce_BackEnd.Models.Enums;
 using E_Commerce_BackEnd.Models.UserRelatedModels;
 using E_Commerce_BackEnd.Services.emailService;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret;
+using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
 using E_Commerce_BackEnd.Services.Helpers.UserHelpers;
 using E_Commerce_BackEnd.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
+using NuGet.Packaging;
 
 
 namespace E_Commerce_BackEnd.Services.uService;
@@ -29,6 +37,7 @@ public class UserService : IUserService
     private readonly ITokenService _tokenService;
     private readonly IMemoryCache _cache;
     private readonly ILogger<Conturi> _logger;
+    private readonly IBucketAcces _bucketAcces;
     private const string ReCaptchaURL = "https://www.google.com/recaptcha/api/siteverify";
     private const int Size = 30;
     private const int Size2 = 30;
@@ -36,7 +45,7 @@ public class UserService : IUserService
 
     public UserService(IUnitOfWork unitOfWork, IMapper mapper,
         IEmailService emailService, ITokenService tokenService,
-        IMemoryCache cache, ILogger<Conturi> logger, IConfiguration configuration)
+        IMemoryCache cache, ILogger<Conturi> logger, IConfiguration configuration, IBucketAcces bucketAcces)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
@@ -45,6 +54,7 @@ public class UserService : IUserService
         _cache = cache;
         _logger = logger;
         _configuration = configuration;
+        _bucketAcces = bucketAcces;
     }
 
     public async Task AddAccountAsync(Conturi newAccount)
@@ -69,12 +79,26 @@ public class UserService : IUserService
             await _unitOfWork.CommitTransactionAsync(transaction);
 
 
-            await _emailService.SendEmailAsync(accountToCreate.Email!, "Confirmation email from texx.ro",
-                $"<a href='http://localhost:3000/user/confirmare/{token}'>" +
-                "Da click pe acest link pentru a-ti activa contul</a>" +
-                "<br><p>Acest mail va expira intr-o ora!</p> " +
-                "<p>In caz de expirare, " +
-                "aveti optiunea de a-l retrimite.</p>");
+            await _emailService.SendEmailAsync(accountToCreate.Email!,
+                "Confirmare email / Email Confirmation from texx.ro",
+    
+                // Romanian Section 🇷🇴
+                "<p style='font-size: 18px; font-weight: bold;'>Confirmare Email</p>" +
+                "<p>Da click pe link-ul de mai jos pentru a-ți activa contul:</p>" +
+                $"<a href='http://localhost:3000/user/confirmare/{token}'>LINK</a>" +
+                "<br><p>Acest link va expira într-o oră!</p>" +
+                "<p>În caz de expirare, ai opțiunea de a-l retrimite.</p>" +
+
+                "<hr style='margin: 20px 0;'/>" + // Separator between languages
+
+                // English Section 🇬🇧
+                "<p style='font-size: 18px; font-weight: bold;'>Email Confirmation</p>" +
+                "<p>Click the link below to activate your account:</p>" +
+                $"<a href='http://localhost:3000/user/confirmare/{token}'>LINK</a>" +
+                "<br><p>This link will expire in one hour!</p>" +
+                "<p>If it expires, you have the option to resend it.</p>"
+            );
+
 
 
 
@@ -184,7 +208,7 @@ public class UserService : IUserService
 
     }
 
-    public async Task<LoginDto?> LoginAccountAsync(LoginDto loginDto)
+    public async Task<LoginDto?> LoginAccountAsync(LoginDto loginDto )
     {
         IDbContextTransaction? addRefreshTokenTransaction = null;
         try
@@ -195,15 +219,18 @@ public class UserService : IUserService
             var currentUser =  loginDto.NumeProp.Contains('@')
                 ? await conturiRepository.FindQueryable(user => user.Email == loginDto.NumeProp).FirstOrDefaultAsync() 
                 : await conturiRepository.FindQueryable(user => user.Username == loginDto.NumeProp).FirstOrDefaultAsync();
+            
 
             RememberUser newRefreshToken;
             var rememberUserRepository = _unitOfWork.Repository<RememberUser>();
+            var expiringTime = DateTime.UtcNow.AddDays(7);
+            
             
             if (currentUser is not null && plainTextPassword == null)
             {
                 _logger.LogInformation("GOOGLE AUTH");
                 var tokenForGoogleUser = await _tokenService.GenerateJwtAccesToken(currentUser);
-                var refreshTokenForGoogleUser = _tokenService.RefreshToken();
+                var refreshTokenForGoogleUser = _tokenService.RefreshToken() ;
                 loginDto.TokenProp = tokenForGoogleUser;
                 loginDto.RoleProp = currentUser.Rol;
                 loginDto.RefreshTokenProp = refreshTokenForGoogleUser;
@@ -212,7 +239,7 @@ public class UserService : IUserService
                     IdCont = currentUser.IdCont,
                     SessionToken = refreshTokenForGoogleUser,
                     IssuedAt = DateTime.UtcNow,
-                    ExpiresAt = DateTime.UtcNow.AddDays(7)
+                    ExpiresAt = expiringTime
                 };
                 await rememberUserRepository.AddAsync(newRefreshToken);
                 await _unitOfWork.CommitTransactionAsync(addRefreshTokenTransaction);
@@ -235,9 +262,31 @@ public class UserService : IUserService
             {
                 throw new UnauthorizedAccessException("Account not verified");
             }
+            
+            var findRefreshTokenInDb = await _unitOfWork.Repository<RememberUser>()
+                .FindQueryable(token => token.IdCont == currentUser.IdCont)
+                .FirstOrDefaultAsync();
+
+            if (findRefreshTokenInDb != null)
+            {
+                var newExpirationTime = DateTime.UtcNow.AddDays(7);
+                findRefreshTokenInDb.IssuedAt = DateTime.UtcNow;
+                findRefreshTokenInDb.ExpiresAt = newExpirationTime;
+                await rememberUserRepository.UpdateAsync(findRefreshTokenInDb);
+                await _unitOfWork.CommitTransactionAsync(addRefreshTokenTransaction);
+            
+                var tokenForUser = await _tokenService.GenerateJwtAccesToken(currentUser);
+                return new LoginDto
+                {
+                    TokenProp = tokenForUser,
+                    RoleProp = currentUser.Rol,
+                    RefreshTokenProp = findRefreshTokenInDb.SessionToken
+                };
+            }
+            
 
             var tokenForCurrentUser = await _tokenService.GenerateJwtAccesToken(currentUser);
-            var refreshTokenForCurrentUser = _tokenService.RefreshToken();
+            var refreshTokenForCurrentUser = _tokenService.RefreshToken() ;
             loginDto.TokenProp = tokenForCurrentUser;
             loginDto.RoleProp = currentUser.Rol;
             loginDto.RefreshTokenProp = refreshTokenForCurrentUser;
@@ -248,7 +297,7 @@ public class UserService : IUserService
                 IdCont = currentUser.IdCont,
                 SessionToken = refreshTokenForCurrentUser,
                 IssuedAt = DateTime.UtcNow,
-                ExpiresAt = DateTime.UtcNow.AddDays(7)
+                ExpiresAt = expiringTime
             };
 
             await rememberUserRepository.AddAsync(newRefreshToken);
@@ -377,15 +426,38 @@ public class UserService : IUserService
             currentUser.CodActivare = token;
             currentUser.OraLinkConfirmare = DateTime.UtcNow;
 
-            await _emailService.SendEmailAsync(updatedDto.Email!, "Schimbare email cont texx.ro",
-                "V-ati schimbat e-mail-ul contului dumneavoastra" +
-                $"<br><p>Noul email este : {updatedDto.Email}</p> " +
+           await _emailService.SendEmailAsync(updatedDto.Email!,
+                "Schimbare email cont texx.ro / Email Change Notification from texx.ro",
+
+                // Romanian Section 🇷🇴
+                "<p style='font-size: 18px; font-weight: bold;'>Schimbare Email Cont</p>" +
+                "<p>V-ați schimbat e-mail-ul contului dumneavoastră.</p>" +
+                $"<br><p><strong>Noul email este:</strong> {updatedDto.Email}</p>" +
                 $"<p><a href='http://localhost:3000/user/account/changeEmail/{token}?email={updatedDto.Email}&nume={updatedDto.Nume}&prenume={updatedDto.Prenume}&gen={updatedDto.Gen}&nrTelefon={updatedDto.NrTelefon}&username={updatedDto.Username}'>" +
-                "Intrati pe acest link ca schimbarea sa aiba loc.</a></p>" +
-                $"<p>Toate ofertele si contactul vor fi realizate pe mail-ul pe care l-ati setat</p>" +
-                "<p>Va asteptam la cumparaturi la noi pe site!</p>" +
-                "<p>ATENTIE! Daca nu ati fost dumneavoastra cel care a solicitat schimbare de mail, contactati-ne in cel mai scurt timp posibil!" +
-                "ACEST MAIL VA EXPIRA INTR-O ORA. Repetati procesul daca acest mail a expirat");
+                "Faceți click pe acest link pentru a confirma schimbarea.</a></p>" +
+                "<p>Toate ofertele și contactul vor fi realizate pe noul email setat.</p>" +
+                "<p>Vă așteptăm la cumpărături pe site-ul nostru!</p>" +
+                "<p style='color: red; font-weight: bold;'>ATENȚIE!</p>" +
+                "<p>Dacă nu ați solicitat această schimbare, contactați-ne cât mai curând posibil.</p>" +
+                "<p style='font-size: 18px; font-weight: bold;'>ACEST LINK VA EXPIRA ÎNTR-O ORĂ.</p>" +
+                "<p>Dacă expiră, vă rugăm să repetați procesul.</p>" +
+
+                "<hr style='margin: 20px 0;'/>" + // Separator between languages
+
+                // English Section 🇬🇧
+                "<p style='font-size: 18px; font-weight: bold;'>Email Change Notification</p>" +
+                "<p>You have changed your account email.</p>" +
+                $"<br><p><strong>Your new email is:</strong> {updatedDto.Email}</p>" +
+                $"<p><a href='http://localhost:3000/user/account/changeEmail/{token}?email={updatedDto.Email}&nume={updatedDto.Nume}&prenume={updatedDto.Prenume}&gen={updatedDto.Gen}&nrTelefon={updatedDto.NrTelefon}&username={updatedDto.Username}'>" +
+                "Click this link to confirm the email change.</a></p>" +
+                "<p>All offers and communication will be sent to your new email address.</p>" +
+                "<p>We look forward to seeing you on our website!</p>" +
+                "<p style='color: red; font-weight: bold;'>WARNING!</p>" +
+                "<p>If you did not request this change, please contact us as soon as possible.</p>" +
+                "<p style='font-size: 18px; font-weight: bold;'>THIS LINK WILL EXPIRE IN ONE HOUR.</p>" +
+                "<p>If it expires, please repeat the process.</p>"
+            );
+
 
             await repository.UpdateAsync(currentUser);
 
@@ -845,168 +917,398 @@ public class UserService : IUserService
 
     public async Task<ConturiDtoForModification?> GetAccountData(int accountId)
     {
-        var accountsRepository = _unitOfWork.Repository<Conturi>();
-        var adressesRepository = _unitOfWork.Repository<Adrese>();
-        var productsOnOrdersRepository = _unitOfWork.Repository<ProduseCuComenzi>();
-        var accountData = await accountsRepository
+        var accountData = await _unitOfWork.Repository<Conturi>()
             .FindQueryable(a => a.IdCont == accountId)
             .Include(a => a.AdreseConturi)!
             .ThenInclude(df => df.DetaliuFactura)
-            .Include(a => a.AdreseConturi)!
-                .ThenInclude(l => l.Locatie)
-            .FirstAsync();
-        // the address and the info for the current client
+                .Include(a => a.AdreseConturi)!
+            .ThenInclude(l => l.Locatie)
+            .AsSplitQuery()
+                .FirstOrDefaultAsync();
+
+        if (accountData == null)
+        {
+            return null;
+        }
+        
         var contDataToDto = _mapper.Map<ConturiDtoForModification>(accountData);
         var adreseToDto = _mapper.Map<IList<AdreseDto>>(accountData.AdreseConturi);
-        foreach (var adressDto in adreseToDto)
-        {
-            contDataToDto.AdreseClient.Add(adressDto);
-        }
-        // now processing orders of the client
-
-        var ordersOfTheCurrentClient = await adressesRepository
-            .FindQueryable(a => a.IdCont == accountId)
-            // .Include(a => a.AdreseFacturarePeComanda)
-            .Include(a => a.AdreseLivrarePeComanda)
-            .Include(a => a.DetaliuFactura)
-            .Include(a => a.Locatie)
-            .AsSplitQuery()
-            .ToListAsync();
+        contDataToDto.AdreseClient.AddRange(adreseToDto);
         
-
-        var ordersList = new List<OrdersDisplayDto>();
-
-        foreach (var address in ordersOfTheCurrentClient)
-        {
-            // Log the count of orders for both billing and delivery addresses
-           
-
-            // Process delivery addresses
-            if (address.AdreseLivrarePeComanda!.Count > 0)
-            {
-                _logger.LogTrace("Processing delivery addresses to DTO");
-                foreach (var order in address.AdreseLivrarePeComanda)
+        
+        var clientOrders = await _unitOfWork.Repository<Conturi>()
+                .FindQueryable(account => account.IdCont == accountId)
+                .SelectMany(address => address.AdreseConturi!)
+                .SelectMany(order => order.AdreseLivrarePeComanda!)
+                .AsSplitQuery()
+                .Select(order => new ClientOrder
                 {
-                    var newOrdersDisplayDto = _mapper.Map<OrdersDisplayDto>(order);
-                    var adresaLivrareToDto = _mapper.Map<AdreseDto>(order.CAdresaLivrare);
-                    
-                    // Check if billing address is the same as delivery address
-                    if (order.CAdresaFacturare.IdAdresa == order.CAdresaLivrare.IdAdresa)
+                    Items = order.PcComenzi!
+                        .GroupBy(group => group.IdentificatorSet != "21" ? group.IdentificatorSet : group.IdProduseCuComenzi.ToString())
+                        .Select(item => new GroupedCartItems
+                        {
+                            Key = item.Key,
+                            CartItems = item.Select(product => new CartItems
+                            {
+                                IdProdus = product.Produs!.IdProdus,
+                                IdSet = product.Set!.IdSet,
+                                NumeSet = product.Set!.NumeSet,
+                                CodProdus = product.Produs!.CodProdus,
+                                NumeProdus =  product.Produs!.NumeProdus!,
+                                TipProdus = product.Produs!.TipulProdusului,
+                                CuloareSelectata = new CuloriDto
+                                {
+                                    IdCuloare = product.PcCuloare.IdCuloare,
+                                    NumeCuloareDto = product.PcCuloare.NumeCuloare,
+                                    CodCuloareDto = product.PcCuloare.CodCuloare.CodCuloare!,
+                                    JustAdded = false,
+                                    ImaginiProdusDto = product.Produs.PProduseCuCulori!
+                                        .FirstOrDefault(pc => pc.ImagProduseCuCulori!.Count > 0)!
+                                        .ImagProduseCuCulori!.Select(imag => new ImagesDto
+                                        {
+                                            CaleImagineDto = imag.CaleImagine!,
+                                            FisierInBucketDto = imag.FisierInBucket,
+                                            PresignedUrl = "empty",
+                                            JustAdded = false,
+                                            IdProdusCuCuloareDto = 0
+                                        }).Take(1).OrderBy(c => c.CaleImagineDto)
+                                        .ToList()
+                                },
+                                DimensiuneSelectata = new DimensiuniDto
+                                {
+                                    IdDimensiune = product.PcDimensiune!.IdDimensiune,
+                                    LungimeDto = product.PcManopera!.NumeManopera != "STAN" ?  product.PcDimensiune.Lungime : ((int)(product.PcManopera.MaterialFolosit * 100)).ToString(),
+                                    LatimeDto = product.PcDimensiune.Lungime,
+                                    RecomandarePat = product.PcDimensiune.RecomandarePat,
+                                    PretDto = 0,
+                                    PretRedusDto = 0,
+                                    JustAdded = false,
+                                    PerdeaEstePerecheDto = product.PcManopera!.NumeManopera == "STAN" ? null : product.PcDimensiune.PerdeaEstePereche 
+                                        
+                                },
+                                SelectedManopera = product.Produs.TipulProdusului == "perdea" || product.Produs.TipulProdusului == "draperie" ? new StandardManopereOnSet
+                                {
+                                    IdManopera = product.PcManopera!.IdManopera,
+                                    NumeManopera = product.PcManopera.NumeManopera!,
+                                    MetruTotalFolosit = product.PcManopera.MaterialFolosit,
+                                    InaltimeMaxima = product.PcManopera.InaltimeMaxima,
+                                    TipInel = product.PcManopera.InelPrindereLaManopera != null ? new TipIneleDto
+                                    {
+                                        IdInelPrindere = product.PcManopera.InelPrindereLaManopera.IdInel,
+                                        NumeTipInel = product.PcManopera.InelPrindereLaManopera.CuloareInel,
+                                        CaleRelativa = product.PcManopera.InelPrindereLaManopera.CaleRelativa,
+                                        PresignedUrl = "empty"
+                                    } : null,
+                                    TipGalerie = new TipRejansaDto
+                                    {
+                                        IdRejansa = product.PcManopera.TipGalerieLaManopera.IdTipGalerie,
+                                        NumeTipRejansa = product.PcManopera.TipGalerieLaManopera.NumeTipGalerie,
+                                        PretTipRejansa = product.PcManopera.TipGalerieLaManopera.PretTipGalerie
+                                           ,
+                                        IncretireRejansa = product.PcManopera.TipGalerieLaManopera.IncretireRejansa,
+                                        CaleRelativa = product.PcManopera.TipGalerieLaManopera.CaleRelativa,
+                                        PresignedUrl = "empty",
+                                        SePrindeCuInele = product.PcManopera.TipGalerieLaManopera.SePrindeCuInele
+                                    },
+                                    TipLinie = new TipLinieDto
+                                    {
+                                        IdTipLinie = product.PcManopera.TipLinieLaManopera.IdTipLinie,
+                                        NumeTipCusaturaColt = product.PcManopera.TipLinieLaManopera.NumeTipLinie,
+                                        PretTipCusaturaColt =  product.PcManopera.TipLinieLaManopera.PretPeTipLinie,
+                                        CaleRelativa = product.PcManopera.TipLinieLaManopera.CaleRelativa,
+                                        PresignedUrl = "empty"
+                                    }
+                                } : null,
+                                LungimeCeruta = product.PcManopera != null ?
+                                    product.PcManopera.NumeManopera == "STAN" ? product.PcManopera.MaterialFolosit.ToString() : "empty"
+                                : "not_perdea",
+                                InaltimeCeruta = product.IdSet != null ? product.InaltimeAleasaPentruSet : "not_set",
+                                PretCurent =  product.PretCumparat ,
+                                Cantitate = product.NrBucati,
+                                IdentificatorSet = item.Key  
+                            }).ToList()
+                        }).ToList(),
+                    ClientDeliveryAddress = new AdreseDto
                     {
-                        // Billing and delivery addresses are the same, so reuse the delivery address DTO
-                        newOrdersDisplayDto.AdresaLivrareDto = adresaLivrareToDto;
-                        newOrdersDisplayDto.AdresaFacturareDto = adresaLivrareToDto;
-                    }
-                    else
+                        AliasDto = order.CAdresaLivrare.Alias,
+                        TipAdresaDto = TipAdrese.Livrare,
+                        BlocDto = order.CAdresaLivrare.Bloc,
+                        NrBlocDto = order.CAdresaLivrare.NrBloc,
+                        StradaDto = order.CAdresaLivrare.Strada,
+                        NrStradaDto = order.CAdresaLivrare.NrStrada,
+                        OrasDto = order.CAdresaLivrare.Locatie.Oras!,
+                        JudetDto = order.CAdresaLivrare.Locatie.Judet!,
+                        CodPostalDto = order.CAdresaLivrare.Locatie.CodPostal!,
+                        IsDeletedDto = order.CAdresaLivrare.IsDeleted,
+                        CifDto = null,
+                        NumeFirmaDto = null
+                    },
+                    ClientBillingAddress = new AdreseDto
                     {
-                        // Billing and delivery addresses are different, map separately
-                        var adresaFacturareToDto = _mapper.Map<AdreseDto>(order.CAdresaFacturare);
-                        newOrdersDisplayDto.AdresaLivrareDto = adresaLivrareToDto;
-                        newOrdersDisplayDto.AdresaFacturareDto = adresaFacturareToDto;
-                    }
-
-                    ordersList.Add(newOrdersDisplayDto);
-                }
-            }
-            else
-            {
-                _logger.LogInformation("No orders for this client");
-            }
-
-            
-        }
-        
-        
-        foreach (var order in ordersList)
-        {
-            // de facut proiectie!
-            _logger.LogInformation("Proceesing  order");
-            var allProductsOnCurrentOrder = await productsOnOrdersRepository
-                .FindQueryable(pc => pc.IdComanda == order.IdComandaDto)
-                    .Select(ord => new ProductsOnOrdersDto
-                {
-                    IdProdusDto = ord.Produs.IdProdus,
-                    CodProdusDto = ord.Produs.CodProdus,
-                    NumeProdusDto = ord.Produs.NumeProdus!,
-                    FataReversibilaDto = ord.Produs.FataReversibila,
-                    NumeProducatorDto = ord.Produs.Producator!.NumeProducator,
-                    TipulProdusuluiDto = ord.Produs.TipulProdusului,
-                    NumeSetDto = ord.Set!.NumeSet,
-                    InaltimeSetDto = ord.InaltimeAleasaPentruSet,
-                    PretBazaDto = ord.PretCumparat,
-                    NumeCuloareDto = ord.PcCuloare.NumeCuloare,
-                    CodCuloareDto = ord.PcCuloare.CodCuloare.CodCuloare!,
-                    LungimeDto = ord.PcDimensiune!.Lungime,
-                    LatimeDto = ord.PcDimensiune.Latime,
-                    RecomandarePatDto = ord.PcDimensiune.RecomandarePat,
-                    PerdeaEstePerecheDto = ord.PcDimensiune.PerdeaEstePereche,
-                    TipGalerieCusaturaDto = ord.PcManopera!.TipGalerieLaManopera.NumeTipGalerie,
-                    IncretireRejansaDto = ord.PcManopera.TipGalerieLaManopera.IncretireRejansa,
-                    PretTipGalerieCusaturaDto = ord.PcManopera.PretCurentTipGalerie,
-                    TipLinieCusaturaDto = ord.PcManopera.TipLinieLaManopera.NumeTipLinie,
-                    PretTipLinieCusaturaDto = ord.PcManopera.PretCurentTipLinie,
-                    InelePrindereDto = ord.PcManopera.InelPrindereLaManopera!.CuloareInel,
-                    TotalMetruMaterial = ord.PcDimensiune == null ? 0 : ord.PcManopera.MaterialFolosit,
-                    VoucherFolositDto = ord.Comanda.VoucherPeComanda != null,
-                    CodVoucherFolositDto = ord.Comanda.VoucherPeComanda!.CodVoucher,
-                    ReducereVoucherDto =  ord.Comanda.VoucherPeComanda!.Reducere * 100,
-                    NrBucatiDto = ord.NrBucati
+                        AliasDto = order.CAdresaFacturare.Alias,
+                        TipAdresaDto = TipAdrese.Facturare,
+                        BlocDto = order.CAdresaFacturare.Bloc,
+                        NrBlocDto = order.CAdresaFacturare.NrBloc,
+                        StradaDto = order.CAdresaFacturare.Strada,
+                        NrStradaDto = order.CAdresaFacturare.NrStrada,
+                        OrasDto = order.CAdresaFacturare.Locatie.Oras!,
+                        JudetDto = order.CAdresaFacturare.Locatie.Judet!,
+                        CodPostalDto = order.CAdresaFacturare.Locatie.CodPostal!,
+                        IsDeletedDto = order.CAdresaFacturare.IsDeleted,
+                        CifDto = order.CAdresaFacturare.DetaliuFactura!.Cif,
+                        NumeFirmaDto = order.CAdresaFacturare.DetaliuFactura!.Cif
+                    },
+                    UserOrderDetails = new UserPersonalInfo
+                    {
+                        Nume = order.NumePeComanda,
+                        Prenume = order.PrenumePeComanda,
+                        NrTelefon = order.NrTelefonPeComanda,
+                        Email = order.EmailPeComanda
+                    },
+                    OrderDate = order.DataEmitereComanda,
+                    OrderId = order.IdComanda,
+                    OrderStatus = order.StatusComanda,
+                    OrderPayment = order.TipPlata,
+                    OrderTrackingString = order.AwbComanda,
+                    IsCancelableDto = order.IsCancelable,
+                    OrderVoucher = order.IdVoucher != null ? new VouchereDto
+                    {
+                        CodVoucherDto = order.VoucherPeComanda!.CodVoucher,
+                        ReducereDto = order.VoucherPeComanda.Reducere,
+                        DataExpirareDto = default
+                    } : null,
+                    PretTotal = 0,
+                    TotalProduse = 0,
                 }).ToListAsync();
-    
+        
+            decimal cartTotal = 0;
+            var totalProducts = 0;
+            //
+            // if (clientOrders.Count > 0)
+            // {
+            //     _logger.LogInformation("A LUAT COMENZILE");
+            // }
+            // else
+            // {
+            //     _logger.LogError("NU A LUAT COMENZILE");
+            //
+            // }
+            //
             
-
-            var orderedSets = allProductsOnCurrentOrder
-                .AsQueryable()
-                .Where(p => p.NumeSetDto != null)
-                .OrderBy(p => p.NumeSetDto)
-                .GroupBy(p => p.NumeSetDto)
-                .ToList();
-            
-            var simpleProducts = allProductsOnCurrentOrder
-                .AsQueryable()
-                .Where(p => p.NumeSetDto == null)
-                .OrderBy(p => p.NumeSetDto)
-                .ToList();
-
-            order.ProduseCuComenziDto = simpleProducts;
-            order.Seturi = orderedSets;
-            
-            foreach (var product in order.ProduseCuComenziDto)
+            foreach (var order in clientOrders)
             {
-                if (!string.Equals(product.TipulProdusuluiDto , "perdea") && !string.Equals(product.TipulProdusuluiDto , "draperie") 
-                                                                          && product.NumeSetDto == null)
+                // _logger.LogInformation($"orderId => {order.OrderId}");
+                foreach (var item in order.Items)
                 {
-                    order.PretTotalComanda += product.PretBazaDto * product.NrBucatiDto;
+                    var isSet = !int.TryParse(item.Key, out _);
+                    var exit = false; // true if end or false if not
+                    foreach (var cartItem in item.CartItems)
+                    {
+                        switch (isSet)
+                        {
+                            // if we found the product!
+                            case false:
+                                order.PretTotal += item.CartItems[0].Cantitate * item.CartItems[0].PretCurent;
+                                order.TotalProduse += item.CartItems[0].Cantitate;
+                                break;
+                            // else we found a set , and we only count once!
+                            case true when !exit:
+                                order.PretTotal += item.CartItems[0].Cantitate * item.CartItems[0].PretCurent;
+                                order.TotalProduse += item.CartItems[0].Cantitate;
+                                exit = true;
+                                break;
+                        }
+                        if (cartItem.CuloareSelectata.ImaginiProdusDto!.Count <= 0) continue;
+                        foreach (var image in cartItem.CuloareSelectata.ImaginiProdusDto)
+                        {
+                            image.PresignedUrl = await _bucketAcces.GenerateUrl(image.CaleImagineDto, image.FisierInBucketDto);
+                        }
+                        
+                        if (cartItem.SelectedManopera == null) continue;
+                        
+                        if (cartItem.SelectedManopera.TipInel != null)
+                        {
+                            if(cartItem.SelectedManopera.TipInel.CaleRelativa == null) continue;
+                            cartItem.SelectedManopera.TipInel.PresignedUrl = await
+                                _bucketAcces.GenerateUrl(cartItem.SelectedManopera.TipInel.CaleRelativa!, "inele_prindere");
+                        }
+                        
+                        if(cartItem.SelectedManopera.TipGalerie.CaleRelativa == null) continue;
+                        cartItem.SelectedManopera.TipGalerie.PresignedUrl = await
+                            _bucketAcces.GenerateUrl(cartItem.SelectedManopera.TipGalerie.CaleRelativa!, "tipuri_galerie");
+                        
+                        if(cartItem.SelectedManopera.TipLinie.CaleRelativa == null) continue;
+                        cartItem.SelectedManopera.TipLinie.PresignedUrl = await
+                            _bucketAcces.GenerateUrl(cartItem.SelectedManopera.TipLinie.CaleRelativa!, "tipuri_linie");
+                    }
                 }
-
-                if (product.TipulProdusuluiDto is not ("perdea" or "draperie")) continue;
-                var totalMetri = product.TotalMetruMaterial;
-            
-                var pretManoperaMaterial = product.PretBazaDto * totalMetri;
-                var pretManoperaCusatura = product.PretTipGalerieCusaturaDto * totalMetri;
-                var pretTipLinieCusatura = product.PretTipLinieCusaturaDto * totalMetri;
-                var totalManopera = pretManoperaMaterial + pretManoperaCusatura + pretTipLinieCusatura;
-                order.PretTotalComanda += totalManopera;
             }
 
-            foreach (var set in order.Seturi)
-            {
-                foreach (var product in set)
-                {
-                    order.PretTotalComanda += product.PretBazaDto * product.NrBucatiDto;
-                    break;
-                }
-                
-            }
+            contDataToDto.ComenziClient = clientOrders;
+            return contDataToDto;
 
-        }
-        
-        foreach (var orderDto in ordersList)
-        {
-            
-            contDataToDto.ComenziClient.Add(orderDto);
-        }
-        
-        return contDataToDto;
+            // var accountsRepository = _unitOfWork.Repository<Conturi>();
+            // var adressesRepository = _unitOfWork.Repository<Adrese>();
+            // var productsOnOrdersRepository = _unitOfWork.Repository<ProduseCuComenzi>();
+            // var accountData = await accountsRepository
+            //     .FindQueryable(a => a.IdCont == accountId)
+            //     .Include(a => a.AdreseConturi)!
+            //         .ThenInclude(df => df.DetaliuFactura)
+            //     .Include(a => a.AdreseConturi)!
+            //         .ThenInclude(l => l.Locatie)
+            //     .FirstAsync();
+            // // the address and the info for the current client
+            // var contDataToDto = _mapper.Map<ConturiDtoForModification>(accountData);
+            // var adreseToDto = _mapper.Map<IList<AdreseDto>>(accountData.AdreseConturi);
+            // foreach (var adressDto in adreseToDto)
+            // {
+            //     contDataToDto.AdreseClient.Add(adressDto);
+            // }
+            // now processing orders of the client
+
+            // var ordersOfTheCurrentClient = await adressesRepository
+            //     .FindQueryable(a => a.IdCont == accountId)
+            //     // .Include(a => a.AdreseFacturarePeComanda)
+            //     .Include(a => a.AdreseLivrarePeComanda)
+            //     .Include(a => a.DetaliuFactura)
+            //     .Include(a => a.Locatie)
+            //     .AsSplitQuery()
+            //     .ToListAsync();
+            //
+            //
+            // var ordersList = new List<OrdersDisplayDto>();
+            //
+            // foreach (var address in ordersOfTheCurrentClient)
+            // {
+            //     // Log the count of orders for both billing and delivery addresses
+            //    
+            //
+            //     // Process delivery addresses
+            //     if (address.AdreseLivrarePeComanda!.Count > 0)
+            //     {
+            //         _logger.LogTrace("Processing delivery addresses to DTO");
+            //         foreach (var order in address.AdreseLivrarePeComanda)
+            //         {
+            //             var newOrdersDisplayDto = _mapper.Map<OrdersDisplayDto>(order);
+            //             var adresaLivrareToDto = _mapper.Map<AdreseDto>(order.CAdresaLivrare);
+            //             
+            //             // Check if billing address is the same as delivery address
+            //             if (order.CAdresaFacturare.IdAdresa == order.CAdresaLivrare.IdAdresa)
+            //             {
+            //                 // Billing and delivery addresses are the same, so reuse the delivery address DTO
+            //                 newOrdersDisplayDto.AdresaLivrareDto = adresaLivrareToDto;
+            //                 newOrdersDisplayDto.AdresaFacturareDto = adresaLivrareToDto;
+            //             }
+            //             else
+            //             {
+            //                 // Billing and delivery addresses are different, map separately
+            //                 var adresaFacturareToDto = _mapper.Map<AdreseDto>(order.CAdresaFacturare);
+            //                 newOrdersDisplayDto.AdresaLivrareDto = adresaLivrareToDto;
+            //                 newOrdersDisplayDto.AdresaFacturareDto = adresaFacturareToDto;
+            //             }
+            //
+            //             ordersList.Add(newOrdersDisplayDto);
+            //         }
+            //     }
+            //     else
+            //     {
+            //         _logger.LogInformation("No orders for this client");
+            //     }
+            //
+            //     
+            // }
+            //
+            //
+            // foreach (var order in ordersList)
+            // {
+            //     // de facut proiectie!
+            //     _logger.LogInformation("Proceesing  order");
+            //     var allProductsOnCurrentOrder = await productsOnOrdersRepository
+            //         .FindQueryable(pc => pc.IdComanda == order.IdComandaDto)
+            //             .Select(ord => new ProductsOnOrdersDto
+            //         {
+            //             IdProdusDto = ord.Produs.IdProdus,
+            //             CodProdusDto = ord.Produs.CodProdus,
+            //             NumeProdusDto = ord.Produs.NumeProdus!,
+            //             FataReversibilaDto = ord.Produs.FataReversibila,
+            //             NumeProducatorDto = ord.Produs.Producator!.NumeProducator,
+            //             TipulProdusuluiDto = ord.Produs.TipulProdusului,
+            //             NumeSetDto = ord.Set!.NumeSet,
+            //             InaltimeSetDto = ord.InaltimeAleasaPentruSet,
+            //             PretBazaDto = ord.PretCumparat,
+            //             NumeCuloareDto = ord.PcCuloare.NumeCuloare,
+            //             CodCuloareDto = ord.PcCuloare.CodCuloare.CodCuloare!,
+            //             LungimeDto = ord.PcDimensiune!.Lungime,
+            //             LatimeDto = ord.PcDimensiune.Latime,
+            //             RecomandarePatDto = ord.PcDimensiune.RecomandarePat,
+            //             PerdeaEstePerecheDto = ord.PcDimensiune.PerdeaEstePereche,
+            //             TipGalerieCusaturaDto = ord.PcManopera!.TipGalerieLaManopera.NumeTipGalerie,
+            //             IncretireRejansaDto = ord.PcManopera.TipGalerieLaManopera.IncretireRejansa,
+            //             PretTipGalerieCusaturaDto = ord.PcManopera.PretCurentTipGalerie,
+            //             TipLinieCusaturaDto = ord.PcManopera.TipLinieLaManopera.NumeTipLinie,
+            //             PretTipLinieCusaturaDto = ord.PcManopera.PretCurentTipLinie,
+            //             InelePrindereDto = ord.PcManopera.InelPrindereLaManopera!.CuloareInel,
+            //             TotalMetruMaterial = ord.PcDimensiune == null ? 0 : ord.PcManopera.MaterialFolosit,
+            //             VoucherFolositDto = ord.Comanda.VoucherPeComanda != null,
+            //             CodVoucherFolositDto = ord.Comanda.VoucherPeComanda!.CodVoucher,
+            //             ReducereVoucherDto =  ord.Comanda.VoucherPeComanda!.Reducere * 100,
+            //             NrBucatiDto = ord.NrBucati
+            //         }).ToListAsync();
+            //
+            //     
+            //
+            //     var orderedSets = allProductsOnCurrentOrder
+            //         .AsQueryable()
+            //         .Where(p => p.NumeSetDto != null)
+            //         .OrderBy(p => p.NumeSetDto)
+            //         .GroupBy(p => p.NumeSetDto)
+            //         .ToList();
+            //     
+            //     var simpleProducts = allProductsOnCurrentOrder
+            //         .AsQueryable()
+            //         .Where(p => p.NumeSetDto == null)
+            //         .OrderBy(p => p.NumeSetDto)
+            //         .ToList();
+            //
+            //     order.ProduseCuComenziDto = simpleProducts;
+            //     order.Seturi = orderedSets;
+            //     
+            //     foreach (var product in order.ProduseCuComenziDto)
+            //     {
+            //         if (!string.Equals(product.TipulProdusuluiDto , "perdea") && !string.Equals(product.TipulProdusuluiDto , "draperie") 
+            //                                                                   && product.NumeSetDto == null)
+            //         {
+            //             order.PretTotalComanda += product.PretBazaDto * product.NrBucatiDto;
+            //         }
+            //
+            //         if (product.TipulProdusuluiDto is not ("perdea" or "draperie")) continue;
+            //         var totalMetri = product.TotalMetruMaterial;
+            //     
+            //         var pretManoperaMaterial = product.PretBazaDto * totalMetri;
+            //         var pretManoperaCusatura = product.PretTipGalerieCusaturaDto * totalMetri;
+            //         var pretTipLinieCusatura = product.PretTipLinieCusaturaDto * totalMetri;
+            //         var totalManopera = pretManoperaMaterial + pretManoperaCusatura + pretTipLinieCusatura;
+            //         order.PretTotalComanda += totalManopera;
+            //     }
+            //
+            //     foreach (var set in order.Seturi)
+            //     {
+            //         foreach (var product in set)
+            //         {
+            //             order.PretTotalComanda += product.PretBazaDto * product.NrBucatiDto;
+            //             break;
+            //         }
+            //         
+            //     }
+            //
+            // }
+            //
+            // foreach (var orderDto in ordersList)
+            // {
+            //     
+            //     contDataToDto.ComenziClient.Add(orderDto);
+            // }
+            //
+            // return contDataToDto;
     }
 }
