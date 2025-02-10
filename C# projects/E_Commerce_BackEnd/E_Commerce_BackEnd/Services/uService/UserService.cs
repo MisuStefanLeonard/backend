@@ -17,11 +17,11 @@ using E_Commerce_BackEnd.Services.emailService;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
 using E_Commerce_BackEnd.Services.Helpers.UserHelpers;
+using E_Commerce_BackEnd.Services.uMJMLService;
 using E_Commerce_BackEnd.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
 using NuGet.Packaging;
 
@@ -38,6 +38,7 @@ public class UserService : IUserService
     private readonly IMemoryCache _cache;
     private readonly ILogger<Conturi> _logger;
     private readonly IBucketAcces _bucketAcces;
+    private readonly IMjmlService _mjmlService;
     private const string ReCaptchaURL = "https://www.google.com/recaptcha/api/siteverify";
     private const int Size = 30;
     private const int Size2 = 30;
@@ -45,7 +46,7 @@ public class UserService : IUserService
 
     public UserService(IUnitOfWork unitOfWork, IMapper mapper,
         IEmailService emailService, ITokenService tokenService,
-        IMemoryCache cache, ILogger<Conturi> logger, IConfiguration configuration, IBucketAcces bucketAcces)
+        IMemoryCache cache, ILogger<Conturi> logger, IConfiguration configuration, IBucketAcces bucketAcces, IMjmlService mjmlService)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
@@ -55,6 +56,7 @@ public class UserService : IUserService
         _logger = logger;
         _configuration = configuration;
         _bucketAcces = bucketAcces;
+        _mjmlService = mjmlService;
     }
 
     public async Task AddAccountAsync(Conturi newAccount)
@@ -77,26 +79,73 @@ public class UserService : IUserService
             await repository.AddAsync(accountToCreate);
 
             await _unitOfWork.CommitTransactionAsync(transaction);
+            
+            
+            var url = await _bucketAcces.GenerateUrl("LogoTexx.png" , null);
+            _logger.LogInformation(url);
+            var insertLogo = url != null
+                ? $"<mj-section>\n" +
+                  $" <mj-column>\n" +
+                  $"   <mj-image width=\"100px\" src=\"{url}\" alt=\"Company Logo\"/>\n" +
+                  $" </mj-column>\n" +
+                  $"</mj-section>"
+                : "";
+            
+            var mjmlTemplate = $"<mjml>\n" +
+                               $"  <mj-body>\n  " +
+                               $"{insertLogo}" +
+                               $"  <mj-section>\n   " +
+                               $"   <mj-column>\n      " +
+                               $"  <mj-text font-size=\"18px\" color=\"#F45E43\" font-family=\"helvetica\" align=\"center\">Confirmare cont / Account confirmation</mj-text>\n       " +
+                               $" <mj-spacer></mj-spacer>\n " +
+                               $"     </mj-column>\n" +
+                               $"      <mj-column background-color=\"#a8a8a8\" border-radius=\"20px\" padding=\"20px\" width=\"100%\">\n " +
+                               $"        <mj-text font-size=\"22px\" color=\"#F45E43\">\n " +
+                               $"         RO\n" +
+                               $"        </mj-text>\n " +
+                               $"        <mj-text font-size=\"18px\" color=\"#333333\">\n " +
+                               $"         Acest mail expira intr-o ora!\n" +
+                               $"        </mj-text>\n " +
+                               $"       <mj-text font-size=\"18px\" color=\"#333333\">\n  " +
+                               $"        <strong>Confirmarea de cont nou.</strong>\n" +
+                               $"        </mj-text>\n        <mj-text font-size=\"18px\" color=\"blue\">\n" +
+                               $"          In cazul in care nu ati fost dvs. sau nu recunoasteti acest mail, NU dati click pe nimic! Contacti-ne in cel mai scurt timp la <strong >texx@yahoo.com</strong>\n" +
+                               $"        </mj-text>\n" +
+                               $"       \t<mj-text font-size=\"18px\" color=\"#333333\">\n" +
+                               $"          Noul cod de reactivare. Da click pe acest link pentru a-ti activa contul\n" +
+                               $"         </mj-text>\n" +
+                               $"          <mj-button color=\"white\" background-color=\"black\">\n" +
+                               $"           <a href=\"http://localhost:3000/user/confirmare/{token}\">CLICK</a>\n" +
+                               $"        </mj-button>\n" +
+                               $"         <mj-text font-size=\"22px\" color=\"#F45E43\">\n" +
+                               $"          EN\n " +
+                               $"       </mj-text>\n   " +
+                               $"        <mj-text font-size=\"18px\" color=\"#333333\">\n " +
+                               $"        This mail expires in 1 hour!\n" +
+                               $"        </mj-text>\n " +
+                               $"     <mj-text font-size=\"18px\" color=\"#333333\">\n " +
+                               $"         <strong>New confirmation request for account</strong>\n  " +
+                               $"      </mj-text>\n  " +
+                               $"      <mj-text font-size=\"18px\" color=\"blue\">\n " +
+                               $"         If you did not request this confirmation , do not click ANYTHING! Contact us as fast as possible at <strong >texx@yahoo.com</strong>\n  " +
+                               $"      </mj-text>\n " +
+                               $"      \t<mj-text font-size=\"18px\" color=\"#333333\">\n " +
+                               $"         New reactivation code. Click on the button\n " +
+                               $"        </mj-text>\n          <mj-button color=\"white\" background-color=\"black\">\n " +
+                               $"          <a href=\"http://localhost:3000/en/user/confirmare/{token}\">CLICK</a>\n" +
+                               $"        </mj-button>\n\n" +
+                               $"      </mj-column>\n" +
+                               $"    </mj-section>\n" +
+                               $"  </mj-body>\n" +
+                               $"</mjml>";
+
+            var convertToHtml = await _mjmlService.ConvertMjmlToHtml(mjmlTemplate);
+            
 
 
             await _emailService.SendEmailAsync(accountToCreate.Email!,
-                "Confirmare email / Email Confirmation from texx.ro",
-    
-                // Romanian Section 🇷🇴
-                "<p style='font-size: 18px; font-weight: bold;'>Confirmare Email</p>" +
-                "<p>Da click pe link-ul de mai jos pentru a-ți activa contul:</p>" +
-                $"<a href='http://localhost:3000/user/confirmare/{token}'>LINK</a>" +
-                "<br><p>Acest link va expira într-o oră!</p>" +
-                "<p>În caz de expirare, ai opțiunea de a-l retrimite.</p>" +
-
-                "<hr style='margin: 20px 0;'/>" + // Separator between languages
-
-                // English Section 🇬🇧
-                "<p style='font-size: 18px; font-weight: bold;'>Email Confirmation</p>" +
-                "<p>Click the link below to activate your account:</p>" +
-                $"<a href='http://localhost:3000/user/confirmare/{token}'>LINK</a>" +
-                "<br><p>This link will expire in one hour!</p>" +
-                "<p>If it expires, you have the option to resend it.</p>"
+                "Confirmare email / Email Confirmation ",
+               convertToHtml!
             );
 
 
@@ -426,36 +475,68 @@ public class UserService : IUserService
             currentUser.CodActivare = token;
             currentUser.OraLinkConfirmare = DateTime.UtcNow;
 
+            var url = await _bucketAcces.GenerateUrl("LogoTexx.png" , null);
+            var insertLogo = url != null
+                ? $"<mj-section>\n" +
+                  $" <mj-column>\n" +
+                  $"   <mj-image width=\"100px\" src=\"{url}\" alt=\"Company Logo\"/>\n" +
+                  $" </mj-column>\n" +
+                  $"</mj-section>"
+                : "";
+            
+            var mjmlTemplate = $@"
+            <mjml>
+              <mj-body>
+                {insertLogo}
+                <mj-section>
+                  <mj-column>
+                    <mj-text font-size='18px' color='#F45E43' font-family='helvetica' align='center'>
+                      Schimbare Email Cont / Email Change Notification
+                    </mj-text>
+                    <mj-spacer></mj-spacer>
+                  </mj-column>
+                  <mj-column background-color='#a8a8a8' border-radius='20px' padding='20px' width='100%'>
+
+                     <mj-text font-size='22px' color='#F45E43'>RO</mj-text>
+                     <mj-text font-size='18px' color='#333333'><strong>Schimbare Email Cont</strong></mj-text>
+                     <mj-text font-size='18px' color='black'>V-ați schimbat e-mail-ul contului dumneavoastră.</mj-text>
+                     <mj-text font-size='18px' color='black'><strong>Noul email este:</strong> {updatedDto.Email}</mj-text>
+                     <mj-button color='white' background-color='black'>
+                       <a href='http://localhost:3000/user/account/changeEmail/{token}?email={updatedDto.Email}&nume={updatedDto.Nume}&prenume={updatedDto.Prenume}&gen={updatedDto.Gen}&nrTelefon={updatedDto.NrTelefon}&username={updatedDto.Username}'>
+                         Confirmă schimbarea email-ului
+                       </a>
+                     </mj-button>
+                     <mj-text font-size='18px' color='black'>Toate ofertele și contactul vor fi realizate pe noul email setat.</mj-text>
+                     <mj-text font-size='18px' color='black'>Vă așteptăm la cumpărături pe site-ul nostru!</mj-text>
+                     <mj-text font-size='18px' color='red' font-weight='bold'>ATENȚIE!</mj-text>
+                     <mj-text font-size='18px' color='black'>Dacă nu ați solicitat această schimbare, contactați-ne cât mai curând posibil.</mj-text>
+                     <mj-text font-size='18px' font-weight='bold'>ACEST LINK VA EXPIRA ÎNTR-O ORĂ.</mj-text>
+
+                     <mj-divider border-color='#F45E43' padding='20px 0'/>
+
+                     <mj-text font-size='22px' color='#F45E43'>EN</mj-text>
+                     <mj-text font-size='18px' color='#333333'><strong>Email Change Notification</strong></mj-text>
+                     <mj-text font-size='18px' color='black'>You have changed your account email.</mj-text>
+                     <mj-text font-size='18px' color='black'><strong>Your new email is:</strong> {updatedDto.Email}</mj-text>
+                     <mj-button color='white' background-color='black'>
+                       <a href='http://localhost:3000/user/account/changeEmail/{token}?email={updatedDto.Email}&nume={updatedDto.Nume}&prenume={updatedDto.Prenume}&gen={updatedDto.Gen}&nrTelefon={updatedDto.NrTelefon}&username={updatedDto.Username}'>
+                         Confirm Email Change
+                       </a>
+                     </mj-button>
+                     <mj-text font-size='18px' color='red' font-weight='bold'>WARNING!</mj-text>
+                     <mj-text font-size='18px' color='black'>If you did not request this change, please contact us as soon as possible.</mj-text>
+                     <mj-text font-size='18px' font-weight='bold'>THIS LINK WILL EXPIRE IN ONE HOUR.</mj-text>
+
+                  </mj-column>
+                </mj-section>
+              </mj-body>
+            </mjml>";
+
+            var convertToHtml = await _mjmlService.ConvertMjmlToHtml(mjmlTemplate);
+            
            await _emailService.SendEmailAsync(updatedDto.Email!,
                 "Schimbare email cont texx.ro / Email Change Notification from texx.ro",
-
-                // Romanian Section 🇷🇴
-                "<p style='font-size: 18px; font-weight: bold;'>Schimbare Email Cont</p>" +
-                "<p>V-ați schimbat e-mail-ul contului dumneavoastră.</p>" +
-                $"<br><p><strong>Noul email este:</strong> {updatedDto.Email}</p>" +
-                $"<p><a href='http://localhost:3000/user/account/changeEmail/{token}?email={updatedDto.Email}&nume={updatedDto.Nume}&prenume={updatedDto.Prenume}&gen={updatedDto.Gen}&nrTelefon={updatedDto.NrTelefon}&username={updatedDto.Username}'>" +
-                "Faceți click pe acest link pentru a confirma schimbarea.</a></p>" +
-                "<p>Toate ofertele și contactul vor fi realizate pe noul email setat.</p>" +
-                "<p>Vă așteptăm la cumpărături pe site-ul nostru!</p>" +
-                "<p style='color: red; font-weight: bold;'>ATENȚIE!</p>" +
-                "<p>Dacă nu ați solicitat această schimbare, contactați-ne cât mai curând posibil.</p>" +
-                "<p style='font-size: 18px; font-weight: bold;'>ACEST LINK VA EXPIRA ÎNTR-O ORĂ.</p>" +
-                "<p>Dacă expiră, vă rugăm să repetați procesul.</p>" +
-
-                "<hr style='margin: 20px 0;'/>" + // Separator between languages
-
-                // English Section 🇬🇧
-                "<p style='font-size: 18px; font-weight: bold;'>Email Change Notification</p>" +
-                "<p>You have changed your account email.</p>" +
-                $"<br><p><strong>Your new email is:</strong> {updatedDto.Email}</p>" +
-                $"<p><a href='http://localhost:3000/user/account/changeEmail/{token}?email={updatedDto.Email}&nume={updatedDto.Nume}&prenume={updatedDto.Prenume}&gen={updatedDto.Gen}&nrTelefon={updatedDto.NrTelefon}&username={updatedDto.Username}'>" +
-                "Click this link to confirm the email change.</a></p>" +
-                "<p>All offers and communication will be sent to your new email address.</p>" +
-                "<p>We look forward to seeing you on our website!</p>" +
-                "<p style='color: red; font-weight: bold;'>WARNING!</p>" +
-                "<p>If you did not request this change, please contact us as soon as possible.</p>" +
-                "<p style='font-size: 18px; font-weight: bold;'>THIS LINK WILL EXPIRE IN ONE HOUR.</p>" +
-                "<p>If it expires, please repeat the process.</p>"
+                convertToHtml!
             );
 
 
@@ -678,11 +759,65 @@ public class UserService : IUserService
 
             await conturiRepository.UpdateAsync(accountToBeUpdated);
             await _unitOfWork.CommitTransactionAsync(transaction);
+            
+            
+            var url = await _bucketAcces.GenerateUrl("LogoTexx.png" , null);
+            var insertLogo = url != null
+                ? $"<mj-section>\n" +
+                  $" <mj-column>\n" +
+                  $"   <mj-image width=\"100px\" src=\"{url}\" alt=\"Company Logo\"/>\n" +
+                  $" </mj-column>\n" +
+                  $"</mj-section>"
+                : "";
+            
+            var mjmlTemplate = $@"
+            <mjml>
+              <mj-body>
+                {insertLogo}
+                <mj-section>
+                  <mj-column>
+                    <mj-text font-size='18px' color='#F45E43' font-family='helvetica' align='center'>
+                      Resetare Parolă / Password Reset
+                    </mj-text>
+                    <mj-spacer></mj-spacer>
+                  </mj-column>
+                  <mj-column background-color='#a8a8a8' border-radius='20px' padding='20px' width='100%'>
+                     <mj-text font-size='22px' color='#F45E43'>RO</mj-text>
+                     <mj-text font-size='18px' color='#333333'>
+                       <strong>Ați solicitat o resetare a parolei.</strong>
+                     </mj-text>
+                     <mj-text font-size='18px' color='blue'>
+                       Dacă nu ați solicitat resetarea parolei sau nu recunoașteți acest e-mail, NU dați click pe nimic! Contactați-ne la <strong>texx@yahoo.com</strong>
+                     </mj-text>
+                     <mj-text font-size='18px' color='#333333'>
+                       Dați click pe acest buton pentru a vă reseta parola. Linkul expiră într-o oră!
+                     </mj-text>
+                     <mj-button color='white' background-color='black'>
+                       <a href='http://localhost:3000/user/forgotpassword/{resetToken}'>RESETARE PAROLĂ</a>
+                     </mj-button>
+                     <mj-text font-size='22px' color='#F45E43'>EN</mj-text>
+                     <mj-text font-size='18px' color='#333333'>
+                       <strong>You have requested a password reset.</strong>
+                     </mj-text>
+                     <mj-text font-size='18px' color='blue'>
+                       If you did not request this reset, do not click ANYTHING! Contact us as soon as possible at <strong>texx@yahoo.com</strong>
+                     </mj-text>
+                     <mj-text font-size='18px' color='#333333'>
+                       Click on the button below to reset your password. The link expires in one hour!
+                     </mj-text>
+                     <mj-button color='white' background-color='black'>
+                       <a href='http://localhost:3000/en/user/forgotpassword/{resetToken}'>RESET PASSWORD</a>
+                     </mj-button>
+                  </mj-column>
+                </mj-section>
+              </mj-body>
+            </mjml>";
 
-            await _emailService.SendEmailAsync(accountToBeUpdated.Email!, "Resetare parola de la texx.ro",
-                $"<a href='http://localhost:3000/user/forgotpassword/{resetToken}'>" +
-                "Dati click pe acest link pentru a va reseta parola.</a>" +
-                "<br/>Linkul va expira intr-o ora!");
+            var convertToHtml = await _mjmlService.ConvertMjmlToHtml(mjmlTemplate);
+
+
+            await _emailService.SendEmailAsync(accountToBeUpdated.Email!, "Resetare parola / Password reset",
+                convertToHtml!);
 
         }
         catch (DbUpdateException e)
@@ -801,7 +936,7 @@ public class UserService : IUserService
                 throw new DbUpdateException("No user with this token in the database");
             }
 
-            string newToken = UserHelpers.Token(Size, Size2, currentUser.Email!);
+            var newToken = UserHelpers.Token(Size, Size2, currentUser.Email!);
             currentUser.CodActivare = newToken;
 
             DateTime currentDateTime = DateTime.UtcNow;
@@ -811,13 +946,71 @@ public class UserService : IUserService
 
             await conturiRepository.UpdateAsync(currentUser);
             await _unitOfWork.CommitTransactionAsync(transaction);
+            
+            var url = await _bucketAcces.GenerateUrl("LogoTexx.png" , null);
+            var insertLogo = url != null
+                ? $"<mj-section>\n" +
+                  $" <mj-column>\n" +
+                  $"   <mj-image width=\"100px\" alt=\"Company Logo\"/>\n" +
+                  $" </mj-column>\n" +
+                  $"</mj-section>"
+                : "";
+            
+            
 
-            await _emailService.SendEmailAsync(currentUser.Email!, "New confirmation link from texx.ro",
-                $"<a href='http://localhost:3000/user/confirmare/{token}'>"
-                + "Noul cod de reactivare.Da click pe acest link pentru a-ti activa contul</a>" +
-                "<br><p>Acest mail va expira intr-o ora!</p>" +
-                "<p>In caz de expirare ," +
-                "Aveti optiunea de a-l retrimite.</p>");
+            var mjmlTemplate = $"<mjml>\n" +
+                               $"  <mj-body>\n  " +
+                               $"{insertLogo}" +
+                               $"  <mj-section>\n   " +
+                               $"   <mj-column>\n      " +
+                               $"  <mj-text font-size=\"18px\" color=\"#F45E43\" font-family=\"helvetica\" align=\"center\">Confirmare cont / Account confirmation</mj-text>\n       " +
+                               $" <mj-spacer></mj-spacer>\n " +
+                               $"     </mj-column>\n" +
+                               $"      <mj-column background-color=\"#a8a8a8\" border-radius=\"20px\" padding=\"20px\" width=\"100%\">\n " +
+                               $"        <mj-text font-size=\"22px\" color=\"#F45E43\">\n " +
+                               $"         RO\n" +
+                               $"        </mj-text>\n " +
+                               $"        <mj-text font-size=\"18px\" color=\"#333333\">\n " +
+                               $"         Acest mail expira intr-o ora!\n" +
+                               $"        </mj-text>\n " +
+                               $"       <mj-text font-size=\"18px\" color=\"#333333\">\n  " +
+                               $"        <strong>Ati solicitat o noua confirmare a contului.</strong>\n" +
+                               $"        </mj-text>\n        <mj-text font-size=\"18px\" color=\"blue\">\n" +
+                               $"          In cazul in care nu ati fost dvs. sau nu recunoasteti acest mail, NU dati click pe nimic! Contacti-ne in cel mai scurt timp la <strong >texx@yahoo.com</strong>\n" +
+                               $"        </mj-text>\n" +
+                               $"       \t<mj-text font-size=\"18px\" color=\"#333333\">\n" +
+                               $"          Noul cod de reactivare. Da click pe acest link pentru a-ti activa contul\n" +
+                               $"         </mj-text>\n" +
+                               $"          <mj-button color=\"white\" background-color=\"black\">\n" +
+                               $"           <a href=\"http://localhost:3000/user/confirmare/{newToken}\">CLICK</a>\n" +
+                               $"        </mj-button>\n" +
+                               $"         <mj-text font-size=\"22px\" color=\"#F45E43\">\n" +
+                               $"          EN\n " +
+                               $"       </mj-text>\n   " +
+                               $"        <mj-text font-size=\"18px\" color=\"#333333\">\n " +
+                               $"        This mail expires in 1 hour!\n" +
+                               $"        </mj-text>\n " +
+                               $"     <mj-text font-size=\"18px\" color=\"#333333\">\n " +
+                               $"         <strong>New confirmation request to activate account.</strong>\n  " +
+                               $"      </mj-text>\n  " +
+                               $"      <mj-text font-size=\"18px\" color=\"blue\">\n " +
+                               $"         If you did not request this confirmation , do not click ANYTHING! Contact us as fast as possible at <strong >texx@yahoo.com</strong>\n  " +
+                               $"      </mj-text>\n " +
+                               $"      \t<mj-text font-size=\"18px\" color=\"#333333\">\n " +
+                               $"         New reactivation code. Click on the button\n " +
+                               $"        </mj-text>\n" +
+                               $"          <mj-button color=\"white\" background-color=\"black\">\n " +
+                               $"          <a href=\"http://localhost:3000/en/user/confirmare/{newToken}\">CLICK</a>\n" +
+                               $"        </mj-button>\n\n" +
+                               $"      </mj-column>\n" +
+                               $"    </mj-section>\n" +
+                               $"  </mj-body>\n" +
+                               $"</mjml>";
+
+            var convertToHtml = await _mjmlService.ConvertMjmlToHtml(mjmlTemplate);
+            
+            await _emailService.SendEmailAsync(currentUser.Email!, "Link nou de confirmare / New confirmation link",
+                convertToHtml!);
 
             return 1;
         }

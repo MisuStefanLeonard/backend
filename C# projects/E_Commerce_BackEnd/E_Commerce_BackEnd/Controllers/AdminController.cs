@@ -10,8 +10,8 @@ using E_Commerce_BackEnd.Models.DTO.ProduseDtos.TipuriLinieDtos;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.VouchereDtos;
 using E_Commerce_BackEnd.Models.Enums;
 using E_Commerce_BackEnd.Services.Helpers.adminHelpers;
+using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
 using E_Commerce_BackEnd.Services.uAdminService;
-using E_Commerce_BackEnd.Services.uBucketService;
 using E_Commerce_BackEnd.Services.uGeneralService;
 using E_Commerce_BackEnd.Services.uInelePrindereService;
 using E_Commerce_BackEnd.Services.uManopereService;
@@ -44,7 +44,8 @@ namespace E_Commerce_BackEnd.Controllers
         private readonly IVoucherService _voucherService;
         private readonly IUserService _userService;
         private readonly DocumentProcessing _documentProcessing;
-        private readonly IBucketService _bucketService;
+      
+        private readonly IBucketAcces _bucketAcces;
         private readonly IManopereService _manopereService;
         private readonly IGeneralSettingsService _generalSettingsService;
         private readonly SqidsEncoder<int> _sqidsEncoder;
@@ -53,7 +54,7 @@ namespace E_Commerce_BackEnd.Controllers
             , DocumentProcessing documentProcessing, IProductService productService, ISeturiService seturiService, 
              SqidsEncoder<int> sqidsEncoder, 
             IInelePrindereService inelePrindereService, ITipuriGalerieService tipuriGalerieService, 
-            ITipuriLinieService tipuriLinieService, IUserService userService, IVoucherService voucherService, IBucketService bucketService, IManopereService manopereService, IGeneralSettingsService generalSettingsService)
+            ITipuriLinieService tipuriLinieService, IUserService userService, IVoucherService voucherService, IManopereService manopereService, IGeneralSettingsService generalSettingsService, IBucketAcces bucketAcces)
         {
             _adminService = adminService;
             _documentProcessing = documentProcessing;
@@ -65,9 +66,10 @@ namespace E_Commerce_BackEnd.Controllers
             _tipuriLinieService = tipuriLinieService;
             _userService = userService;
             _voucherService = voucherService;
-            _bucketService = bucketService;
+          
             _manopereService = manopereService;
             _generalSettingsService = generalSettingsService;
+            _bucketAcces = bucketAcces;
         }
 
        
@@ -1236,24 +1238,16 @@ namespace E_Commerce_BackEnd.Controllers
         [Authorize]
         public async Task<IActionResult> GetExcelFile()
         {
-            var fileStream = await _bucketService.DownloadFile("produseExcelExample.xlsx");
+            var fileStream = await _bucketAcces.DownloadFile("example/example.xlsx");
 
-            if (fileStream is null)
+            if (fileStream == null)
             {
-                return NotFound("Error on downloading file");
+                return NotFound("Error downloading file");
             }
-            
-            if (fileStream.CanSeek)
-            {
-                fileStream.Position = 0; 
-            }
+           
+            return File(fileStream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 
-            var fileStreamResult = new FileStreamResult(fileStream,
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-            // de modificat metoda de procesat excel in asa fel incat perdele sa fie tratate ca materiale!
-            return fileStreamResult;
             
-
         }
 
         [HttpPut("customer/data/update")]

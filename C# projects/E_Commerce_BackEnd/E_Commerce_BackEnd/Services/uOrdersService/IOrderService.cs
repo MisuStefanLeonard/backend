@@ -7,5 +7,5 @@ public interface IOrderService
 {
     public Task<IList<ClientOrder>> GetClientOrders(int accountId,string currency = "RON");
     public Task<KeyValuePair<int , string>> PlaceOrder(int? accountId, Guid sessionId, PlaceOrderDto orderToBePlaced,string currency = "RON");
-   
+    public Task<int> ConfirmPage(string confirmationId, int orderId);
 }

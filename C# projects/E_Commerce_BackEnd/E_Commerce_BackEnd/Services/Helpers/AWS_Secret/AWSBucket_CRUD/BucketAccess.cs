@@ -252,54 +252,16 @@ public class BucketAccess : IBucketAcces
        
     }
 
-    // public async Task<string?> GenerateUrl(string imagePath, string bucketDir)
-    // {
-    //     try
-    //     {
-    //         var key = DirectoryPrefix + bucketDir + "/" + imagePath;
-    //         var cacheKey = $"presignedUrl_{key}";
-    //         
-    //         if (_cache.TryGetValue(cacheKey, out string? cachedUrl))
-    //         {
-    //             return cachedUrl;
-    //         }
-    //         var responseIfExists = await DirectoryExists(key);
-    //
-    //         if (responseIfExists)
-    //         {
-    //             var request = new GetPreSignedUrlRequest
-    //             {
-    //                 BucketName = BucketName,
-    //                 Key = key,
-    //                 Expires = DateTime.UtcNow.AddHours(12)
-    //             };
-    //
-    //             var imgUrl = await AmazonS3Client.GetPreSignedURLAsync(request);
-    //             
-    //             _cache.Set(cacheKey, imgUrl, TimeSpan.FromHours(12));
-    //             return imgUrl;
-    //         }
-    //         else
-    //         {
-    //             throw new AmazonS3Exception("The path of the image in the bucket is not correct");
-    //         }
-    //        
-    //     }
-    //     catch (AmazonS3Exception e)
-    //     {
-    //       _logger.LogInformation($"Error when trying to generate preSignedUrl in {BucketName} with file {imagePath}");
-    //       Console.WriteLine(e.Message);
-    //       return null;
-    //     }
-    // }
     
-    public async Task<string?> GenerateUrl(string imagePath, string bucketDir)
+    
+    public async Task<string?> GenerateUrl(string imagePath, string? bucketDir)
     {
         try
         {
             // Construct the CloudFront URL directly
             await Task.Delay(1);
-            var cloudFrontUrl = $"{_cloudFontDomain}/images/{bucketDir}/{imagePath}";
+            var cloudFrontUrl = bucketDir == null ? $"{_cloudFontDomain}/images/{imagePath}" : $"{_cloudFontDomain}/images/{bucketDir}/{imagePath}";
+
             return cloudFrontUrl;
         }
         catch (AmazonS3Exception e)
@@ -319,11 +281,15 @@ public class BucketAccess : IBucketAcces
             var getFile = new GetObjectRequest
             {
                 BucketName = BucketName,
-                Key = s3Key
+                Key = s3Key,
             };
             var response = await AmazonS3Client.GetObjectAsync(getFile);
-            return response.ResponseStream;
-            
+            var memoryStream = new MemoryStream();
+            await response.ResponseStream.CopyToAsync(memoryStream);
+            _logger.LogInformation(memoryStream.Length.ToString());
+            memoryStream.Position = 0;
+            return memoryStream;
+
         }
         catch (AmazonS3Exception e)
         {

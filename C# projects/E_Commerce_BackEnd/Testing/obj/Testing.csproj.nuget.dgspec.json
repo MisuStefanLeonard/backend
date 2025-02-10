@@ -186,6 +186,10 @@
               "target": "Package",
               "version": "[1.0.17, )"
             },
+            "RestSharp": {
+              "target": "Package",
+              "version": "[112.1.1-alpha.0.4, )"
+            },
             "Sqids": {
               "target": "Package",
               "version": "[3.1.0, )"

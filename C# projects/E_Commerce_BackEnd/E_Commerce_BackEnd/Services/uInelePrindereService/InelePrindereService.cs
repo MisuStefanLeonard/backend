@@ -17,14 +17,15 @@ public class InelePrindereService : IInelePrindereService
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<InelePrindereService> _logger;
     private readonly IMapper _mapper;
-    private readonly IBucketService _bucketService;
+    private readonly IBucketAcces _bucketAcces;
 
-    public InelePrindereService(IUnitOfWork unitOfWork, ILogger<InelePrindereService> logger, IMapper mapper, IBucketService bucketService, IBucketAcces bucketAcces)
+    public InelePrindereService(IUnitOfWork unitOfWork, ILogger<InelePrindereService> logger, IMapper mapper, IBucketAcces bucketAcces)
     {
         _unitOfWork = unitOfWork;
         _logger = logger;
         _mapper = mapper;
-        _bucketService = bucketService;
+        
+        _bucketAcces = bucketAcces;
     }
 
     public async Task<IList<IneleDisplayDto>?> GetAllInelePrindere()
@@ -71,7 +72,7 @@ public class InelePrindereService : IInelePrindereService
 
         if (inelToReturn.CaleRelativa is not null)
         {
-            var presignedUrl = await _bucketService.GeneratePresignedUrl(inelToReturn.CaleRelativa, "inele_prindere");
+            var presignedUrl = await _bucketAcces.GenerateUrl(inelToReturn.CaleRelativa, "inele_prindere");
             if (presignedUrl is not null)
             {
                 url = presignedUrl;
@@ -113,8 +114,8 @@ public class InelePrindereService : IInelePrindereService
 
             if (inelToBeDeleted.CaleRelativa is not null)
             {
-               
-                await _bucketService.DeleteImageFromBucket($"{inelToBeDeleted.CaleRelativa}" , "inele_prindere");
+                await _bucketAcces.DeleteFromBucket($"images/inele_prindere/{inelToBeDeleted.CaleRelativa}");
+                // await _bucketService.DeleteImageFromBucket($"{inelToBeDeleted.CaleRelativa}" , "inele_prindere");
                 
                 _logger.LogInformation("Succesfully deleted the image associated with the current inel prindere");
                 
@@ -174,7 +175,9 @@ public class InelePrindereService : IInelePrindereService
 
             if (imageToDeleteOnInel.CaleRelativa is not null)
             {
-                await _bucketService.DeleteImageFromBucket($"{imageToDeleteOnInel.CaleRelativa}" , "inele_prindere");
+                await _bucketAcces.DeleteFromBucket($"images/inele_prindere/{imageToDeleteOnInel.CaleRelativa}");
+
+                // await _bucketService.DeleteImageFromBucket($"{imageToDeleteOnInel.CaleRelativa}" , "inele_prindere");
                 
                 _logger.LogInformation("Succesfully deleted the image associated with the current inel prindere");
                 
@@ -254,7 +257,9 @@ public class InelePrindereService : IInelePrindereService
                 {
                     if (item.CaleRelativa is not null)
                     {
-                        await _bucketService.DeleteImageFromBucket($"{item.CaleRelativa}", "inele_prindere");
+                        // await _bucketService.DeleteImageFromBucket($"{item.CaleRelativa}", "inele_prindere");
+                        await _bucketAcces.DeleteFromBucket($"images/inele_prindere/{item.CaleRelativa}");
+
                     
                     }
                     else
@@ -272,7 +277,8 @@ public class InelePrindereService : IInelePrindereService
                 {
                     if (item.CaleRelativa is not null)
                     {
-                        await _bucketService.DeleteImageFromBucket($"{item.CaleRelativa}", "inele_prindere");
+                        // await _bucketService.DeleteImageFromBucket($"{item.CaleRelativa}", "inele_prindere");
+                        await _bucketAcces.DeleteFromBucket($"images/inele_prindere/{item.CaleRelativa}");
                         item.CaleRelativa = null;
                         item.IsDeleted = true;
                     }
@@ -327,7 +333,15 @@ public class InelePrindereService : IInelePrindereService
                     CaleRelativa = ineleDto.CaleRelativa
                 };
 
-                await _bucketService.UploadImageToBucket(image, newInel.CaleRelativa, "inele_prindere");
+                if (image != null && !string.IsNullOrEmpty(newInel.CaleRelativa))
+                {
+                    using var imageStream = new MemoryStream();
+                    await image[0].CopyToAsync(imageStream);
+                    imageStream.Position = 0;
+                    await _bucketAcces.AddOrUpdateToBucket(imageStream, "inele_prindere", newInel.CaleRelativa);
+                }
+                
+                // await _bucketService.UploadImageToBucket(image, newInel.CaleRelativa, "inele_prindere");
                 await inelePrindereRepository.AddAsync(newInel);
             }
             else
@@ -356,7 +370,9 @@ public class InelePrindereService : IInelePrindereService
                     {
                         if (oldImageName is not null)
                         {
-                            await _bucketService.DeleteImageFromBucket(oldImageName, "inele_prindere");
+                            // await _bucketService.DeleteImageFromBucket(oldImageName, "inele_prindere");
+                            await _bucketAcces.DeleteFromBucket($"images/inele_prindere/{ineleDto.CaleRelativa}");
+
                         }
                       
                     }
@@ -365,12 +381,24 @@ public class InelePrindereService : IInelePrindereService
                         // Replace the image
                         if (oldImageName is not null)
                         {
-                            await _bucketService.DeleteImageFromBucket(oldImageName, "inele_prindere");
-                            await _bucketService.UploadImageToBucket(image, image[0].FileName, "inele_prindere");
+                            // await _bucketService.DeleteImageFromBucket(oldImageName, "inele_prindere");
+                            if (!string.IsNullOrEmpty(inelToBeModified.CaleRelativa))
+                            {
+                                using var imageStream = new MemoryStream();
+                                await image[0].CopyToAsync(imageStream);
+                                imageStream.Position = 0;
+                                await _bucketAcces.AddOrUpdateToBucket(imageStream, "inele_prindere", inelToBeModified.CaleRelativa);
+                            }
                         }
                         else
                         {
-                            await _bucketService.UploadImageToBucket(image, image[0].FileName, "inele_prindere");
+                            if (!string.IsNullOrEmpty(inelToBeModified.CaleRelativa))
+                            {
+                                using var imageStream = new MemoryStream();
+                                await image[0].CopyToAsync(imageStream);
+                                imageStream.Position = 0;
+                                await _bucketAcces.AddOrUpdateToBucket(imageStream, "inele_prindere", inelToBeModified.CaleRelativa);
+                            }
                         }
                     }
                 }else if (oldImageName is null  && oldImageName == ineleDto.CaleRelativa)

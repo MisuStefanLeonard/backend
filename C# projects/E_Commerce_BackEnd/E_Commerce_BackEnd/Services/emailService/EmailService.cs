@@ -1,3 +1,4 @@
+using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
 using MimeKit;
 using MailKit.Net.Smtp;
 using Microsoft.Extensions.Options;
@@ -7,9 +8,10 @@ namespace E_Commerce_BackEnd.Services.emailService;
 public class EmailService : IEmailService
 {
     private readonly EmailSettings _emailSettings;
-
-    public EmailService(IOptions<EmailSettings> emailSettings)
+    private readonly IBucketAcces _bucketAcces;
+    public EmailService(IOptions<EmailSettings> emailSettings, IBucketAcces bucketAcces)
     {
+        _bucketAcces = bucketAcces;
         _emailSettings = emailSettings.Value;
     }
 
@@ -22,12 +24,8 @@ public class EmailService : IEmailService
     
     public async Task SendEmailAsync(string toEmail, string subject, string body)
     {
-        var email = new MimeMessage();
-        Console.WriteLine("IN SENDEMAILASYNC");
-        Console.WriteLine("IN SENDEMAILASYNC");
-        Console.WriteLine("IN SENDEMAILASYNC");
-        Console.WriteLine("IN SENDEMAILASYNC");
-        Console.WriteLine(_emailSettings.SenderEmail);
+        using var email = new MimeMessage();
+        
         email.From.Add(new MailboxAddress( _emailSettings.SenderName, _emailSettings.SenderEmail));
         email.To.Add(new MailboxAddress(toEmail,toEmail));
         email.Subject = subject;

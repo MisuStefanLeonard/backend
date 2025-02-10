@@ -5,6 +5,7 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
       <UserSecretsId>fd677b8d-0428-4acf-907c-94c2f5e0bb2f</UserSecretsId>
+      <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
   </PropertyGroup>
 
     <ItemGroup>
@@ -50,6 +51,7 @@
         <PackageReference Include="Quartz.Extensions.Hosting" Version="3.13.1" />
         <PackageReference Include="Quartz.Serialization.SystemTextJson" Version="3.13.1" />
         <PackageReference Include="RandomDataGenerator.Net" Version="1.0.17" />
+        <PackageReference Include="RestSharp" Version="112.1.1-alpha.0.4" />
         <PackageReference Include="Sqids" Version="3.1.0" />
         <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
         <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.0-preview1" />
@@ -62,6 +64,12 @@
     <ItemGroup>
       <Compile Remove="Controllers\WeatherForecastController.cs" />
       <Compile Remove="WeatherForecast.cs" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Content Include="..\.dockerignore">
+        <Link>.dockerignore</Link>
+      </Content>
     </ItemGroup>
 
 </Project>

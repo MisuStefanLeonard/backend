@@ -14,8 +14,9 @@ using E_Commerce_BackEnd.Models.ProductRelatedModels;
 using E_Commerce_BackEnd.Models.UserRelatedModels;
 using E_Commerce_BackEnd.Services.emailService;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret;
-
+using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
 using E_Commerce_BackEnd.Services.uBucketService;
+using E_Commerce_BackEnd.Services.uMJMLService;
 using E_Commerce_BackEnd.UnitOfWork;
 using Google.Analytics.Data.V1Beta;
 using Google.Apis.Auth.OAuth2;
@@ -34,18 +35,20 @@ public partial class AdminService : IAdminService
     private readonly ILogger<AdminService> _logger;
     private readonly IEmailService _emailService;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IBucketService _bucketService;
+    private readonly IBucketAcces _bucketAcces;
+    private readonly IMjmlService _mjmlService;
     private readonly IMapper _mapper;
     private readonly IMemoryCache _cache;
 
-    public AdminService(ILogger<AdminService> logger, IUnitOfWork unitOfWork,IBucketService bucketAcces, IMapper mapper, IEmailService emailService, IMemoryCache cache)
+    public AdminService(ILogger<AdminService> logger, IUnitOfWork unitOfWork, IMapper mapper, IEmailService emailService, IMemoryCache cache, IBucketAcces bucketAcces1, IMjmlService mjmlService)
     {
         _logger = logger;
         _unitOfWork = unitOfWork;
-        _bucketService = bucketAcces;
         _mapper = mapper;
         _emailService = emailService;
         _cache = cache;
+        _bucketAcces = bucketAcces1;
+        _mjmlService = mjmlService;
     }
 
     public async Task<int> AdminLogIn(string key)
@@ -227,34 +230,103 @@ public partial class AdminService : IAdminService
                     // de vazut de ce se updateaza si verificait si  ora linkului de confirmare nu se updateaza?
                     
                     var changeRequestId = Guid.NewGuid();
+                    
+                    var url = await _bucketAcces.GenerateUrl("LogoTexx.png" , null);
+                    var insertLogo = url != null
+                        ? $"<mj-section>\n" +
+                          $" <mj-column>\n" +
+                          $"   <mj-image width=\"100px\" src=\"{url}\" alt=\"Company Logo\"/>\n" +
+                          $" </mj-column>\n" +
+                          $"</mj-section>"
+                        : "";
+
+                    var mjmlTemaplte = $@"<mjml>
+                      <mj-body>
+
+                        {insertLogo}
+
+                        <mj-section>
+                          <mj-column>
+                            <mj-text font-size=""18px"" color=""#F45E43"" font-family=""helvetica"" align=""center"">
+                              Schimbare Email / Email Change Notification
+                            </mj-text>
+                            <mj-spacer></mj-spacer>
+                          </mj-column>
+                          <mj-column background-color=""#a8a8a8"" border-radius=""20px"" padding=""20px"" width=""100%"">
+
+                           
+                            <mj-text font-size=""22px"" color=""#F45E43"">RO</mj-text>
+                            <mj-text font-size=""18px"" color=""#333333"">
+                              <strong>Schimbare Email</strong>
+                            </mj-text>
+                            <mj-text font-size=""16px"" color=""black"">
+                              Email-ul dumneavoastră a fost schimbat de către admin.
+                            </mj-text>
+                            <mj-text font-size=""16px"" color=""black"">
+                              Dacă nu dumneavoastră ați solicitat această schimbare,
+                              <span style=""color: red; font-weight: bold;"">NU</span> intrați pe acest link și contactați-ne rapid la 
+                              <a href=""mailto:office@texx.ro"">office@texx.ro</a>.
+                            </mj-text>
+                            <mj-text font-size=""16px"" color=""black"">
+                              Dacă dumneavoastră ați avut contact cu administratorul, intrați pe acest link pentru schimbarea email-ului:
+                            </mj-text>
+                            <mj-button color=""white"" background-color=""black"">
+                              <a href=""http://localhost:3000/user/admin/emailChanged?changeRequestId={{changeRequestId}}"">
+                                Confirmă Schimbarea Email-ului
+                              </a>
+                            </mj-button>
+                            <mj-text font-size=""24px"" font-weight=""bold"" color=""black"">
+                              ACEST LINK VA EXPIRA ÎNTR-O ORĂ.
+                            </mj-text>
+                            <mj-text font-size=""16px"" color=""black"">
+                              texx.ro vă dorește o zi bună în continuare!
+                            </mj-text>
+
+                            <!-- Separator -->
+                            <mj-divider border-color=""#F45E43"" padding=""20px 0""/>
+
+                         
+                            <mj-text font-size=""22px"" color=""#F45E43"">EN</mj-text>
+                            <mj-text font-size=""18px"" color=""#333333"">
+                              <strong>Email Change Notification</strong>
+                            </mj-text>
+                            <mj-text font-size=""16px"" color=""black"">
+                              Your email has been changed by an administrator.
+                            </mj-text>
+                            <mj-text font-size=""16px"" color=""black"">
+                              If you did not request this change,
+                              <span style=""color: red; font-weight: bold;"">DO NOT</span> click on this link and contact us immediately at 
+                              <a href=""mailto:office@texx.ro"">office@texx.ro</a>.
+                            </mj-text>
+                            <mj-text font-size=""16px"" color=""black"">
+                              If you have been in contact with the administrator, click on this link to confirm your email change:
+                            </mj-text>
+                            <mj-button color=""white"" background-color=""black"">
+                              <a href=""http://localhost:3000/user/admin/emailChanged?changeRequestId={{changeRequestId}}"">
+                                Confirm Email Change
+                              </a>
+                            </mj-button>
+                            <mj-text font-size=""24px"" font-weight=""bold"" color=""black"">
+                              THIS LINK WILL EXPIRE IN ONE HOUR.
+                            </mj-text>
+                            <mj-text font-size=""16px"" color=""black"">
+                              texx.ro wishes you a great day!
+                            </mj-text>
+
+                          </mj-column>
+                        </mj-section>
+                      </mj-body>
+                    </mjml>
+                    ";
+
+                    var convertToHtml = await _mjmlService.ConvertMjmlToHtml(mjmlTemaplte);
+                    
+                    
                     await _emailService.SendEmailAsync(
                             updatedData.EmailDto!,
                             "Schimbare Email / Email Change Notification",
                             // Romanian Section 🇷🇴
-                            "<p style='font-size: 18px; font-weight: bold;'>Schimbare Email</p>" +
-                            "<p style='font-size: 16px;'>Email-ul dumneavoastră a fost schimbat de către admin.</p>" +
-                            "<p style='font-size: 16px;'>Dacă nu dumneavoastră ați solicitat această schimbare, " +
-                            "<span style='color: red; font-weight: bold;'>NU</span> intrați pe acest link și contactați-ne rapid la " +
-                            "<a href='mailto:office@texx.ro'>office@texx.ro</a>.</p>" +
-                            "<p style='font-size: 16px;'>Dacă dumneavoastră ați avut contact cu administratorul, intrați pe acest link pentru schimbarea email-ului:</p>" +
-                            $"<a href='http://localhost:3000/user/admin/emailChanged?changeRequestId={changeRequestId}'>LINK</a>" +
-                            "<br/><br/>" +
-                            "<p style='font-size: 24px; font-weight: bold;'>ACEST LINK VA EXPIRA ÎNTR-O ORĂ.</p>" +
-                            "<p style='font-size: 16px;'>texx.ro vă dorește o zi bună în continuare!</p>" +
-
-                            "<hr style='margin: 20px 0;'/>" + // Separator between languages
-
-                            // English Section 🇬🇧
-                            "<p style='font-size: 18px; font-weight: bold;'>Email Change Notification</p>" +
-                            "<p style='font-size: 16px;'>Your email has been changed by an administrator.</p>" +
-                            "<p style='font-size: 16px;'>If you did not request this change, " +
-                            "<span style='color: red; font-weight: bold;'>DO NOT</span> click on this link and contact us immediately at " +
-                            "<a href='mailto:office@texx.ro'>office@texx.ro</a>.</p>" +
-                            "<p style='font-size: 16px;'>If you have been in contact with the administrator, click on this link to confirm your email change:</p>" +
-                            $"<a href='http://localhost:3000/user/admin/emailChanged?changeRequestId={changeRequestId}'>LINK</a>" +
-                            "<br/><br/>" +
-                            "<p style='font-size: 24px; font-weight: bold;'>THIS LINK WILL EXPIRE IN ONE HOUR.</p>" +
-                            "<p style='font-size: 16px;'>texx.ro wishes you a great day!</p>"
+                            convertToHtml!
                         );
                     _mapper.Map(updatedData, userToBeModified);
                     userToBeModified.Verificat = false;
@@ -1000,7 +1072,7 @@ public async Task<GaDashboardDto> GetGoogleAnalyticsData(string? lowerInterval ,
 
 private async Task<string?> GetPresignedUrlFromBucket(string imagePath, string dirInBucket)
     {
-        var url = await _bucketService.GeneratePresignedUrl(imagePath, dirInBucket);
+        var url = await _bucketAcces.GenerateUrl(imagePath, dirInBucket);
         return url;
     }
 

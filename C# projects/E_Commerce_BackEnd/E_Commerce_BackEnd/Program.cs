@@ -26,6 +26,7 @@ using E_Commerce_BackEnd.Services.uBucketService;
 using E_Commerce_BackEnd.Services.uGeneralService;
 using E_Commerce_BackEnd.Services.uInelePrindereService;
 using E_Commerce_BackEnd.Services.uManopereService;
+using E_Commerce_BackEnd.Services.uMJMLService;
 using E_Commerce_BackEnd.Services.uOrdersService;
 using E_Commerce_BackEnd.Services.uProductsService;
 using E_Commerce_BackEnd.Services.uReviewService;
@@ -85,6 +86,7 @@ builder.Services.AddQuartz(q =>
 
     var cartCleanUpJobKey = JobKey.Create("cart-clean-up-job", "cart");
     var sessionTokenCleanUpJobKey = JobKey.Create("session-token-clean-up-job", "session-tokens");
+    var unlockingProductsKey = JobKey.Create("unlocking-locked-products" , "products-job");
 
     q.AddJob<CartCleanUp>(cartCleanUpJobKey)
         .AddTrigger(trigger =>
@@ -107,7 +109,17 @@ builder.Services.AddQuartz(q =>
             //  Every 12 hours
                 
         });
-
+    q.AddJob<UnlockProductsInCaseOfError>(unlockingProductsKey)
+        .AddTrigger(trigger =>
+        {
+            trigger.ForJob(unlockingProductsKey)
+                .WithIdentity("unlocking-products-trig", "products-trigs")
+                .WithCronSchedule("0 4 0 * * ?")
+                .StartNow();
+            //  Every 12 hours
+                
+        });
+  
 });
 
 builder.Services.AddQuartzHostedService(opt =>
@@ -151,6 +163,7 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // Service layer
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+builder.Services.AddScoped<IMjmlService, MjmlService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAdressService, AdressService>();

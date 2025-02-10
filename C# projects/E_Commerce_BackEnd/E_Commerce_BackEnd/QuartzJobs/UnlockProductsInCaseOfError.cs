@@ -6,7 +6,7 @@ using Quartz;
 
 namespace E_Commerce_BackEnd.QuartzJobs;
 
-public class UnlockProductsInCaseOfError
+public sealed class UnlockProductsInCaseOfError : IJob
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<SessionTokenCleanUp> _logger;

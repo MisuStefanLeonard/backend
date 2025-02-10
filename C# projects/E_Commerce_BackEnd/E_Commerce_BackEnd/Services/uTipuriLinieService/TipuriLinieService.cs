@@ -3,6 +3,7 @@ using E_Commerce_BackEnd.CustomExceptions;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.BulkOperationsDto;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.TipuriLinieDtos;
 using E_Commerce_BackEnd.Models.ProductRelatedModels;
+using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
 using E_Commerce_BackEnd.Services.uBucketService;
 using E_Commerce_BackEnd.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
@@ -16,14 +17,14 @@ public class TipuriLinieService : ITipuriLinieService
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<TipuriLinieService> _logger;
     private readonly IMapper _mapper;
-    private readonly IBucketService _bucketService;
+    private readonly IBucketAcces _bucketAcces;
 
-    public TipuriLinieService(IUnitOfWork unitOfWork, ILogger<TipuriLinieService> logger, IMapper mapper, IBucketService bucketService)
+    public TipuriLinieService(IUnitOfWork unitOfWork, ILogger<TipuriLinieService> logger, IMapper mapper, IBucketAcces bucketAcces)
     {
         _unitOfWork = unitOfWork;
         _logger = logger;
         _mapper = mapper;
-        _bucketService = bucketService;
+        _bucketAcces = bucketAcces;
     }
 
     public async Task<IList<TipuriLinieDisplayDto>?> GetAllTipuriLinie()
@@ -69,7 +70,7 @@ public class TipuriLinieService : ITipuriLinieService
 
         if (tipLinieToReturn.CaleRelativa is not null)
         {
-            var presignedUrl = await _bucketService.GeneratePresignedUrl(tipLinieToReturn.CaleRelativa, "tipuri_linie");
+            var presignedUrl = await _bucketAcces.GenerateUrl(tipLinieToReturn.CaleRelativa, "tipuri_linie");
             if (presignedUrl is not null)
             {
                 url = presignedUrl;
@@ -111,7 +112,8 @@ public class TipuriLinieService : ITipuriLinieService
 
             if (tipLinieToBeDeleted.CaleRelativa is not null)
             {
-                await _bucketService.DeleteImageFromBucket($"{tipLinieToBeDeleted.CaleRelativa}" , "tipuri_linie");
+                await _bucketAcces.DeleteFromBucket($"images/tipuri_linie/{tipLinieToBeDeleted.CaleRelativa}");
+                // await _bucketService.DeleteImageFromBucket($"{tipLinieToBeDeleted.CaleRelativa}" , "tipuri_linie");
                 
                 _logger.LogInformation("Succesfully deleted the image associated with the current tip linie");
                 
@@ -170,7 +172,8 @@ public class TipuriLinieService : ITipuriLinieService
 
             if (imageToDeleteOnTipLinie.CaleRelativa is not null)
             {
-                await _bucketService.DeleteImageFromBucket($"{imageToDeleteOnTipLinie.CaleRelativa}" , "tipuri_linie");
+                await _bucketAcces.DeleteFromBucket($"images/tipuri_linie/{imageToDeleteOnTipLinie.CaleRelativa}");
+                // await _bucketService.DeleteImageFromBucket($"{imageToDeleteOnTipLinie.CaleRelativa}" , "tipuri_linie");
                 
                 _logger.LogInformation("Succesfully deleted the image associated with the current tip linie ");
                 
@@ -248,7 +251,9 @@ public class TipuriLinieService : ITipuriLinieService
                 {
                     if (item.CaleRelativa is not null)
                     {
-                        await _bucketService.DeleteImageFromBucket($"{item.CaleRelativa}" , "tipuri_linie");
+                        await _bucketAcces.DeleteFromBucket($"images/tipuri_linie/{item.CaleRelativa}");
+
+                        // await _bucketService.DeleteImageFromBucket($"{item.CaleRelativa}" , "tipuri_linie");
                         item.CaleRelativa = null;
                         item.IsDeleted = true;
                     }
@@ -266,7 +271,9 @@ public class TipuriLinieService : ITipuriLinieService
                 {
                     if (item.CaleRelativa is not null)
                     {
-                        await _bucketService.DeleteImageFromBucket($"{item.CaleRelativa}" , "tipuri_linie");
+                        await _bucketAcces.DeleteFromBucket($"images/tipuri_linie/{item.CaleRelativa}");
+
+                        // await _bucketService.DeleteImageFromBucket($"{item.CaleRelativa}" , "tipuri_linie");
                     }
                     else
                     {
@@ -319,7 +326,13 @@ public class TipuriLinieService : ITipuriLinieService
                     CaleRelativa = tipuriLinieDto.CaleRelativa
                 };
 
-                await _bucketService.UploadImageToBucket(image, newTipLinie.CaleRelativa, "tipuri_linie");
+                if (image != null && !string.IsNullOrEmpty(newTipLinie.CaleRelativa))
+                {
+                    using var imageStream = new MemoryStream();
+                    await image[0].CopyToAsync(imageStream);
+                    imageStream.Position = 0;
+                    await _bucketAcces.AddOrUpdateToBucket(imageStream, "tipuri_linie", newTipLinie.CaleRelativa);
+                }
                 await tipuriLinieRepository.AddAsync(newTipLinie);
             }
             else
@@ -348,7 +361,9 @@ public class TipuriLinieService : ITipuriLinieService
                     {
                         if (oldImageName is not null)
                         {
-                            await _bucketService.DeleteImageFromBucket(oldImageName, "tipuri_linie");
+                            // await _bucketService.DeleteImageFromBucket(oldImageName, "tipuri_linie");
+                            await _bucketAcces.DeleteFromBucket($"images/tipuri_linie/{tipuriLinieDto.CaleRelativa}");
+
                         }
                       
                     }
@@ -357,12 +372,26 @@ public class TipuriLinieService : ITipuriLinieService
                         // Replace the image
                         if (oldImageName is not null)
                         {
-                            await _bucketService.DeleteImageFromBucket(oldImageName, "tipuri_linie");
-                            await _bucketService.UploadImageToBucket(image, image[0].FileName, "tipuri_linie");
+                            // await _bucketService.DeleteImageFromBucket(oldImageName, "tipuri_linie");
+                            await _bucketAcces.DeleteFromBucket($"images/tipuri_linie/{tipuriLinieDto.CaleRelativa}");
+
+                            if (!string.IsNullOrEmpty(tipuriLinieDto.CaleRelativa))
+                            {
+                                using var imageStream = new MemoryStream();
+                                await image[0].CopyToAsync(imageStream);
+                                imageStream.Position = 0;
+                                await _bucketAcces.AddOrUpdateToBucket(imageStream, "tipuri_linie", tipuriLinieDto.CaleRelativa);
+                            }
                         }
                         else
                         {
-                            await _bucketService.UploadImageToBucket(image, image[0].FileName, "tipuri_linie");
+                            if ( !string.IsNullOrEmpty(tipuriLinieDto.CaleRelativa))
+                            {
+                                using var imageStream = new MemoryStream();
+                                await image[0].CopyToAsync(imageStream);
+                                imageStream.Position = 0;
+                                await _bucketAcces.AddOrUpdateToBucket(imageStream, "tipuri_linie", tipuriLinieDto.CaleRelativa);
+                            }
                         }
                     }
                 }else if (tipuriLinieDto.CaleRelativa == oldImageName &&

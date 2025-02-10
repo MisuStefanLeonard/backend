@@ -128,8 +128,20 @@ public class OrderController : ControllerBase
             _ => StatusCode(500, "Server error")
         };
     }
-    
-    
-    // [HttpGet]
-    // [AllowAnonymous]
+
+
+    [HttpGet("confirmation/{confirmationId:required}/{orderId:required:int}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetOrderConfirmationPage([FromRoute] string confirmationId , [FromRoute] int orderId)
+    {
+        var responseFromOrderConfirmation = await _orderService.ConfirmPage(confirmationId, orderId);
+
+        return responseFromOrderConfirmation switch
+        {
+            1 => Ok("Success"),
+            -2 => NoContent(),
+            -1 => BadRequest("General exception thrown . Check logs"),
+            _ => StatusCode(500, "Server error")
+        };
+    }
 }

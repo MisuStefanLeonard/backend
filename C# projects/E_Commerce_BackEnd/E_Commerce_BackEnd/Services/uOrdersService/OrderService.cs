@@ -11,7 +11,9 @@ using E_Commerce_BackEnd.Models.OrderRelatedModels;
 using E_Commerce_BackEnd.Models.ProductRelatedModels;
 using E_Commerce_BackEnd.Models.ProductVouchersModels;
 using E_Commerce_BackEnd.Models.UserRelatedModels;
+using E_Commerce_BackEnd.Services.emailService;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
+using E_Commerce_BackEnd.Services.uMJMLService;
 using E_Commerce_BackEnd.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -24,13 +26,17 @@ public class OrderService : IOrderService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IBucketAcces _bucketAcces;
     private readonly ILogger<OrderService> _logger;
+    private readonly IEmailService _emailService;
+    private readonly IMjmlService _mjmlService;
     
 
-    public OrderService(IUnitOfWork unitOfWork, IBucketAcces bucketAcces, ILogger<OrderService> logger)
+    public OrderService(IUnitOfWork unitOfWork, IBucketAcces bucketAcces, ILogger<OrderService> logger, IEmailService emailService, IMjmlService mjmlService)
     {
         _unitOfWork = unitOfWork;
         _bucketAcces = bucketAcces;
         _logger = logger;
+        _emailService = emailService;
+        _mjmlService = mjmlService;
     }
 
     public async Task<IList<ClientOrder>> GetClientOrders(int accountId , string currency = "RON")
@@ -281,9 +287,10 @@ public class OrderService : IOrderService
                     NrTelefon = orderToBePlaced.NrTelefonPeComanda,
                     Username = null,
                     Email = orderToBePlaced.EmailPeComanda,
+                    Parola = Guid.NewGuid().ToString(),
                     DataCreare = DateTime.UtcNow,
                     CodActivare = "GUEST",
-                    Verificat = false,
+                    Verificat = true,
                     IsGuest = true,
                     Rol = "Client",
                     OraLinkConfirmare = DateTime.UtcNow,
@@ -548,7 +555,7 @@ public class OrderService : IOrderService
             
             
             // opening new transaction
-            var unlockProductsResponse = await UnlockProductsThatWereBought(wasAccountCreated ? null : accountId , wasAccountCreated ? Guid.Empty : sessionId);
+            var unlockProductsResponse = await UnlockProductsThatWereBought( (int)accountId , sessionId , wasAccountCreated , orderId );
             if (unlockProductsResponse == -1)
             {
                 throw new InvalidDataException(
@@ -578,6 +585,40 @@ public class OrderService : IOrderService
                 default:
                     return new KeyValuePair<int, string>(-2 , "General error occured");
             }
+        }
+    }
+
+    public async Task<int> ConfirmPage(string confirmationId, int orderId)
+    {
+        IDbContextTransaction? updateTransaction = null;
+        try
+        {
+            updateTransaction = await _unitOfWork.BeginTransactionAsync();
+            var findOrder = await _unitOfWork.Repository<Comenzi>()
+                .FindQueryable(o => o.IdComanda == orderId)
+                .FirstAsync();
+
+            if (findOrder.UniqueConfirmationTokenUsed)
+            {
+                return -2;
+            }
+            
+            findOrder.UniqueConfirmationTokenUsed = true;
+            await _unitOfWork.Repository<Comenzi>().UpdateAsync(findOrder);
+            await _unitOfWork.CommitTransactionAsync(updateTransaction);
+            return 1;
+        }
+        catch (Exception e)
+        {
+            if (updateTransaction != null)
+            {
+                _logger.LogError("Rolling back confirmation page transaction");
+                await _unitOfWork.RollBackTransactionAsync(updateTransaction);
+            }
+            _logger.LogError("Error thrown in confirm page method");
+            _logger.LogError(e.Message);
+            _logger.LogError(e.StackTrace);
+            return -1;
         }
     }
 
@@ -736,7 +777,7 @@ public class OrderService : IOrderService
         }
     }
 
-    private async Task<int> UnlockProductsThatWereBought(int? accountId, Guid sessionId)
+    private async Task<int> UnlockProductsThatWereBought(int accountId, Guid sessionId , bool wasAccountCreated, int orderId)
     {
         IDbContextTransaction? unlockTransaction = null;
         try
@@ -751,7 +792,8 @@ public class OrderService : IOrderService
             var cartRepository = _unitOfWork.Repository<CosCumparaturi>();
             
             var currentItemsThatWereOrdered = await cartRepository
-                .FindQueryable(item => item.IdCont == accountId && item.SessionId == sessionId)
+                .FindQueryable(item => item.IdCont == ( wasAccountCreated ? null : accountId) 
+                                       && item.SessionId == (wasAccountCreated ? sessionId : Guid.Empty))
                 .GroupBy(group => group.IdentificatorSet != "21" ? group.IdentificatorSet : group.IdProdusInCos.ToString())
                 .ToListAsync();
             
@@ -869,8 +911,22 @@ public class OrderService : IOrderService
             if (lineTypesToUnlock.Count > 0) await lineTypesRepository.UpdateRangeAsync(lineTypesToUnlock);
             if (galleryTypesToUnlock.Count > 0) await galleryTypesRepository.UpdateRangeAsync(galleryTypesToUnlock);
 
-            await _unitOfWork.CommitAsync();
+            // await _unitOfWork.CommitAsync();
+            await _unitOfWork.CommitTransactionAsync(unlockTransaction);
             _logger.LogInformation($"Succefully unlocked items for client  ");
+
+             await SendOrderConfirmationMail(accountId, wasAccountCreated, orderId);
+
+             var response = await RemoveFromCartAfterSuccessfullOrder(accountId, sessionId, wasAccountCreated);
+             if (response == 1)
+             {
+                 _logger.LogInformation("Removed items from cart");
+             }
+             else
+             {
+                 _logger.LogError("Critical error on removing products from cart");
+             }
+            
             return 1;
             
         }
@@ -884,6 +940,140 @@ public class OrderService : IOrderService
             _logger.LogError(e.Message);
             _logger.LogError(e.StackTrace);
             return -1;
+        }
+    }
+
+    private async Task<int> RemoveFromCartAfterSuccessfullOrder(int accountId, Guid sessionId , bool wasAccountCreated)
+    {
+        IDbContextTransaction? deleteTransaction = null;
+        try
+        {
+            _logger.LogInformation($"{wasAccountCreated} / {accountId} / {sessionId}");
+            deleteTransaction = await _unitOfWork.BeginTransactionAsync();
+            var cartRepository = _unitOfWork.Repository<CosCumparaturi>();
+            var currentItemsThatWereOrdered = await cartRepository
+                .FindQueryable(item => item.IdCont == ( wasAccountCreated ? null : accountId) 
+                                       && item.SessionId == (wasAccountCreated ? sessionId : Guid.Empty))
+                .ToListAsync();
+
+
+            await cartRepository.DeleteRangeAsync(currentItemsThatWereOrdered);
+            await _unitOfWork.CommitTransactionAsync(deleteTransaction);
+
+            return 1;
+        }
+        catch (Exception e)
+        {
+            if (deleteTransaction != null)
+            {
+                await _unitOfWork.RollBackTransactionAsync(deleteTransaction);
+                _logger.LogError("Rolling back transaction of deleting products from cart . Check LOGS");
+            }
+            _logger.LogError(e.Message);
+            _logger.LogError(e.StackTrace);
+            return -1;
+        }
+        
+    }
+
+    private async Task SendOrderConfirmationMail(int accountId , bool wasAccountCreated , int orderId)
+    {
+        _logger.LogInformation("Sending order confirmation mail...");
+        try
+        {
+            var findAccountEmail = await _unitOfWork.Repository<Conturi>()
+                .FindQueryable(acc => acc.IdCont == accountId)
+                .FirstOrDefaultAsync();
+
+            if (findAccountEmail == null)
+            {
+                _logger.LogError($"No account found in the database with the id {accountId}");
+                return;
+            }
+            
+            var accountCreationMessageEn = wasAccountCreated
+                ? $"<mj-text font-size=\"18px\" color=\"black\">\n   " +
+                  $"       We have automatically created you an account on our website so that you can see your order on the e-mail address that you've ordered : <strong>{findAccountEmail.Email}</strong> and password : <strong>{findAccountEmail.Parola}</strong>. We recommend you that you reset the password so that you can log in normally. Thank you for the order !\n     " +
+                  $"   </mj-text>\n  "
+                : ""; 
+            
+            var accountCreationMessageRo = wasAccountCreated
+                ? $"<mj-text font-size=\"18px\" color=\"black\">\n   " +
+                  $"      V-am creat automat un cont pentru a va putea comenzile la adresa de mail pe care ati facut comanda : <strong>{findAccountEmail.Email}</strong> si  parola : <strong>{findAccountEmail.Parola}</strong>. Va recomandam sa va resetati parola pentru a va putea loga normal. Multumim de cumparaturi !\n " +
+                  $"   </mj-text>\n  "
+                : ""; 
+            
+            var url = await _bucketAcces.GenerateUrl("LogoTexx.png" , null);
+            var insertLogo = url != null
+                ? $"<mj-section>\n" +
+                  $" <mj-column>\n" +
+                  $"  <mj-image width=\"100px\" src=\"{url}\" alt=\"Company Logo\"/>\n" +
+                  $" </mj-column>\n" +
+                  $"</mj-section>"
+                : "";
+
+            var loginOrProfileRo = wasAccountCreated
+                ? $"http://localhost:3000/user/login"
+                : "http://localhost:3000/user/profile/orders";
+            
+            var loginOrProfileEn = wasAccountCreated
+                ? $"http://localhost:3000/en/user/login"
+                : "http://localhost:3000/en/user/profile/orders";
+
+            var mjmlTemplate = $"<mjml>\n" +
+                               $"  <mj-body>\n " +
+                               $"{insertLogo}" +
+                               $"   <mj-section>\n " +
+                               $"     <mj-column>\n" +
+                               $"        <mj-text font-size=\"18px\" color=\"#F45E43\" font-family=\"helvetica\" align=\"center\">Confirmare comenzii  / Order confirmation </mj-text>\n " +
+                               $"       <mj-spacer></mj-spacer>\n    " +
+                               $"    </mj-column>\n    " +
+                               $"  <mj-column background-color=\"#a8a8a8\" border-radius=\"20px\" padding=\"20px\" width=\"100%\">\n   " +
+                               $"     <mj-text font-size=\"18px\" color=\"#333333\">\n      " +
+                               $"    <strong>Confirmare comenzii #{orderId} / Order confirmation #{orderId}</strong>\n " +
+                               $"       </mj-text>\n    " +
+                               $"    <mj-text font-size=\"22px\" color=\"#F45E43\">\n      " +
+                               $"    RO\n      " +
+                               $"  </mj-text>\n  " +
+                               $"      <mj-text font-size=\"18px\" color=\"black\">\n " +
+                               $"         Comanda dumneavoastra este pe drum ! Va ajunge la dvs. in cel mai scurt timp.\n  " +
+                               $"      </mj-text>\n     " +
+                               accountCreationMessageRo +
+                               $"     <mj-text font-size=\"18px\">Puteti vedea detaliile comenzii dvs. in sectiunea profilului / comenzi. Click pentru a va loga. </mj-text>\n   " +
+                               $"     <mj-button color=\"white\" background-color=\"black\">\n    " +
+                               $"      <a href=\"{loginOrProfileRo}\">CLICK AICI</a>\n   " +
+                               $"     </mj-button>\n " +
+                               $"       <mj-text font-size=\"22px\" color=\"#F45E43\">\n  " +
+                               $"        EN\n " +
+                               $"       </mj-text>\n " +
+                               $"       <mj-text font-size=\"18px\" color=\"black\">\n  " +
+                               $"        The order is on your way ! It will get to you in the shortest time.\n    " +
+                               $"    </mj-text>\n   " +
+                               accountCreationMessageEn +
+                               $"      <mj-text font-size=\"18px\">You can see the details of your order in the profile section / orders . Click for log-in</mj-text>\n    " +
+                               $"    <mj-button color=\"white\" background-color=\"black\">\n         " +
+                               $" <a href=\"{loginOrProfileEn}\">CLICK HERE</a>\n     " +
+                               $"   </mj-button>\n\n   " +
+                               $"   </mj-column>\n  " +
+                               $"  </mj-section>\n" +
+                               $"  </mj-body>\n" +
+                               $"</mjml>";
+            // de adaugat aici ! login automat cand intri pe link!;
+            var convertToHtml = await _mjmlService.ConvertMjmlToHtml(mjmlTemplate);
+
+            if (convertToHtml != null)
+            {
+                await _emailService.SendEmailAsync(findAccountEmail.Email!, $"Confirmare comanda {orderId} / Order confirmation {orderId}" , convertToHtml);
+            }
+            
+            _logger.LogInformation("Sent order confirmation email succefully!");
+            
+        }
+        catch (Exception e)
+        {
+            _logger.LogError("Error when trying to send order confirmation email");
+            _logger.LogError(e.Message);
+            _logger.LogError(e.StackTrace);
         }
     }
 }

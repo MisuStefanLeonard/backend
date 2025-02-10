@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "P6Te4yAcIwx69mWR5Tzb99IJMdVlKVmMxE+QjN0bbvawHWUXqpxhE0sW4KmL1x3L0CUolZfkTo6thDZvvPALMg==",
+  "dgSpecHash": "ERyke/M4TGGWZ4oPhVk1jig3FIvABqFuyvdJhLRMmAXvP+CoB8lc6h7XtBIMlmHrOqiPCmcnHSuU8BaX9OyOJg==",
   "success": true,
   "projectFilePath": "/Users/misustefan/Desktop/backend/C# projects/E_Commerce_BackEnd/Testing/Testing.csproj",
   "expectedPackageFiles": [
@@ -228,6 +228,7 @@
     "/Users/misustefan/.nuget/packages/quartz.extensions.hosting/3.13.1/quartz.extensions.hosting.3.13.1.nupkg.sha512",
     "/Users/misustefan/.nuget/packages/quartz.serialization.systemtextjson/3.13.1/quartz.serialization.systemtextjson.3.13.1.nupkg.sha512",
     "/Users/misustefan/.nuget/packages/randomdatagenerator.net/1.0.17/randomdatagenerator.net.1.0.17.nupkg.sha512",
+    "/Users/misustefan/.nuget/packages/restsharp/112.1.1-alpha.0.4/restsharp.112.1.1-alpha.0.4.nupkg.sha512",
     "/Users/misustefan/.nuget/packages/sixlabors.fonts/1.0.0/sixlabors.fonts.1.0.0.nupkg.sha512",
     "/Users/misustefan/.nuget/packages/sixlabors.imagesharp/2.1.8/sixlabors.imagesharp.2.1.8.nupkg.sha512",
     "/Users/misustefan/.nuget/packages/sixlabors.imagesharp.drawing/1.0.0/sixlabors.imagesharp.drawing.1.0.0.nupkg.sha512",
