@@ -4,6 +4,7 @@ USER $APP_UID
 WORKDIR /app
 #EXPOSE 8080
 #EXPOSE 8081
+ENV ASPNETCORE_URLS=http://+:5043
 EXPOSE 5043
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
@@ -22,5 +23,4 @@ RUN dotnet publish "E_Commerce_BackEnd.csproj" -c $BUILD_CONFIGURATION -o /app/p
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-#ENTRYPOINT ["ls", "."]
 ENTRYPOINT ["dotnet", "E_Commerce_BackEnd.dll" ]
