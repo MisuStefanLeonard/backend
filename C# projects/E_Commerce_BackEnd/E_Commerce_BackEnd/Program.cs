@@ -52,45 +52,10 @@ var awsAccessKey = awsCredentials.Length > 0 ? awsCredentials[0].Trim() : "";
 var awsSecretKey = awsCredentials.Length > 1 ? awsCredentials[1].Trim() : "";
 var awsRegion = awsCredentials.Length > 2 ? awsCredentials[2].Trim() : "eu-central-1"; // Default region if not provided
 
-if (awsAccessKey != "")
-{
-    Console.WriteLine($"✅ AWS_ACCESS_KEY_ID: {awsAccessKey}");
-}
-else
-{
-    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
-    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
-    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
 
-
-}
-
-if (awsSecretKey != "")
-{
-    Console.WriteLine($"✅ AWS_SECRET_ACCESS_KEY: {awsSecretKey}"); // Mask secret for security
-
-}
-else
-{
-    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
-    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
-    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
-
-}
-
-if (awsRegion != "")
-{
-    Console.WriteLine($"✅ AWS_REGION: {awsRegion}");
-}
-else
-{
-    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
-    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
-    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
-
-}
-
-
+Console.WriteLine($"✅ AWS_ACCESS_KEY_ID: {awsAccessKey}");
+Console.WriteLine($"✅ AWS_SECRET_ACCESS_KEY: {awsSecretKey}"); // Mask secret for security
+Console.WriteLine($"✅ AWS_REGION: {awsRegion}");
 
 
 var basicAwsCredentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey);
@@ -109,7 +74,11 @@ var awsOptions = new AWSOptions
 //     Region = region.Region
 // };
 builder.Services.AddDefaultAWSOptions(awsOptions);
+builder.Services.AddSingleton<IAmazonSecretsManager>
+    (sp => new AmazonSecretsManagerClient(awsOptions.Credentials, awsOptions.Region));
 
+builder.Services.AddSingleton<IAmazonKeyManagementService>
+    (sp => new AmazonKeyManagementServiceClient(awsOptions.Credentials, awsOptions.Region));
 // user-secrets
 builder.Configuration.AddUserSecrets<Program>();
 // Quartz integration for task scheduling
@@ -208,11 +177,7 @@ builder.Services.AddCors(options =>
 });
 
 // Add AWS services
-builder.Services.AddSingleton<IAmazonSecretsManager>
-    (sp => new AmazonSecretsManagerClient(awsOptions.Credentials, awsOptions.Region));
 
-builder.Services.AddSingleton<IAmazonKeyManagementService>
-    (sp => new AmazonKeyManagementServiceClient(awsOptions.Credentials, awsOptions.Region));
 // Unit of work and repositories
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
