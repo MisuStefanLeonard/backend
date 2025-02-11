@@ -46,8 +46,9 @@ using Sqids;
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure AWS options
-
-var awsCredentials = File.ReadAllLines("/run/secrets/aws_secrets");
+// FOR DOCKER AWS CREDENTIALS
+// ------
+var awsCredentials = await File.ReadAllLinesAsync("/run/secrets/aws_secrets");
 var awsAccessKey = awsCredentials.Length > 0 ? awsCredentials[0].Trim() : "";
 var awsSecretKey = awsCredentials.Length > 1 ? awsCredentials[1].Trim() : "";
 var awsRegion = awsCredentials.Length > 2 ? awsCredentials[2].Trim() : "eu-central-1"; // Default region if not provided
@@ -56,15 +57,14 @@ Environment.SetEnvironmentVariable("AWS_ACCESS_KEY_ID" , awsAccessKey);
 Environment.SetEnvironmentVariable("AWS_SECRET_ACCESS_KEY" , awsSecretKey);
 Environment.SetEnvironmentVariable("AWS_REGION" , awsRegion);
 Environment.SetEnvironmentVariable("AWS_SECURITY_TOKEN" , "");
+Environment.SetEnvironmentVariable("AWS_EC2_METADATA_DISABLED" , "true");
+
 
 
 
 Console.WriteLine($"✅ AWS_ACCESS_KEY_ID: {awsAccessKey}");
 Console.WriteLine($"✅ AWS_SECRET_ACCESS_KEY: {awsSecretKey}"); // Mask secret for security
 Console.WriteLine($"✅ AWS_REGION: {awsRegion}");
-
-
-
 
 var basicAwsCredentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey);
 var regionEnpoint = RegionEndpoint.GetBySystemName(awsRegion);
@@ -74,6 +74,13 @@ var awsOptions = new AWSOptions
    Credentials = basicAwsCredentials,
    Region = regionEnpoint
 };
+// --------
+// -------
+
+
+/*
+ * NORMAL
+ */
 
 // var region = builder.Configuration.GetAWSOptions();
 // var awsOptions = new AWSOptions
@@ -82,16 +89,19 @@ var awsOptions = new AWSOptions
 //     ProfilesLocation = "/Users/misustefan/.aws/credentials",
 //     Region = region.Region
 // };
+
+/*
+ * NORMAL
+ */
+
 builder.Services.AddDefaultAWSOptions(awsOptions);
 builder.Services.AddSingleton<IAmazonSecretsManager>
     (sp => new AmazonSecretsManagerClient(awsOptions.Credentials, awsOptions.Region));
 
 builder.Services.AddSingleton<IAmazonKeyManagementService>
     (sp => new AmazonKeyManagementServiceClient(awsOptions.Credentials, awsOptions.Region));
-// user-secrets
 
-var credentials = FallbackCredentialsFactory.GetCredentials();
-Console.WriteLine($"-----Using AWS Credentials: {credentials.GetCredentials().AccountId}");
+// user-secrets
 builder.Configuration.AddUserSecrets<Program>();
 // Quartz integration for task scheduling
 
@@ -102,7 +112,14 @@ builder.Services.AddDataProtection()
     .PersistKeysToAWSSystemsManager("prod/texx.ro/admin");
 
 // Configure DbContext and logger
-var connectionString = builder.Configuration.GetConnectionString("CMDatabase");
+
+// NORMAL (FOR DB CONNECTION)
+// var connectionString = builder.Configuration.GetConnectionString("CMDatabase"); 
+
+// FOR DOCKER ( DB CONNECTION )
+var dbCredentials =  await File.ReadAllLinesAsync("/run/secrets/db");
+var connectionString = dbCredentials[0];
+// -----------
 if (connectionString == null)
 {
     throw new InvalidOperationException("Connection string CMDatabase is null");
