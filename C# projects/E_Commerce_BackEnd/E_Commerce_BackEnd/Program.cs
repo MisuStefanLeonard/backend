@@ -52,6 +52,7 @@ var awsAccessKey = awsCredentials.Length > 0 ? awsCredentials[0].Trim() : "";
 var awsSecretKey = awsCredentials.Length > 1 ? awsCredentials[1].Trim() : "";
 var awsRegion = awsCredentials.Length > 2 ? awsCredentials[2].Trim() : "us-east-1"; // Default region if not provided
 
+Console.WriteLine(awsCredentials[0] , awsCredentials[1] , awsCredentials[2]);
 
 var basicAwsCredentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey);
 var regionEnpoint = RegionEndpoint.GetBySystemName(awsRegion);
