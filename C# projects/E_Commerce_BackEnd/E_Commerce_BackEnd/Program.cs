@@ -2,9 +2,11 @@ using System.Collections.Specialized;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
+using Amazon;
 using Amazon.Extensions.NETCore.Setup;
 using Amazon.SecretsManager;
 using Amazon.KeyManagementService;
+using Amazon.Runtime;
 using E_Commerce_BackEnd.MIddleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -41,18 +43,31 @@ using Microsoft.AspNetCore.RateLimiting;
 using Quartz;
 using Quartz.Impl;
 using Sqids;
-
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure AWS options
-var region = builder.Configuration.GetAWSOptions();
+
+var awsCredentials = File.ReadAllLines("/run/secrets/aws_secrets");
+var awsAccessKey = awsCredentials.Length > 0 ? awsCredentials[0].Trim() : "";
+var awsSecretKey = awsCredentials.Length > 1 ? awsCredentials[1].Trim() : "";
+var awsRegion = awsCredentials.Length > 2 ? awsCredentials[2].Trim() : "us-east-1"; // Default region if not provided
+
+
+var basicAwsCredentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey);
+var regionEnpoint = RegionEndpoint.GetBySystemName(awsRegion);
+
 var awsOptions = new AWSOptions
 {
-    Profile = "misu_stefan",
-    ProfilesLocation = "/Users/misustefan/.aws/credentials",
-    Region = region.Region
+   Credentials = basicAwsCredentials,
+   Region = regionEnpoint
 };
+// var region = builder.Configuration.GetAWSOptions();
+// var awsOptions = new AWSOptions
+// {
+//     Profile = "misu_stefan",
+//     ProfilesLocation = "/Users/misustefan/.aws/credentials",
+//     Region = region.Region
+// };
 builder.Services.AddDefaultAWSOptions(awsOptions);
 
 // user-secrets
