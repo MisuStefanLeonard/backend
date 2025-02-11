@@ -50,46 +50,7 @@ var builder = WebApplication.CreateBuilder(args);
 var awsCredentials = File.ReadAllLines("/run/secrets/aws_secrets");
 var awsAccessKey = awsCredentials.Length > 0 ? awsCredentials[0].Trim() : "";
 var awsSecretKey = awsCredentials.Length > 1 ? awsCredentials[1].Trim() : "";
-var awsRegion = awsCredentials.Length > 2 ? awsCredentials[2].Trim() : "us-east-1"; // Default region if not provided
-
-if (awsAccessKey != "")
-{
-    Console.WriteLine($"✅ AWS_ACCESS_KEY_ID: {awsAccessKey}");
-}
-else
-{
-    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
-    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
-    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
-
-
-}
-
-if (awsSecretKey != "")
-{
-    Console.WriteLine($"✅ AWS_SECRET_ACCESS_KEY: {new string('*', awsSecretKey.Length)}"); // Mask secret for security
-
-}
-else
-{
-    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
-    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
-    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
-
-}
-
-if (awsRegion != "")
-{
-    Console.WriteLine($"✅ AWS_REGION: {awsRegion}");
-}
-else
-{
-    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
-    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
-    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
-
-}
-
+var awsRegion = awsCredentials.Length > 2 ? awsCredentials[2].Trim() : "eu-central-1"; // Default region if not provided
 
 
 
