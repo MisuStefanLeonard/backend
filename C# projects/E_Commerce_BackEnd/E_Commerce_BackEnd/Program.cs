@@ -61,8 +61,7 @@ Console.WriteLine($"✅ AWS_REGION: {awsRegion}");
 var basicAwsCredentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey);
 var regionEnpoint = RegionEndpoint.GetBySystemName(awsRegion);
 
-var credentials = FallbackCredentialsFactory.GetCredentials();
-Console.WriteLine($"Using AWS Credentials: {credentials.GetCredentials().AccessKey}");
+
 
 var awsOptions = new AWSOptions
 {
@@ -83,6 +82,9 @@ builder.Services.AddSingleton<IAmazonSecretsManager>
 builder.Services.AddSingleton<IAmazonKeyManagementService>
     (sp => new AmazonKeyManagementServiceClient(awsOptions.Credentials, awsOptions.Region));
 // user-secrets
+
+var credentials = FallbackCredentialsFactory.GetCredentials();
+Console.WriteLine($"Using AWS Credentials: {credentials.GetCredentials().AccessKey}");
 builder.Configuration.AddUserSecrets<Program>();
 // Quartz integration for task scheduling
 
