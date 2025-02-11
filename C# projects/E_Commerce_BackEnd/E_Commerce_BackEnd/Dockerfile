@@ -22,5 +22,5 @@ RUN dotnet publish "E_Commerce_BackEnd.csproj" -c $BUILD_CONFIGURATION -o /app/p
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["ls", "."]
-#ENTRYPOINT ["dotnet", "E_Commerce_BackEnd.dll" ]
+#ENTRYPOINT ["ls", "."]
+ENTRYPOINT ["dotnet", "E_Commerce_BackEnd.dll" ]
