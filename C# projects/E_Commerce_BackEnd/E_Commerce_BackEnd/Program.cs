@@ -61,6 +61,9 @@ Console.WriteLine($"✅ AWS_REGION: {awsRegion}");
 var basicAwsCredentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey);
 var regionEnpoint = RegionEndpoint.GetBySystemName(awsRegion);
 
+var credentials = FallbackCredentialsFactory.GetCredentials();
+Console.WriteLine($"Using AWS Credentials: {credentials.GetCredentials().AccessKey}");
+
 var awsOptions = new AWSOptions
 {
    Credentials = basicAwsCredentials,
