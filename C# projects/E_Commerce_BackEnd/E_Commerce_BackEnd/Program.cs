@@ -84,7 +84,7 @@ builder.Services.AddSingleton<IAmazonKeyManagementService>
 // user-secrets
 
 var credentials = FallbackCredentialsFactory.GetCredentials();
-Console.WriteLine($"Using AWS Credentials: {credentials.GetCredentials().AccessKey}");
+Console.WriteLine($"Using AWS Credentials: {credentials.GetCredentials().AccountId}");
 builder.Configuration.AddUserSecrets<Program>();
 // Quartz integration for task scheduling
 
