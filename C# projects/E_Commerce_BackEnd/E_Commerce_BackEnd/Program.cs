@@ -57,7 +57,7 @@ Console.WriteLine($"✅ AWS_ACCESS_KEY_ID: {awsAccessKey}");
 Console.WriteLine($"✅ AWS_SECRET_ACCESS_KEY: {awsSecretKey}"); // Mask secret for security
 Console.WriteLine($"✅ AWS_REGION: {awsRegion}");
 
-
+AWSConfigs.AWSProfileName = "manual";
 var basicAwsCredentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey);
 var regionEnpoint = RegionEndpoint.GetBySystemName(awsRegion);
 
