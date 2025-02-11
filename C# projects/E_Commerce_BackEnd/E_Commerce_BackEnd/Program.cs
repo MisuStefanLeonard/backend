@@ -55,13 +55,39 @@ var awsRegion = awsCredentials.Length > 2 ? awsCredentials[2].Trim() : "us-east-
 if (awsAccessKey != "")
 {
     Console.WriteLine($"✅ AWS_ACCESS_KEY_ID: {awsAccessKey}");
-}else if (awsSecretKey != "")
+}
+else
+{
+    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
+    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
+    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
+
+
+}
+
+if (awsSecretKey != "")
 {
     Console.WriteLine($"✅ AWS_SECRET_ACCESS_KEY: {new string('*', awsSecretKey.Length)}"); // Mask secret for security
 
-}else if (awsRegion != "")
+}
+else
+{
+    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
+    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
+    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
+
+}
+
+if (awsRegion != "")
 {
     Console.WriteLine($"✅ AWS_REGION: {awsRegion}");
+}
+else
+{
+    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
+    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
+    Console.WriteLine($"EMPTYYYYYYYYYYYYYY");
+
 }
 
 
