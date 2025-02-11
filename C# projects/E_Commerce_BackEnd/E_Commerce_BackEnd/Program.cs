@@ -52,6 +52,12 @@ var awsAccessKey = awsCredentials.Length > 0 ? awsCredentials[0].Trim() : "";
 var awsSecretKey = awsCredentials.Length > 1 ? awsCredentials[1].Trim() : "";
 var awsRegion = awsCredentials.Length > 2 ? awsCredentials[2].Trim() : "eu-central-1"; // Default region if not provided
 
+Environment.SetEnvironmentVariable("AWS_ACCESS_KEY_ID" , awsAccessKey);
+Environment.SetEnvironmentVariable("AWS_SECRET_ACCESS_KEY" , awsSecretKey);
+Environment.SetEnvironmentVariable("AWS_REGION" , awsRegion);
+Environment.SetEnvironmentVariable("AWS_SECURITY_TOKEN" , "");
+
+
 
 Console.WriteLine($"✅ AWS_ACCESS_KEY_ID: {awsAccessKey}");
 Console.WriteLine($"✅ AWS_SECRET_ACCESS_KEY: {awsSecretKey}"); // Mask secret for security
