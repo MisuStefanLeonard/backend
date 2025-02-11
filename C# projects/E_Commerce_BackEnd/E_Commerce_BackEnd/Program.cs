@@ -52,7 +52,20 @@ var awsAccessKey = awsCredentials.Length > 0 ? awsCredentials[0].Trim() : "";
 var awsSecretKey = awsCredentials.Length > 1 ? awsCredentials[1].Trim() : "";
 var awsRegion = awsCredentials.Length > 2 ? awsCredentials[2].Trim() : "us-east-1"; // Default region if not provided
 
-Console.WriteLine(awsCredentials[0] , awsCredentials[1] , awsCredentials[2]);
+if (awsAccessKey != "")
+{
+    Console.WriteLine($"✅ AWS_ACCESS_KEY_ID: {awsAccessKey}");
+}else if (awsSecretKey != "")
+{
+    Console.WriteLine($"✅ AWS_SECRET_ACCESS_KEY: {new string('*', awsSecretKey.Length)}"); // Mask secret for security
+
+}else if (awsRegion != "")
+{
+    Console.WriteLine($"✅ AWS_REGION: {awsRegion}");
+}
+
+
+
 
 var basicAwsCredentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey);
 var regionEnpoint = RegionEndpoint.GetBySystemName(awsRegion);
