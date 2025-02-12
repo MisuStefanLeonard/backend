@@ -10,7 +10,7 @@ COPY . .
 WORKDIR "/src/E_Commerce_BackEnd"
 
 # ✅ Make sure the script is executable
-RUN chmod +x ./migrations.sh
+RUN chmod +x /src/migrations.sh
 
 # ✅ Run migrations 
-CMD ["/bin/bash", "./backend/C# projects/E_Commerce_BackEnd/E_Commerce_BackEnd/migrations.sh"]
+CMD ["/bin/bash", "/src/migrations.sh"]
