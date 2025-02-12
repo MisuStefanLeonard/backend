@@ -12,5 +12,5 @@ WORKDIR "/src/E_Commerce_BackEnd"
 # ✅ Make sure the script is executable
 RUN chmod +x ./migrations.sh
 
-# ✅ Run migrations and then start the app
-CMD ["/bin/bash", "./migrations.sh"]
+# ✅ Run migrations 
+CMD ["/bin/bash", "./backend/C# projects/E_Commerce_BackEnd/E_Commerce_BackEnd/migrations.sh"]
