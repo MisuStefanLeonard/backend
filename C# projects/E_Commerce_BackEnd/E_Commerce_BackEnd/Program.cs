@@ -44,7 +44,7 @@ using Quartz;
 using Quartz.Impl;
 using Sqids;
 var builder = WebApplication.CreateBuilder(args);
-
+builder.Services.AddHealthChecks();
 // Configure AWS options
 // FOR DOCKER AWS CREDENTIALS
 // ------
@@ -326,7 +326,7 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 app.UseCors("AllowVueApp");
-
+app.MapHealthChecks("healthz");
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
