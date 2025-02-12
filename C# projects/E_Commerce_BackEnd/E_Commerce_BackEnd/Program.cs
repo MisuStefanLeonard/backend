@@ -52,6 +52,13 @@ var awsCredentials = await File.ReadAllLinesAsync("/run/secrets/aws_secrets");
 var awsAccessKey = awsCredentials.Length > 0 ? awsCredentials[0].Trim() : "";
 var awsSecretKey = awsCredentials.Length > 1 ? awsCredentials[1].Trim() : "";
 var awsRegion = awsCredentials.Length > 2 ? awsCredentials[2].Trim() : "eu-central-1"; // Default region if not provided
+//
+
+// Environment.SetEnvironmentVariable("AWS_ACCESS_KEY_ID" , "AKIAVRUVWGMELKZCKMLQ");
+// Environment.SetEnvironmentVariable("AWS_SECRET_ACCESS_KEY" , "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");
+// Environment.SetEnvironmentVariable("AWS_REGION" , "eu-central-1");
+// Environment.SetEnvironmentVariable("AWS_SECURITY_TOKEN" , "");
+// Environment.SetEnvironmentVariable("AWS_EC2_METADATA_DISABLED" , "true");
 
 Environment.SetEnvironmentVariable("AWS_ACCESS_KEY_ID" , awsAccessKey);
 Environment.SetEnvironmentVariable("AWS_SECRET_ACCESS_KEY" , awsSecretKey);
@@ -62,13 +69,16 @@ Environment.SetEnvironmentVariable("AWS_EC2_METADATA_DISABLED" , "true");
 
 
 
+
+
 Console.WriteLine($"✅ AWS_ACCESS_KEY_ID: {awsAccessKey}");
 Console.WriteLine($"✅ AWS_SECRET_ACCESS_KEY: {awsSecretKey}"); // Mask secret for security
 Console.WriteLine($"✅ AWS_REGION: {awsRegion}");
 
-var basicAwsCredentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey);
-var regionEnpoint = RegionEndpoint.GetBySystemName(awsRegion);
 
+
+var regionEnpoint = RegionEndpoint.GetBySystemName(awsRegion);
+var basicAwsCredentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey);
 var awsOptions = new AWSOptions
 {
    Credentials = basicAwsCredentials,
@@ -87,8 +97,10 @@ var awsOptions = new AWSOptions
 // {
 //     Profile = "misu_stefan",
 //     ProfilesLocation = "/Users/misustefan/.aws/credentials",
-//     Region = region.Region
+//     Region = RegionEndpoint.EUCentral1
 // };
+
+
 
 /*
  * NORMAL
@@ -103,7 +115,6 @@ builder.Services.AddSingleton<IAmazonKeyManagementService>
 
 // user-secrets
 builder.Configuration.AddUserSecrets<Program>();
-// Quartz integration for task scheduling
 
 
 // Add data protection using AWS Systems Manager Parameter Store
@@ -114,11 +125,11 @@ builder.Services.AddDataProtection()
 // Configure DbContext and logger
 
 // NORMAL (FOR DB CONNECTION)
-// var connectionString = builder.Configuration.GetConnectionString("CMDatabase"); 
+var connectionString = builder.Configuration.GetConnectionString("CMDatabase"); 
 
 // FOR DOCKER ( DB CONNECTION )
-var dbCredentials =  await File.ReadAllLinesAsync("/run/secrets/db");
-var connectionString = dbCredentials[0];
+// var dbCredentials =  await File.ReadAllLinesAsync("/run/secrets/db");
+// var connectionString = dbCredentials[0];
 // -----------
 if (connectionString == null)
 {

@@ -13,6 +13,7 @@ using E_Commerce_BackEnd.Models.ProductVouchersModels;
 using E_Commerce_BackEnd.Models.UserRelatedModels;
 using E_Commerce_BackEnd.Services.emailService;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
+using E_Commerce_BackEnd.Services.Helpers.UserHelpers;
 using E_Commerce_BackEnd.Services.uMJMLService;
 using E_Commerce_BackEnd.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
@@ -28,15 +29,17 @@ public class OrderService : IOrderService
     private readonly ILogger<OrderService> _logger;
     private readonly IEmailService _emailService;
     private readonly IMjmlService _mjmlService;
+    private readonly UserHelpers _userHelpers;
     
 
-    public OrderService(IUnitOfWork unitOfWork, IBucketAcces bucketAcces, ILogger<OrderService> logger, IEmailService emailService, IMjmlService mjmlService)
+    public OrderService(IUnitOfWork unitOfWork, IBucketAcces bucketAcces, ILogger<OrderService> logger, IEmailService emailService, IMjmlService mjmlService, UserHelpers userHelpers)
     {
         _unitOfWork = unitOfWork;
         _bucketAcces = bucketAcces;
         _logger = logger;
         _emailService = emailService;
         _mjmlService = mjmlService;
+        _userHelpers = userHelpers;
     }
 
     public async Task<IList<ClientOrder>> GetClientOrders(int accountId , string currency = "RON")
@@ -274,33 +277,47 @@ public class OrderService : IOrderService
             // guest user
             if (accountId == null)
             {
-                var id = accountId;
+                // var id = accountId;
                 // retrieving his cart items
                 cartItems = await cartRepository
-                    .FindQueryable(item => item.IdCont == id && item.SessionId == sessionId)
+                    .FindQueryable(item => item.IdCont == null && item.SessionId == sessionId)
                     .GroupBy(group => group.IdentificatorSet != "21" ? group.IdentificatorSet : group.IdProdusInCos.ToString())
                     .ToListAsync();
-                var createNewAccount = new Conturi
-                {
-                    Nume = orderToBePlaced.NumePeComanda,
-                    Prenume = orderToBePlaced.PrenumePeComanda,
-                    NrTelefon = orderToBePlaced.NrTelefonPeComanda,
-                    Username = null,
-                    Email = orderToBePlaced.EmailPeComanda,
-                    Parola = Guid.NewGuid().ToString(),
-                    DataCreare = DateTime.UtcNow,
-                    CodActivare = "GUEST",
-                    Verificat = true,
-                    IsGuest = true,
-                    Rol = "Client",
-                    OraLinkConfirmare = DateTime.UtcNow,
-                };
 
-                await _unitOfWork.Repository<Conturi>().AddAsync(createNewAccount);
-                await _unitOfWork.CommitAsync();
-                // generating id
-                accountId = createNewAccount.IdCont;
-                wasAccountCreated = true;
+                var findAccount = await _unitOfWork.Repository<Conturi>()
+                    .FindQueryable(acc => acc.Email == orderToBePlaced.EmailPeComanda)
+                    .FirstOrDefaultAsync();
+
+                if (findAccount == null)
+                {
+                    var createNewAccount = new Conturi
+                    {
+                        Nume = orderToBePlaced.NumePeComanda,
+                        Prenume = orderToBePlaced.PrenumePeComanda,
+                        NrTelefon = orderToBePlaced.NrTelefonPeComanda,
+                        Username = null,
+                        Email = orderToBePlaced.EmailPeComanda,
+                        Parola = UserHelpers.CryptPassword(Guid.NewGuid().ToString()),
+                        DataCreare = DateTime.UtcNow,
+                        CodActivare = "GUEST",
+                        Verificat = true,
+                        IsGuest = true,
+                        Rol = "Client",
+                        OraLinkConfirmare = DateTime.UtcNow,
+                    };
+
+                    await _unitOfWork.Repository<Conturi>().AddAsync(createNewAccount);
+                    await _unitOfWork.CommitAsync();
+                    // generating id
+                    accountId = createNewAccount.IdCont;
+                    wasAccountCreated = true;
+                }
+                else
+                {
+                    wasAccountCreated = false;
+                    accountId = findAccount.IdCont;
+                }
+                
             }
             else
             {
@@ -457,20 +474,25 @@ public class OrderService : IOrderService
             
 
             Vouchere? voucherApplied = null;
-           
+            
             if (orderToBePlaced.VoucherAplicat != null)
             {
+               
                 var getVoucher = await _unitOfWork.Repository<Vouchere>()
                     .FindQueryable(v => !v.IsDeleted && v.CodVoucher == orderToBePlaced.VoucherAplicat.CodVoucherDto.ToUpper()
                                                          .ToUpper())
                     .FirstOrDefaultAsync();
-                
-               
-                
-               
-                voucherApplied = getVoucher ?? throw new DbUpdateException("No voucher found , maybe it was deleted");
-            }
 
+
+                if (getVoucher == null)
+                {
+                    _logger.LogError("Voucher not found. Cancelling transaction and payment");
+                    return new KeyValuePair<int, string>(-1, "Voucher not found");
+                }
+
+                voucherApplied = getVoucher;
+            }
+            
             if (voucherApplied != null)
             {
                 // 0.99 , 0.53
@@ -496,7 +518,7 @@ public class OrderService : IOrderService
                 IsCancelable = true,
                 IdAdresaLivrare = getDeliveryAddress.IdAdresa,
                 IdAdresaFacturare = billingAddress?.IdAdresa ?? getDeliveryAddress.IdAdresa,
-                IdVoucher = voucherApplied?.IdVoucher
+                IdVoucher = null
             };
 
             await orderRepository.AddAsync(newOrder);
@@ -513,6 +535,7 @@ public class OrderService : IOrderService
             {
                 NrBucati = itemInCart.CantitateProdus,
                 PretCumparat = voucherApplied != null ? itemInCart.PretProdus - itemInCart.PretProdus * voucherApplied.Reducere : itemInCart.PretProdus,
+                // PretCumparat =  itemInCart.PretProdus,
                 InaltimeAleasaPentruSet = itemInCart.InaltimeAleasaPentruSet,
                 IdentificatorSet = itemInCart.IdentificatorSet,
                 IdSet = itemInCart.IdSet,
@@ -576,9 +599,6 @@ public class OrderService : IOrderService
 
             switch (e)
             {
-                case DbUpdateException:
-                    _logger.LogError("Voucher not found. Cancelling transaction and payment");
-                    return new KeyValuePair<int, string>(-1, "Voucher not found");
                 case InvalidOperationException:
                     _logger.LogError("Payment rejected! . Cancelling transaction and payment");
                     return new KeyValuePair<int, string>(-3, "Payment rejected");
