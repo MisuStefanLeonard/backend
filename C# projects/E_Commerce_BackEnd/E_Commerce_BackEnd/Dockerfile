@@ -16,6 +16,9 @@ COPY . .
 WORKDIR "/src/E_Commerce_BackEnd"
 RUN dotnet build "E_Commerce_BackEnd.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
+RUN dotnet tool install --global dotnet-ef \
+    && export PATH="$PATH:/root/.dotnet/tools"
+
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
 RUN dotnet publish "E_Commerce_BackEnd.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
@@ -23,4 +26,5 @@ RUN dotnet publish "E_Commerce_BackEnd.csproj" -c $BUILD_CONFIGURATION -o /app/p
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "E_Commerce_BackEnd.dll" ]
+#ENTRYPOINT ["dotnet", "E_Commerce_BackEnd.dll" ]
+CMD ["sh", "-c", "dotnet ef database update && dotnet E_Commerce_BackEnd.dll"]
