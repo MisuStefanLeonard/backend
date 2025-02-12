@@ -1,4 +1,4 @@
-##!/bin/bash
+#!/bin/bash
 #
 #set -e
 #
@@ -21,8 +21,6 @@
 #
 #>&2 echo "✅ Migrations applied successfully!"
 
-
-#!/bin/bash
 
 set -e
 
