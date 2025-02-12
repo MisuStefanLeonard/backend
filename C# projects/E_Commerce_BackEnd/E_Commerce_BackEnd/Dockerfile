@@ -16,8 +16,7 @@ COPY . .
 WORKDIR "/src/E_Commerce_BackEnd"
 RUN dotnet build "E_Commerce_BackEnd.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
-RUN dotnet tool install --global dotnet-ef \
-    && export PATH="$PATH:/root/.dotnet/tools"
+RUN dotnet tool install --global dotnet-ef 
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
