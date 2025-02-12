@@ -24,7 +24,7 @@ namespace E_Commerce_BackEnd.Migrations.V1_4
             migrationBuilder.AddForeignKey(
                 name: "FK_reviews_seturi_id_set",
                 table: "reviews",
-                column: "IdSet",
+                column: "id_set",
                 principalTable: "seturi",
                 principalColumn: "id_set");
         }
