@@ -16,11 +16,11 @@ COPY . .
 WORKDIR "/src/E_Commerce_BackEnd"
 RUN dotnet build "E_Commerce_BackEnd.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
-FROM mcr.microsoft.com/dotnet/sdk:8.0
-RUN dotnet tool install --global dotnet-ef 
-RUN dotnet restore "E_Commerce_BackEnd/E_Commerce_BackEnd.csproj"
-COPY . .
-WORKDIR "/src/E_Commerce_BackEnd"
+#FROM mcr.microsoft.com/dotnet/sdk:8.0
+#RUN dotnet tool install --global dotnet-ef 
+#RUN dotnet restore "E_Commerce_BackEnd/E_Commerce_BackEnd.csproj"
+#COPY . .
+#WORKDIR "/src/E_Commerce_BackEnd"
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
