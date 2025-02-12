@@ -2,12 +2,14 @@
 
 set -e
 
-until /root/.dotnet/tools/dotnet ef database update --no-build; do
->&2 echo "Migration begin applying"
-sleep 1
-done 
+# ✅ Ensure dotnet tools are available
+export PATH="$PATH:/root/.dotnet/tools"
 
+until dotnet ef database update --no-build; do
+  >&2 echo "Migration applying..."
+  sleep 1
+done
 
->&2 echo "MySQL server is up - executing comand"
+>&2 echo "MySQL server is up - executing command"
 
-/root/.dotnet/tools/dotnet ef database update
+dotnet ef database update
