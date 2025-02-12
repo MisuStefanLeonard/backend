@@ -125,11 +125,11 @@ builder.Services.AddDataProtection()
 // Configure DbContext and logger
 
 // NORMAL (FOR DB CONNECTION)
-var connectionString = builder.Configuration.GetConnectionString("CMDatabase"); 
+// var connectionString = builder.Configuration.GetConnectionString("CMDatabase"); 
 
 // FOR DOCKER ( DB CONNECTION )
-// var dbCredentials =  await File.ReadAllLinesAsync("/run/secrets/db");
-// var connectionString = dbCredentials[0];
+var dbCredentials =  await File.ReadAllLinesAsync("/run/secrets/db");
+var connectionString = dbCredentials[0];
 // -----------
 if (connectionString == null)
 {
