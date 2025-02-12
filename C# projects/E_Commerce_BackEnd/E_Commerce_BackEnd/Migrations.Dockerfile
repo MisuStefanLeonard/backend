@@ -11,7 +11,6 @@ WORKDIR "/src/E_Commerce_BackEnd"
 
 # ✅ Make sure the script is executable
 RUN chmod +x ./migrations.sh
-RUN /root/.dotnet/tools/dotnet-ef migrations add Init
 
 # ✅ Run migrations and then start the app
 CMD ["/bin/bash", "/migrations.sh"]
