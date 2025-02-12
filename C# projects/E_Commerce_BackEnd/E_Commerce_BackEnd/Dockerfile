@@ -22,10 +22,6 @@ RUN dotnet restore "E_Commerce_BackEnd/E_Commerce_BackEnd.csproj"
 COPY . .
 WORKDIR "/src/E_Commerce_BackEnd"
 
-RUN /root/.dotnet/tools/dotnet-ef migrations add Init
-RUN chmod +x ./migrations.sh
-CMD /bin/bash ./migrations.sh
-
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
 RUN dotnet publish "E_Commerce_BackEnd.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
