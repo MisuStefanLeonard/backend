@@ -4,7 +4,7 @@ USER $APP_UID
 WORKDIR /app
 #EXPOSE 8080
 #EXPOSE 8081
-RUN sudo apt-get update && sudo apt-get install -y curl
+RUN apt-get update && apt-get install -y curl
 ENV ASPNETCORE_URLS=http://+:5043
 EXPOSE 5043
 
