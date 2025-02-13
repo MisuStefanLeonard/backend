@@ -18,3 +18,4 @@ echo "🚀 Applying migrations..."
 dotnet ef database update --no-build
 
 echo "✅ Migrations applied successfully!"
+exit 0;
