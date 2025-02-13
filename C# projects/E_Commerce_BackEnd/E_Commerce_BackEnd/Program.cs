@@ -48,6 +48,8 @@ builder.Services.AddHealthChecks();
 // Configure AWS options
 // FOR DOCKER AWS CREDENTIALS
 // ------
+Environment.SetEnvironmentVariable("DOCKER" , "true");
+var getDockerEnv = Environment.GetEnvironmentVariable("DOCKER");
 var awsCredentials = await File.ReadAllLinesAsync("/run/secrets/aws_secrets");
 var awsAccessKey = awsCredentials.Length > 0 ? awsCredentials[0].Trim() : "";
 var awsSecretKey = awsCredentials.Length > 1 ? awsCredentials[1].Trim() : "";
@@ -260,7 +262,23 @@ builder.Services.AddRateLimiter(x =>
         options.QueueLimit = 2;
     }));
 
+var googleCredentials = Array.Empty<string>();
+var googleAuthId = "";
+var googleAuthKey = "";
+if (getDockerEnv! == "true")
+{
+    googleCredentials = await File.ReadAllLinesAsync("/run/secrets/google_auth");
+    googleAuthId = googleCredentials[0];
+    googleAuthKey = googleCredentials[1];
+}
+else
+{
+    var googleAuth = builder.Configuration.GetSection("GoogleAuth");
+    googleAuthId = googleAuth["ClientId"]!;
+    googleAuthKey = googleAuth["ClientSecret"]!;
+}
 // JWT Authentication
+
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var key = await TokenService.GetSecret("prod/texx.ro/JWT_key");
 builder.Services.AddAuthentication(x =>
@@ -278,12 +296,11 @@ builder.Services.AddAuthentication(x =>
     options.LogoutPath = "/logout";
 })
     .AddGoogle(options =>
-{
-    var googleAuth = builder.Configuration.GetSection("GoogleAuth");
-    options.ClientId = googleAuth["ClientId"]!;
-    options.ClientSecret = googleAuth["ClientSecret"]!;
-    options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-})
+    {
+        options.ClientId = googleAuthId;
+        options.ClientSecret = googleAuthKey;
+        options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    })
     .AddJwtBearer(x =>
 {
     x.Events = new JwtBearerEvents
