@@ -326,7 +326,7 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 app.UseCors("AllowVueApp");
-app.MapHealthChecks("/healthz").AllowAnonymous();
+app.MapHealthChecks("/healthz");
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
