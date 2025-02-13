@@ -27,13 +27,13 @@ set -e
 # ✅ Ensure dotnet tools are available
 export PATH="$PATH:/root/.dotnet/tools"
 
-echo "🚀 Checking database connectivity..."
-until dotnet ef database update --no-build --verbose | grep -q "No migrations were applied"; do
-  >&2 echo "🟡 Waiting for database to be ready..."
-  sleep 1
-done
-
-echo "✅ Database connection successful."
+#echo "🚀 Checking database connectivity..."
+#until dotnet ef database update --no-build --verbose | grep -q "No migrations were applied"; do
+#  >&2 echo "🟡 Waiting for database to be ready..."
+#  sleep 1
+#done
+#
+#echo "✅ Database connection successful."
 
 # ✅ Check if there are pending migrations
 PENDING_MIGRATIONS=$(dotnet ef migrations script --idempotent --output /dev/null)
