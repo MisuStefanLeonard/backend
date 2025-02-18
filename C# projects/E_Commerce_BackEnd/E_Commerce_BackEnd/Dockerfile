@@ -18,8 +18,10 @@ WORKDIR /src
 USER root
 RUN dotnet workload update
 
-RUN dotnet tool install --global dotnet-ef --verbosity detailed && sleep 300
+RUN dotnet tool install --global dotnet-ef --verbosity detailed 
+export PATH="$PATH:/root/.dotnet/tools"  
 ENV PATH $PATH:/root/.dotnet/tools
+
 
 COPY ["E_Commerce_BackEnd/E_Commerce_BackEnd.csproj", "E_Commerce_BackEnd/"]
 RUN dotnet restore "E_Commerce_BackEnd/E_Commerce_BackEnd.csproj"
@@ -32,6 +34,7 @@ FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
 
 WORKDIR "/src/E_Commerce_BackEnd"
+export PATH="$PATH:/root/.dotnet/tools"  
 ENV PATH $PATH:/root/.dotnet/tools
 
 RUN dotnet ef --version
