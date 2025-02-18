@@ -32,4 +32,4 @@ FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "E_Commerce_BackEnd.dll" ]
-#CMD ["sh", "-c", "dotnet ef database update && dotnet E_Commerce_BackEnd.dll"]
+
