@@ -35,7 +35,7 @@ set -e  # Exit script on error
 echo "🚀 Running database migrations..."
 
 export PATH="$PATH:/root/.dotnet/tools"
-dotnet ef database update --no-build --project /src/E_Commerce_BackEnd/E_Commerce_BackEnd.csproj
+dotnet-ef database update --no-build --project /src/E_Commerce_BackEnd/E_Commerce_BackEnd.csproj
 
 echo "✅ Migrations applied successfully!"
 
