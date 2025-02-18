@@ -32,7 +32,6 @@ FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
 
 WORKDIR "/src/E_Commerce_BackEnd"
-RUN dotnet tool install --global dotnet-ef || echo 'dotnet-ef already installed'
 ENV PATH $PATH:/root/.dotnet/tools
 
 RUN dotnet ef --version
