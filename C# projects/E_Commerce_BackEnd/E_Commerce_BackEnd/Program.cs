@@ -50,63 +50,52 @@ builder.Services.AddHealthChecks();
 // ------
 Environment.SetEnvironmentVariable("DOCKER" , "true");
 var getDockerEnv = Environment.GetEnvironmentVariable("DOCKER");
-var awsCredentials = await File.ReadAllLinesAsync("/run/secrets/aws_secrets");
-var awsAccessKey = awsCredentials.Length > 0 ? awsCredentials[0].Trim() : "";
-var awsSecretKey = awsCredentials.Length > 1 ? awsCredentials[1].Trim() : "";
-var awsRegion = awsCredentials.Length > 2 ? awsCredentials[2].Trim() : "eu-central-1"; // Default region if not provided
-//
+var awsCredentials = new string[3];
+var awsAccessKey = "";
+var awsSecretKey = "";
+var awsRegion = "";
+if (getDockerEnv == "true")
+{
+    awsCredentials = await File.ReadAllLinesAsync("/run/secrets/aws_secrets");
+    awsAccessKey =  awsCredentials.Length > 0 ? awsCredentials[0].Trim() : "";
+    awsSecretKey =  awsCredentials.Length > 1 ? awsCredentials[1].Trim() : "";
+    awsRegion = awsCredentials.Length > 2 ? awsCredentials[2].Trim() : "eu-central-1";
+    Environment.SetEnvironmentVariable("AWS_ACCESS_KEY_ID" , awsAccessKey);
+    Environment.SetEnvironmentVariable("AWS_SECRET_ACCESS_KEY" , awsSecretKey);
+    Environment.SetEnvironmentVariable("AWS_REGION" , awsRegion);
+}
+else
+{
+    Environment.SetEnvironmentVariable("AWS_ACCESS_KEY_ID" , "AKIAVRUVWGMELKZCKMLQ");
+    Environment.SetEnvironmentVariable("AWS_SECRET_ACCESS_KEY" , "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");
+    Environment.SetEnvironmentVariable("AWS_REGION" , "eu-central-1");
+}
 
-// Environment.SetEnvironmentVariable("AWS_ACCESS_KEY_ID" , "AKIAVRUVWGMELKZCKMLQ");
-// Environment.SetEnvironmentVariable("AWS_SECRET_ACCESS_KEY" , "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");
-// Environment.SetEnvironmentVariable("AWS_REGION" , "eu-central-1");
-// Environment.SetEnvironmentVariable("AWS_SECURITY_TOKEN" , "");
-// Environment.SetEnvironmentVariable("AWS_EC2_METADATA_DISABLED" , "true");
-
-Environment.SetEnvironmentVariable("AWS_ACCESS_KEY_ID" , awsAccessKey);
-Environment.SetEnvironmentVariable("AWS_SECRET_ACCESS_KEY" , awsSecretKey);
-Environment.SetEnvironmentVariable("AWS_REGION" , awsRegion);
 Environment.SetEnvironmentVariable("AWS_SECURITY_TOKEN" , "");
 Environment.SetEnvironmentVariable("AWS_EC2_METADATA_DISABLED" , "true");
 
-
-
-
-
-
-Console.WriteLine($"✅ AWS_ACCESS_KEY_ID: {awsAccessKey}");
-Console.WriteLine($"✅ AWS_SECRET_ACCESS_KEY: {awsSecretKey}"); // Mask secret for security
-Console.WriteLine($"✅ AWS_REGION: {awsRegion}");
-
-
-
-var regionEnpoint = RegionEndpoint.GetBySystemName(awsRegion);
-var basicAwsCredentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey);
-var awsOptions = new AWSOptions
+AWSOptions awsOptions;
+if (getDockerEnv == "true")
 {
-   Credentials = basicAwsCredentials,
-   Region = regionEnpoint
-};
-// --------
-// -------
+    var regionEndpoint = RegionEndpoint.GetBySystemName(awsRegion);
+    var basicAwsCredentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey);
+    awsOptions = new AWSOptions
+    {
+        Credentials = basicAwsCredentials,
+        Region = regionEndpoint
+    };
+}
+else
+{
+    var region = builder.Configuration.GetAWSOptions().Region;
+    awsOptions  = new AWSOptions
+    {
+        Profile = "misu_stefan",
+        ProfilesLocation = "/Users/misustefan/.aws/credentials",
+        Region = region
+    };
+}
 
-
-/*
- * NORMAL
- */
-
-// var region = builder.Configuration.GetAWSOptions();
-// var awsOptions = new AWSOptions
-// {
-//     Profile = "misu_stefan",
-//     ProfilesLocation = "/Users/misustefan/.aws/credentials",
-//     Region = RegionEndpoint.EUCentral1
-// };
-
-
-
-/*
- * NORMAL
- */
 
 builder.Services.AddDefaultAWSOptions(awsOptions);
 builder.Services.AddSingleton<IAmazonSecretsManager>
@@ -126,13 +115,10 @@ builder.Services.AddDataProtection()
 
 // Configure DbContext and logger
 
-// NORMAL (FOR DB CONNECTION)
-// var connectionString = builder.Configuration.GetConnectionString("CMDatabase"); 
+var connectionString = getDockerEnv == "false" ? builder.Configuration.GetConnectionString("CMDatabase") 
+    : "Server=dbtest.crume2y24a5h.eu-central-1.rds.amazonaws.com;Database=ComertDatabase;User=admin;Password=Stefan30122003!;";
 
-// FOR DOCKER ( DB CONNECTION )
-var dbCredentials =  await File.ReadAllLinesAsync("/run/secrets/db");
-var connectionString = dbCredentials[0];
-// -----------
+
 if (connectionString == null)
 {
     throw new InvalidOperationException("Connection string CMDatabase is null");
