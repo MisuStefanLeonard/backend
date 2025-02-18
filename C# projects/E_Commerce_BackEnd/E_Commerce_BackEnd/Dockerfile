@@ -48,11 +48,10 @@ RUN dotnet publish "E_Commerce_BackEnd.csproj" -c $BUILD_CONFIGURATION -o /app/p
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS migrations
 WORKDIR "/src/E_Commerce_BackEnd"
 USER root
-# Copy the published output from the publish stage if needed,
-# or you might copy the source if you need a design-time build.
-COPY --from=publish /app/publish /app/publish
+#COPY --from=publish /app/publish /app/publish
 # Set the default command to run migrations.
 RUN dotnet tool list --global & sleep 300;
+
 COPY ["E_Commerce_BackEnd/migrations.sh", "/app/migrations.sh"]
 COPY ["E_Commerce_BackEnd/quartz_init.sql", "/app/quartz_init.sql"]
 RUN chmod +x /app/migrations.sh
