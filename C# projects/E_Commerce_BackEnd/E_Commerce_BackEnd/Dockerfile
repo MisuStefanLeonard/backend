@@ -11,7 +11,6 @@ ENV ASPNETCORE_URLS=http://+:5043
 EXPOSE 5043
 
 
-
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 
@@ -48,6 +47,8 @@ RUN dotnet publish "E_Commerce_BackEnd.csproj" -c $BUILD_CONFIGURATION -o /app/p
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS migrations
 WORKDIR "/src/E_Commerce_BackEnd"
 USER root
+RUN dotnet tool install --global dotnet-ef --verbosity detailed 
+ENV PATH $PATH:/root/.dotnet/tools
 #COPY --from=publish /app/publish /app/publish
 # Set the default command to run migrations.
 RUN dotnet tool list --global & sleep 300;
