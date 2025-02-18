@@ -34,7 +34,7 @@ FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
 
 WORKDIR "/src/E_Commerce_BackEnd"
-export PATH="$PATH:/root/.dotnet/tools"  
+
 ENV PATH $PATH:/root/.dotnet/tools
 
 RUN dotnet ef --version
