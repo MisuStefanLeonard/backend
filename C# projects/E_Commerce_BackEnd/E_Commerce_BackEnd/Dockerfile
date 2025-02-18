@@ -9,7 +9,7 @@ RUN apt-get install -y mariadb-client
 ENV ASPNETCORE_URLS=http://+:5043
 EXPOSE 5043
 USER $APP_UID
-
+RUN dotnet tool install --global dotnet-ef
 
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
@@ -38,7 +38,7 @@ USER root
 RUN chmod +x /app/migrations.sh
 USER $APP_UID
 
-RUN dotnet tool install --global dotnet-ef
+
 # ✅ Ensure dotnet tools are available in PATH
 ENV PATH="$PATH:/root/.dotnet/tools"
 
