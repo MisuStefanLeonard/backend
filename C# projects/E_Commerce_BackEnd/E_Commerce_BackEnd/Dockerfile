@@ -45,9 +45,8 @@ COPY ["E_Commerce_BackEnd/migrations.sh", "/app/migrations.sh"]
 COPY ["E_Commerce_BackEnd/quartz_init.sql", "/app/quartz_init.sql"]
 USER root
 RUN chmod +x /app/migrations.sh
-USER $APP_UID
 RUN /bin/bash /app/migrations.sh
-
+USER $APP_UID
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
