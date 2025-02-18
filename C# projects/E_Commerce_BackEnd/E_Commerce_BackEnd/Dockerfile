@@ -52,7 +52,7 @@ ENV PATH $PATH:/root/.dotnet/tools
 # or you might copy the source if you need a design-time build.
 COPY --from=publish /app/publish /app/publish
 # Set the default command to run migrations.
-RUN dotnet tool list --global & sleep 10;
+RUN dotnet tool list --global & sleep 300;
 COPY ["E_Commerce_BackEnd/migrations.sh", "/app/migrations.sh"]
 COPY ["E_Commerce_BackEnd/quartz_init.sql", "/app/quartz_init.sql"]
 USER root
@@ -64,14 +64,6 @@ USER $APP_UID
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-
-#COPY ["E_Commerce_BackEnd/migrations.sh", "/app/migrations.sh"]
-#COPY ["E_Commerce_BackEnd/quartz_init.sql", "/app/quartz_init.sql"]
-#USER root
-#RUN chmod +x /app/migrations.sh
-#USER $APP_UID
-
-#ENTRYPOINT ["/app/migrations.sh"]
 
 ENTRYPOINT ["dotnet", "E_Commerce_BackEnd.dll" ]
 
