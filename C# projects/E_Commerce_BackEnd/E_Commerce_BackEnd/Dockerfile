@@ -15,7 +15,7 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 
 WORKDIR /src
-ENV PATH $PATH:/.dotnet/tools
+ENV PATH="$PATH:/root/.dotnet/tools"
 RUN dotnet tool install --global dotnet-ef
 
 
@@ -30,7 +30,7 @@ FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
 
 WORKDIR "/src/E_Commerce_BackEnd"
-ENV PATH $PATH:/.dotnet/tools
+ENV PATH="$PATH:/root/.dotnet/tools"
 
 RUN dotnet publish "E_Commerce_BackEnd.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
