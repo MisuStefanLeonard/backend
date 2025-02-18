@@ -18,7 +18,7 @@ WORKDIR /src
 USER root
 RUN dotnet workload update
 
-RUN dotnet tool install --global dotnet-ef --verbosity detailed
+RUN dotnet tool install --global dotnet-ef --verbosity detailed && sleep 300
 ENV PATH $PATH:/root/.dotnet/tools
 
 COPY ["E_Commerce_BackEnd/E_Commerce_BackEnd.csproj", "E_Commerce_BackEnd/"]
