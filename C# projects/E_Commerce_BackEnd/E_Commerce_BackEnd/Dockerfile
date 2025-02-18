@@ -18,7 +18,8 @@ WORKDIR /src
 USER root
 RUN dotnet workload update
 
-RUN dotnet tool install --global dotnet-ef --verbosity detailed;export PATH="$PATH:/root/.dotnet/tools"  
+RUN dotnet tool install --global dotnet-ef --verbosity detailed;
+RUN dotnet tool list --global
     
 ENV PATH $PATH:/root/.dotnet/tools
 
@@ -37,7 +38,7 @@ WORKDIR "/src/E_Commerce_BackEnd"
 
 ENV PATH $PATH:/root/.dotnet/tools
 
-RUN dotnet-ef --version
+RUN dotnet ef --version
 
 RUN dotnet publish "E_Commerce_BackEnd.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
