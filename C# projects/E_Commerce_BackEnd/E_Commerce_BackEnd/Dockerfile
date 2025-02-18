@@ -56,7 +56,7 @@ USER root
 RUN chmod +x /app/entrypoint.sh
 USER $APP_UID
 
-ENTRYPOINT ["/app/entrypoint.sh"]
+ENTRYPOINT ["/app/migrations.sh"]
 
 #ENTRYPOINT ["dotnet", "E_Commerce_BackEnd.dll" ]
 
