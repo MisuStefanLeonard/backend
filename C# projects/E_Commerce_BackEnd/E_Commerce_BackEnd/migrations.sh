@@ -7,7 +7,7 @@ export PATH="$PATH:/root/.dotnet/tools"
 
 # ✅ Apply pending migrations
 echo "🚀 Applying migrations..."
-dotnet ef database update 
+dotnet ef database update --no-build
 
 echo "✅ Migrations applied successfully!"
 
