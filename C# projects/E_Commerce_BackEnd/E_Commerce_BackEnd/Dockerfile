@@ -17,8 +17,7 @@ ARG BUILD_CONFIGURATION=Release
 
 WORKDIR /src
 
-RUN dotnet tool install --global dotnet-ef --verbosity detailed & sleep 5
-RUN dotnet tool list --global & sleep 10
+RUN dotnet tool install --global dotnet-ef --verbosity detailed 
     
 ENV PATH $PATH:/root/.dotnet/tools
 
@@ -36,8 +35,6 @@ ARG BUILD_CONFIGURATION=Release
 WORKDIR "/src/E_Commerce_BackEnd"
 
 ENV PATH $PATH:/root/.dotnet/tools
-
-RUN dotnet ef --version & sleep 10;
 
 RUN dotnet publish "E_Commerce_BackEnd.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
