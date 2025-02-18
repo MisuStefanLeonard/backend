@@ -10,19 +10,20 @@ ENV ASPNETCORE_URLS=http://+:5043
 EXPOSE 5043
 USER $APP_UID
 
-USER root
+
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
-
+USER root
 WORKDIR /src
+RUN dotnet workload update
 
 RUN dotnet tool install --global dotnet-ef
 ENV PATH $PATH:/root/.dotnet/tools
 
 RUN dotnet ef --version
+
 USER $APP_UID
 
-RUN dotnet workload update
 
 COPY ["E_Commerce_BackEnd/E_Commerce_BackEnd.csproj", "E_Commerce_BackEnd/"]
 RUN dotnet restore "E_Commerce_BackEnd/E_Commerce_BackEnd.csproj"
