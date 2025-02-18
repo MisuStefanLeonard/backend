@@ -34,7 +34,7 @@ COPY --from=publish /app/publish .
 COPY ["E_Commerce_BackEnd/migrations.sh", "/app/migrations.sh"]
 COPY ["E_Commerce_BackEnd/quartz_init.sql", "/app/quartz_init.sql"]
 
-RUN chmod +x /src/migrations.sh
+RUN chmod +x /app/migrations.sh
 
 RUN dotnet tool install --global dotnet-ef
 # ✅ Ensure dotnet tools are available in PATH
