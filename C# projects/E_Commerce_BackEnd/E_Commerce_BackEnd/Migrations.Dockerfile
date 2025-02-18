@@ -28,7 +28,7 @@ RUN chmod +x /src/migrations.sh
 RUN chmod +x /src/quartzInit.sh
 
 COPY ["E_Commerce_BackEnd/general.sh", "/src/general.sh"]
-RUN chmod +x /src/entrypoint.sh
+RUN chmod +x /src/general.sh
 
 ENTRYPOINT ["/bin/bash", "/src/general.sh"]
 
