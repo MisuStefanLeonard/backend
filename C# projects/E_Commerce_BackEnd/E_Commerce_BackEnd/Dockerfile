@@ -51,7 +51,6 @@ RUN dotnet tool install --global dotnet-ef --verbosity detailed
 ENV PATH $PATH:/root/.dotnet/tools
 #COPY --from=publish /app/publish /app/publish
 # Set the default command to run migrations.
-RUN dotnet tool list --global & sleep 300;
 
 COPY ["E_Commerce_BackEnd/migrations.sh", "/app/migrations.sh"]
 COPY ["E_Commerce_BackEnd/quartz_init.sql", "/app/quartz_init.sql"]
