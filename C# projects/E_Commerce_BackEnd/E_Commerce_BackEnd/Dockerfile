@@ -21,9 +21,6 @@ RUN dotnet workload update
 RUN dotnet tool install --global dotnet-ef
 ENV PATH $PATH:/root/.dotnet/tools
 
-RUN dotnet ef --version
-
-
 COPY ["E_Commerce_BackEnd/E_Commerce_BackEnd.csproj", "E_Commerce_BackEnd/"]
 RUN dotnet restore "E_Commerce_BackEnd/E_Commerce_BackEnd.csproj"
 COPY . .
@@ -35,6 +32,10 @@ FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
 
 WORKDIR "/src/E_Commerce_BackEnd"
+RUN dotnet tool install --global dotnet-ef
+ENV PATH $PATH:/root/.dotnet/tools
+
+RUN dotnet ef --version
 
 RUN dotnet publish "E_Commerce_BackEnd.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
