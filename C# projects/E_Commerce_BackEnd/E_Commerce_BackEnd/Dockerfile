@@ -6,9 +6,10 @@ WORKDIR /app
 USER root
 RUN apt-get update && apt-get install -y curl
 RUN apt-get install -y mariadb-client
+USER $APP_UID
 ENV ASPNETCORE_URLS=http://+:5043
 EXPOSE 5043
-USER $APP_UID
+
 
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
