@@ -19,7 +19,7 @@ USER root
 RUN dotnet workload update
 
 RUN dotnet tool install --global dotnet-ef --verbosity detailed;
-RUN dotnet tool list --global
+RUN dotnet tool list --global & sleep 10
     
 ENV PATH $PATH:/root/.dotnet/tools
 
