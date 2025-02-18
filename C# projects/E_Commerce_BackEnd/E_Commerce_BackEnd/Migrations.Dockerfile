@@ -30,7 +30,7 @@ RUN chmod +x /src/quartzInit.sh
 COPY ["E_Commerce_BackEnd/general.sh", "/src/general.sh"]
 RUN chmod +x /src/general.sh
 
-ENTRYPOINT ["/bin/bash", "/src/general.sh"]
+CMD ["/bin/bash", "/src/general.sh"]
 
 ## ✅ Run migrations before starting the app
 #CMD ["/bin/bash", "/src/migrations.sh"]
