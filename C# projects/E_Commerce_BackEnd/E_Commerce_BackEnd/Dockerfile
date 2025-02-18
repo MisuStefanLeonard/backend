@@ -53,9 +53,10 @@ COPY --from=publish /app/publish .
 COPY ["E_Commerce_BackEnd/migrations.sh", "/app/migrations.sh"]
 COPY ["E_Commerce_BackEnd/quartz_init.sql", "/app/quartz_init.sql"]
 USER root
-RUN chmod +x /app/migrations.sh
-RUN /bin/bash /app/migrations.sh
+RUN chmod +x /app/entrypoint.sh
 USER $APP_UID
 
-ENTRYPOINT ["dotnet", "E_Commerce_BackEnd.dll" ]
+ENTRYPOINT ["/app/entrypoint.sh"]
+
+#ENTRYPOINT ["dotnet", "E_Commerce_BackEnd.dll" ]
 

@@ -46,4 +46,5 @@ echo "🚀 Running Quartz SQL script..."
 mysql -h "dbtest.crume2y24a5h.eu-central-1.rds.amazonaws.com" -P 3306 -u "admin" -p"Stefan30122003!" "ComertDatabase" < /app/quartz_init.sql
 echo "✅ Quartz SQL script executed successfully!"
 
-exit 0;
+#exit 0;
+exec dotnet E_Commerce_BackEnd.dll
