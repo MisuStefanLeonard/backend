@@ -21,8 +21,6 @@ COPY E_Commerce_BackEnd /src/E_Commerce_BackEnd
 
 WORKDIR "/src/E_Commerce_BackEnd"
 
-RUN dotnet build -c Release
-
 # ✅ Ensure the script is executable
 RUN chmod +x /src/migrations.sh
 

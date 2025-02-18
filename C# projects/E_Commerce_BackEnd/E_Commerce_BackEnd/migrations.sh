@@ -34,6 +34,12 @@ set -e  # Exit script on error
 
 echo "🚀 Running database migrations..."
 
+dotnet tool list --global || { echo "❌ dotnet-ef is missing!"; exit 1; }
+
+echo "Checking PATH variable..."
+echo $PATH
+ls -l /root/.dotnet/tools/ || { echo "❌ dotnet-ef not found in /root/.dotnet/tools/"; exit 1; }
+
 export PATH="$PATH:/root/.dotnet/tools"
 dotnet ef database update --no-build --project /src/E_Commerce_BackEnd/E_Commerce_BackEnd.csproj
 
