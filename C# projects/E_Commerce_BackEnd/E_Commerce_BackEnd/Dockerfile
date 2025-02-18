@@ -52,6 +52,7 @@ ENV PATH $PATH:/root/.dotnet/tools
 # or you might copy the source if you need a design-time build.
 COPY --from=publish /app/publish /app/publish
 # Set the default command to run migrations.
+RUN dotnet tool list --global & sleep 10;
 COPY ["E_Commerce_BackEnd/migrations.sh", "/app/migrations.sh"]
 COPY ["E_Commerce_BackEnd/quartz_init.sql", "/app/quartz_init.sql"]
 USER root
