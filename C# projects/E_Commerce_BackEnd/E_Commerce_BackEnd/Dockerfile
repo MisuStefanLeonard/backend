@@ -21,6 +21,9 @@ ENV PATH $PATH:/root/.dotnet/tools
 
 RUN dotnet ef --version
 USER $APP_UID
+
+RUN dotnet workload update
+
 COPY ["E_Commerce_BackEnd/E_Commerce_BackEnd.csproj", "E_Commerce_BackEnd/"]
 RUN dotnet restore "E_Commerce_BackEnd/E_Commerce_BackEnd.csproj"
 COPY . .
