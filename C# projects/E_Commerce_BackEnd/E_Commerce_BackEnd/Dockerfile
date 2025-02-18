@@ -13,16 +13,15 @@ USER $APP_UID
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
-USER root
-WORKDIR /src
-RUN dotnet workload update
 
+WORKDIR /src
+
+RUN dotnet workload update
+RUN dotnet workload restore
 RUN dotnet tool install --global dotnet-ef
 ENV PATH $PATH:/root/.dotnet/tools
 
 RUN dotnet ef --version
-
-USER $APP_UID
 
 
 COPY ["E_Commerce_BackEnd/E_Commerce_BackEnd.csproj", "E_Commerce_BackEnd/"]
