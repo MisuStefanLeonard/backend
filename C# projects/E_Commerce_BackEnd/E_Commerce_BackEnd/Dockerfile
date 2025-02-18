@@ -16,9 +16,7 @@ ARG BUILD_CONFIGURATION=Release
 
 WORKDIR /src
 
-RUN dotnet workload update
-
-RUN dotnet tool install --global dotnet-ef --verbosity detailed;
+RUN dotnet tool install --global dotnet-ef --verbosity detailed & sleep 5
 RUN dotnet tool list --global & sleep 10
     
 ENV PATH $PATH:/root/.dotnet/tools
