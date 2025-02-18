@@ -49,6 +49,8 @@ WORKDIR "/src/E_Commerce_BackEnd"
 USER root
 RUN dotnet tool install --global dotnet-ef --verbosity detailed 
 ENV PATH $PATH:/root/.dotnet/tools
+
+COPY --from=build /src/E_Commerce_BackEnd/E_Commerce_BackEnd.csproj ./
 #COPY --from=publish /app/publish /app/publish
 # Set the default command to run migrations.
 
