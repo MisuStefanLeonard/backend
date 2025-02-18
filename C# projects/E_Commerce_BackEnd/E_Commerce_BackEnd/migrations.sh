@@ -13,6 +13,12 @@ export PATH="$PATH:/root/.dotnet/tools"
 #  exit 0  # ✅ Exit successfully to mark container as completed
 #fi
 
+# ✅ Apply pending migrations
+echo "🚀 Applying migrations..."
+dotnet ef database update --no-build
+
+echo "✅ Migrations applied successfully!"
+
 echo "Running Quartz initialization script..."
 
 # Database credentials
@@ -28,9 +34,5 @@ mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" < "$
 
 echo "Quartz initialization completed!"
 
-# ✅ Apply pending migrations
-echo "🚀 Applying migrations..."
-dotnet ef database update --no-build
 
-echo "✅ Migrations applied successfully!"
 exit 0;
