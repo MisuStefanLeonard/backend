@@ -9,10 +9,10 @@ RUN apt-get install -y mariadb-client
 ENV ASPNETCORE_URLS=http://+:5043
 EXPOSE 5043
 USER $APP_UID
-RUN dotnet tool install --global dotnet-ef
 
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+RUN dotnet tool install --global dotnet-ef
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["E_Commerce_BackEnd/E_Commerce_BackEnd.csproj", "E_Commerce_BackEnd/"]
