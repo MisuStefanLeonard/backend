@@ -9,7 +9,7 @@ RUN dotnet restore "E_Commerce_BackEnd/E_Commerce_BackEnd.csproj"
 
 # ✅ Copy migration script
 COPY ["E_Commerce_BackEnd/migrations.sh", "/src/migrations.sh"]
-COPY ["E_Commerce_BackEnd/migrations.sh", "/src/quartzInit.sh"]
+COPY ["E_Commerce_BackEnd/quartzInit.sh", "/src/quartzInit.sh"]
 
 
 # ✅ Install dotnet-ef globally
@@ -27,7 +27,12 @@ WORKDIR "/src/E_Commerce_BackEnd"
 RUN chmod +x /src/migrations.sh
 RUN chmod +x /src/quartzInit.sh
 
-# ✅ Run migrations before starting the app
-CMD ["/bin/bash", "/src/migrations.sh"]
-CMD ["/bin/bash" , "/src/quartzInit.sh"]
+COPY ["E_Commerce_BackEnd/entrypoint.sh", "/src/entrypoint.sh"]
+RUN chmod +x /src/entrypoint.sh
+
+ENTRYPOINT ["/bin/bash", "/src/entrypoint.sh"]
+
+## ✅ Run migrations before starting the app
+#CMD ["/bin/bash", "/src/migrations.sh"]
+#CMD ["/bin/bash" , "/src/quartzInit.sh"]
 
