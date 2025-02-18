@@ -1,7 +1,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 
 WORKDIR /src
-
+RUN apt-get update && apt-get install -y mysql-client
 # ✅ Copy only the essential files for restoring dependencies
 COPY ["E_Commerce_BackEnd/E_Commerce_BackEnd.csproj", "E_Commerce_BackEnd/"]
 RUN dotnet restore "E_Commerce_BackEnd/E_Commerce_BackEnd.csproj"
