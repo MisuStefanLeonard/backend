@@ -26,6 +26,8 @@ RUN dotnet build "E_Commerce_BackEnd.csproj" -c $BUILD_CONFIGURATION -o /app/bui
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
+
+WORKDIR "/src/E_Commerce_BackEnd"
 ENV PATH="$PATH:/root/.dotnet/tools"
 
 RUN dotnet publish "E_Commerce_BackEnd.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
@@ -35,12 +37,13 @@ COPY ["E_Commerce_BackEnd/quartz_init.sql", "/app/quartz_init.sql"]
 USER root
 RUN chmod +x /app/migrations.sh
 USER $APP_UID
+
+WORKDIR /app
 RUN /bin/bash /app/migrations.sh
 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-
 
 ENTRYPOINT ["dotnet", "E_Commerce_BackEnd.dll" ]
 
