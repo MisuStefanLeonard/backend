@@ -18,8 +18,8 @@ WORKDIR /src
 USER root
 RUN dotnet workload update
 
-RUN dotnet tool install --global dotnet-ef --verbosity detailed 
-export PATH="$PATH:/root/.dotnet/tools"  
+RUN dotnet tool install --global dotnet-ef --verbosity detailed;export PATH="$PATH:/root/.dotnet/tools"  
+    
 ENV PATH $PATH:/root/.dotnet/tools
 
 
