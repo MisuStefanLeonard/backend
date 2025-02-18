@@ -47,8 +47,8 @@ RUN dotnet publish "E_Commerce_BackEnd.csproj" -c $BUILD_CONFIGURATION -o /app/p
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS migrations
 WORKDIR "/src/E_Commerce_BackEnd"
 USER root
-#RUN dotnet tool install --global dotnet-ef --verbosity detailed 
-#ENV PATH $PATH:/root/.dotnet/tools
+RUN dotnet tool install --global dotnet-ef --verbosity detailed 
+ENV PATH $PATH:/root/.dotnet/tools
 
 COPY --from=build /src/E_Commerce_BackEnd ./
 #COPY --from=publish /app/publish /app/publish
