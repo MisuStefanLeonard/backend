@@ -27,10 +27,10 @@ WORKDIR "/src/E_Commerce_BackEnd"
 RUN chmod +x /src/migrations.sh
 RUN chmod +x /src/quartzInit.sh
 
-COPY ["E_Commerce_BackEnd/entrypoint.sh", "/src/entrypoint.sh"]
+COPY ["E_Commerce_BackEnd/general.sh", "/src/general.sh"]
 RUN chmod +x /src/entrypoint.sh
 
-ENTRYPOINT ["/bin/bash", "/src/entrypoint.sh"]
+ENTRYPOINT ["/bin/bash", "/src/general.sh"]
 
 ## ✅ Run migrations before starting the app
 #CMD ["/bin/bash", "/src/migrations.sh"]
