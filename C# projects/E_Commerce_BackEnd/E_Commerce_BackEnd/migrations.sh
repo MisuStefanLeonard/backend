@@ -1,7 +1,7 @@
 #!/bin/bash
 
 set -e  # Exit script on error
-
+echo "Starting migrations script"
 # ✅ Ensure dotnet tools are available
 export PATH="$PATH:/root/.dotnet/tools"
 
