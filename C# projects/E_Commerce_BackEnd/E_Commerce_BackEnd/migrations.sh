@@ -33,7 +33,10 @@
 set -e  # Exit script on error
 
 echo "🚀 Running database migrations..."
+
+export PATH="$PATH:/root/.dotnet/tools"
 dotnet ef database update --no-build --project /app/E_Commerce_BackEnd.dll
+
 echo "✅ Migrations applied successfully!"
 
 echo "🚀 Running Quartz SQL script..."
