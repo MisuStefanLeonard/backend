@@ -7,7 +7,7 @@ echo "🚀 Running database migrations..."
 dotnet tool list --global || { echo "❌ dotnet-ef is missing!"; exit 1; }
 
 export PATH="$PATH:/root/.dotnet/tools"  
-dotnet ef database update --no-build 
+dotnet ef database update --no-build --configuration Release
 
 
 echo "✅ Migrations applied successfully!"
