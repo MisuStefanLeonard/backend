@@ -9,11 +9,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace E_Commerce_BackEnd.Migrations.V1_8
+namespace E_Commerce_BackEnd.Migration.V1
 {
     [DbContext(typeof(ECommerceContext))]
-    [Migration("20241203154300_UniqueIdentifierCartUpdate")]
-    partial class UniqueIdentifierCartUpdate
+    [Migration("20250219192755_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,6 +24,30 @@ namespace E_Commerce_BackEnd.Migrations.V1_8
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
+
+            modelBuilder.Entity("E_Commerce_BackEnd.Models.ConfigurationModels.GlobalConfigs", b =>
+                {
+                    b.Property<int>("IdConfiguratie")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int(1)")
+                        .HasColumnName("id_config");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdConfiguratie"));
+
+                    b.Property<string>("NumeAtributGlobal")
+                        .IsRequired()
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("nume_atribut");
+
+                    b.Property<string>("ValoareAtributGlobal")
+                        .IsRequired()
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("valoare_atribut");
+
+                    b.HasKey("IdConfiguratie");
+
+                    b.ToTable("global_config", (string)null);
+                });
 
             modelBuilder.Entity("E_Commerce_BackEnd.Models.OrderRelatedModels.Comenzi", b =>
                 {
@@ -46,6 +70,12 @@ namespace E_Commerce_BackEnd.Migrations.V1_8
                         .HasColumnName("data_emitere_comanda")
                         .HasDefaultValueSql("NOW()");
 
+                    b.Property<string>("EmailPeComanda")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar")
+                        .HasColumnName("email_pe_comanda");
+
                     b.Property<int>("IdAdresaFacturare")
                         .HasColumnType("integer")
                         .HasColumnName("id_adresa_facturare");
@@ -63,6 +93,35 @@ namespace E_Commerce_BackEnd.Migrations.V1_8
                         .HasColumnType("tinyint")
                         .HasDefaultValue((sbyte)1);
 
+                    b.Property<sbyte>("IsOrderPayed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("is_order_payed");
+
+                    b.Property<string>("NrTelefonPeComanda")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar")
+                        .HasColumnName("nr_telefon_pe_comanda");
+
+                    b.Property<string>("NumePeComanda")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar")
+                        .HasColumnName("nume_pe_comanda");
+
+                    b.Property<string>("PrenumePeComanda")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar")
+                        .HasColumnName("prenume_pe_comanda");
+
+                    b.Property<decimal>("PretTransport")
+                        .HasPrecision(4, 2)
+                        .HasColumnType("decimal")
+                        .HasColumnName("pret_transport");
+
                     b.Property<string>("StatusComanda")
                         .IsRequired()
                         .HasColumnType("longtext")
@@ -72,6 +131,18 @@ namespace E_Commerce_BackEnd.Migrations.V1_8
                         .IsRequired()
                         .HasColumnType("longtext")
                         .HasColumnName("tip_plata");
+
+                    b.Property<string>("UniqueConfirmationToken")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar")
+                        .HasColumnName("confirmation_token");
+
+                    b.Property<sbyte>("UniqueConfirmationTokenUsed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("is_confirmation_token_used");
 
                     b.HasKey("IdComanda");
 
@@ -145,6 +216,15 @@ namespace E_Commerce_BackEnd.Migrations.V1_8
                     b.Property<int?>("IdSet")
                         .HasColumnType("integer")
                         .HasColumnName("id_set");
+
+                    b.Property<string>("IdentificatorSet")
+                        .IsRequired()
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("identificator_set");
+
+                    b.Property<string>("InaltimeAleasaPentruSet")
+                        .HasColumnType("varchar(4)")
+                        .HasColumnName("inaltime_set");
 
                     b.Property<int>("NrBucati")
                         .HasColumnType("integer")
@@ -248,7 +328,13 @@ namespace E_Commerce_BackEnd.Migrations.V1_8
                         .HasColumnType("int")
                         .HasColumnName("cantitate_produs");
 
-                    b.Property<int>("IdCont")
+                    b.Property<DateTime>("ExpiresAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasColumnName("expires_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<int?>("IdCont")
                         .HasColumnType("int")
                         .HasColumnName("id_cont");
 
@@ -264,8 +350,7 @@ namespace E_Commerce_BackEnd.Migrations.V1_8
                         .HasColumnType("int")
                         .HasColumnName("id_manopera");
 
-                    b.Property<int?>("IdProdus")
-                        .IsRequired()
+                    b.Property<int>("IdProdus")
                         .HasColumnType("int")
                         .HasColumnName("id_produs");
 
@@ -287,6 +372,9 @@ namespace E_Commerce_BackEnd.Migrations.V1_8
                         .HasPrecision(6, 2)
                         .HasColumnType("decimal")
                         .HasColumnName("pret_produs");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("char(36)");
 
                     b.HasKey("IdProdusInCos");
 
@@ -352,8 +440,11 @@ namespace E_Commerce_BackEnd.Migrations.V1_8
                         .HasColumnType("varchar")
                         .HasColumnName("lungime");
 
-                    b.Property<bool?>("PerdeaEstePereche")
-                        .HasColumnType("tinyint(1)");
+                    b.Property<sbyte>("PerdeaEstePereche")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("pereche_perdea");
 
                     b.Property<string>("RecomandarePat")
                         .HasMaxLength(15)
@@ -422,6 +513,12 @@ namespace E_Commerce_BackEnd.Migrations.V1_8
                         .HasDefaultValue((sbyte)0)
                         .HasColumnName("isDeleted");
 
+                    b.Property<sbyte>("IsLocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("is_locked");
+
                     b.HasKey("IdInel");
 
                     b.ToTable("inele_prindere", (string)null);
@@ -452,6 +549,12 @@ namespace E_Commerce_BackEnd.Migrations.V1_8
                         .HasMaxLength(4)
                         .HasColumnType("varchar(4)")
                         .HasColumnName("inaltime_maxima");
+
+                    b.Property<sbyte>("IsLocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("is_locked");
 
                     b.Property<decimal>("MaterialFolosit")
                         .HasPrecision(6, 2)
@@ -566,6 +669,12 @@ namespace E_Commerce_BackEnd.Migrations.V1_8
                         .HasColumnType("tinyint")
                         .HasDefaultValue((sbyte)0)
                         .HasColumnName("isDeleted");
+
+                    b.Property<sbyte>("IsLocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("is_locked");
 
                     b.Property<string>("NumeProdus")
                         .HasMaxLength(50)
@@ -698,6 +807,12 @@ namespace E_Commerce_BackEnd.Migrations.V1_8
                         .HasDefaultValue((sbyte)0)
                         .HasColumnName("isDeleted");
 
+                    b.Property<sbyte>("IsLocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("is_locked");
+
                     b.Property<string>("NumeSet")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -748,6 +863,12 @@ namespace E_Commerce_BackEnd.Migrations.V1_8
                         .HasDefaultValue((sbyte)0)
                         .HasColumnName("isDeleted");
 
+                    b.Property<sbyte>("IsLocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("is_locked");
+
                     b.Property<string>("NumeTipGalerie")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -789,6 +910,12 @@ namespace E_Commerce_BackEnd.Migrations.V1_8
                         .HasColumnType("tinyint")
                         .HasDefaultValue((sbyte)0)
                         .HasColumnName("isDeleted");
+
+                    b.Property<sbyte>("IsLocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("is_locked");
 
                     b.Property<string>("NumeTipLinie")
                         .IsRequired()
@@ -981,7 +1108,7 @@ namespace E_Commerce_BackEnd.Migrations.V1_8
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasMaxLength(50)
+                        .HasMaxLength(100)
                         .HasColumnType("varchar")
                         .HasColumnName("email");
 
@@ -996,12 +1123,12 @@ namespace E_Commerce_BackEnd.Migrations.V1_8
                         .HasColumnName("guest");
 
                     b.Property<string>("NrTelefon")
-                        .HasMaxLength(10)
+                        .HasMaxLength(20)
                         .HasColumnType("varchar")
                         .HasColumnName("nr_telefon");
 
                     b.Property<string>("Nume")
-                        .HasMaxLength(10)
+                        .HasMaxLength(20)
                         .HasColumnType("varchar")
                         .HasColumnName("nume");
 
@@ -1012,13 +1139,12 @@ namespace E_Commerce_BackEnd.Migrations.V1_8
                         .HasDefaultValueSql("NOW()");
 
                     b.Property<string>("Parola")
-                        .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("varchar")
                         .HasColumnName("parola");
 
                     b.Property<string>("Prenume")
-                        .HasMaxLength(20)
+                        .HasMaxLength(30)
                         .HasColumnType("varchar")
                         .HasColumnName("prenume");
 
@@ -1029,7 +1155,6 @@ namespace E_Commerce_BackEnd.Migrations.V1_8
                         .HasColumnName("rol");
 
                     b.Property<string>("Username")
-                        .IsRequired()
                         .HasMaxLength(15)
                         .HasColumnType("varchar")
                         .HasColumnName("username");
@@ -1043,10 +1168,6 @@ namespace E_Commerce_BackEnd.Migrations.V1_8
                     b.HasIndex("Email")
                         .IsUnique()
                         .HasDatabaseName("INDEX_EMAIL");
-
-                    b.HasIndex("Username")
-                        .IsUnique()
-                        .HasDatabaseName("INDEX_USERNAME");
 
                     b.ToTable("conturi", (string)null);
                 });
@@ -1282,9 +1403,7 @@ namespace E_Commerce_BackEnd.Migrations.V1_8
                 {
                     b.HasOne("E_Commerce_BackEnd.Models.UserRelatedModels.Conturi", "Cont")
                         .WithMany("ProduseInCosPeCont")
-                        .HasForeignKey("IdCont")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("IdCont");
 
                     b.HasOne("E_Commerce_BackEnd.Models.ProductRelatedModels.Culori", "Culoare")
                         .WithMany("CuloriPeCosCumparaturi")

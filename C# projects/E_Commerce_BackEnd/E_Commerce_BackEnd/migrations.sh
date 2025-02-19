@@ -9,7 +9,7 @@ dotnet tool list --global || { echo "❌ dotnet-ef is missing!"; exit 1; }
 export PATH="$PATH:/root/.dotnet/tools"  
 dotnet ef database update --no-build --configuration Release
 
-
+# DE STERS MIGRARILE SI DE RULAT INIT DIN NOU ! REFRESH LA ATRIBUTE . S-AU PIERDUT 
 echo "✅ Migrations applied successfully!"
 
 echo "🚀 Running Quartz SQL script..."

@@ -13,47 +13,6 @@ public class ECommerceContext : DbContext
     public ECommerceContext(DbContextOptions<ECommerceContext> options) : base(options) { }
     
     public ECommerceContext(){}
-
-    // #region DbSet
-    //
-    // /// <summary>
-    // /// User related tables !!!
-    // /// </summary>
-    // public  DbSet<Locatii> DbLocatii { get; set; }
-    // public  DbSet<Adrese> DbAdrese { get; set; }
-    // public  DbSet<Conturi> DbConturi { get; set; }
-    //
-    // /// <summary>
-    // /// Order and addresses related tables !!!
-    // /// </summary>
-    // public  DbSet<DetaliiFactura> DbDetaliiFactura { get; set; }
-    // public  DbSet<Comenzi> DbComenzi { get; set; }
-    // public  DbSet<ProduseCuComenzi> DbProduseCuComenzi { get; set; }
-    //
-    // /// <summary>
-    // /// Products related tables !!!
-    // /// </summary>
-    // public  DbSet<Dimensiuni> DbDimensiuni { get; set; }
-    // public  DbSet<Producatori> DbProducatori { get; set; }
-    // public  DbSet<CodCulori> DbCodCulori { get; set; }
-    // public  DbSet<Culori> DbCulori { get; set; }
-    // public  DbSet<Produse> DbProduse { get; set; }
-    // public  DbSet<Seturi> DbSeturi { get; set; }
-    // public  DbSet<Imagini> DbImagini { get; set; }
-    // public  DbSet<Manopere> DbManopere { get; set; }
-    // public  DbSet<TipuriProduse> DbTipuriProduse { get; set; }
-    // public  DbSet<TipuriPeProduse> DbTipuriPeProduse { get; set; }
-    // public  DbSet<AsociereSeturi> DbAsociereSeturi { get; set; }
-    // public  DbSet<ProduseCuCulori> DbProduseCuCulori { get; set; }
-    // public  DbSet<ProduseCuDimensiuni> DbProduseCuDimensiuni { get; set; }
-    //
-    // /// <summary>
-    // /// Vouchers and products related tables
-    // /// </summary>
-    // public  DbSet<Vouchere> DbVouchere { get; set; }
-    //
-    //
-    // #endregion
     
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -531,6 +490,12 @@ public class ECommerceContext : DbContext
                 .HasColumnType("varchar")
                 .HasColumnName("lungime")
                 .HasMaxLength(4)
+                .IsRequired();
+
+            entity.Property(e => e.PerdeaEstePereche)
+                .HasColumnType("tinyint")
+                .HasColumnName("pereche_perdea")
+                .HasDefaultValue(false)
                 .IsRequired();
             
             

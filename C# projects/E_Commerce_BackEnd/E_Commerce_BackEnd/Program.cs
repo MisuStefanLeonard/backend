@@ -48,7 +48,7 @@ builder.Services.AddHealthChecks();
 // Configure AWS options
 // FOR DOCKER AWS CREDENTIALS
 // ------
-Environment.SetEnvironmentVariable("DOCKER" , "true");
+Environment.SetEnvironmentVariable("DOCKER" , "false");
 var getDockerEnv = Environment.GetEnvironmentVariable("DOCKER");
 var awsCredentials = new string[3];
 var awsAccessKey = "";

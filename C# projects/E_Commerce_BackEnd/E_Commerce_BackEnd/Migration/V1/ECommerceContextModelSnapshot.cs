@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace E_Commerce_BackEnd.Migrations.V1
+namespace E_Commerce_BackEnd.Migration.V1
 {
     [DbContext(typeof(ECommerceContext))]
     partial class ECommerceContextModelSnapshot : ModelSnapshot
@@ -437,8 +437,11 @@ namespace E_Commerce_BackEnd.Migrations.V1
                         .HasColumnType("varchar")
                         .HasColumnName("lungime");
 
-                    b.Property<bool?>("PerdeaEstePereche")
-                        .HasColumnType("tinyint(1)");
+                    b.Property<sbyte>("PerdeaEstePereche")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((sbyte)0)
+                        .HasColumnName("pereche_perdea");
 
                     b.Property<string>("RecomandarePat")
                         .HasMaxLength(15)
