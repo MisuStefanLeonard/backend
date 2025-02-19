@@ -18,4 +18,4 @@ WORKDIR "/src/E_Commerce_BackEnd"
 RUN chmod +x ./migrations.sh
 
 ## ✅ Run migrations before starting the app
-CMD ["/bin/bash", "/src/migrations.sh"]
+CMD ["/bin/bash", "./migrations.sh"]
