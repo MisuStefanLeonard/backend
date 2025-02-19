@@ -41,14 +41,13 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.RateLimiting;
 using Quartz;
-using Quartz.Impl;
 using Sqids;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHealthChecks();
 // Configure AWS options
 // FOR DOCKER AWS CREDENTIALS
 // ------
-Environment.SetEnvironmentVariable("DOCKER" , "false");
+Environment.SetEnvironmentVariable("DOCKER" , "true");
 var getDockerEnv = Environment.GetEnvironmentVariable("DOCKER");
 var awsCredentials = new string[3];
 var awsAccessKey = "";
