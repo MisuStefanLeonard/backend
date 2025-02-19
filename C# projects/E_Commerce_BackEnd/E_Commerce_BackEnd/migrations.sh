@@ -7,7 +7,7 @@ echo "🚀 Running database migrations..."
 dotnet tool list --global || { echo "❌ dotnet-ef is missing!"; exit 1; }
 
 export PATH="$PATH:/root/.dotnet/tools"  
-dotnet ef database update 
+dotnet ef database update --no-build
 
 
 echo "✅ Migrations applied successfully!"
@@ -17,4 +17,4 @@ mysql -h "dbtest.crume2y24a5h.eu-central-1.rds.amazonaws.com" -P 3306 -u "admin"
 echo "✅ Quartz SQL script executed successfully!"
 
 exit 0;
-#exec dotnet E_Commerce_BackEnd.dll
+
