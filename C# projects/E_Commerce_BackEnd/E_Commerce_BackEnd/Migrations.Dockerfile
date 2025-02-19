@@ -17,5 +17,8 @@ WORKDIR "/src/E_Commerce_BackEnd"
 # ✅ Ensure the script is executable
 RUN chmod +x ./migrations.sh
 
+RUN dotnet restore "E_Commerce_BackEnd.csproj"
+
+
 ## ✅ Run migrations before starting the app
 CMD ["/bin/bash", "./migrations.sh"]
