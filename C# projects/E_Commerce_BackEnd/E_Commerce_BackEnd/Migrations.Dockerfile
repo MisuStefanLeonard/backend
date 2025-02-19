@@ -15,7 +15,7 @@ COPY E_Commerce_BackEnd /src/E_Commerce_BackEnd
 WORKDIR "/src/E_Commerce_BackEnd"
 
 # ✅ Ensure the script is executable
-RUN chmod +x /src/migrations.sh
+RUN chmod +x ./migrations.sh
 
 ## ✅ Run migrations before starting the app
 CMD ["/bin/bash", "/src/migrations.sh"]
