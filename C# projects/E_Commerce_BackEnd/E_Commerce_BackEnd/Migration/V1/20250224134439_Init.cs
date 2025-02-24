@@ -87,9 +87,9 @@ namespace E_Commerce_BackEnd.Migration.V1
                 {
                     id_dimensiune = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    lungime = table.Column<string>(type: "varchar(4)", maxLength: 4, nullable: false)
+                    lungime = table.Column<string>(type: "varchar(10)", maxLength: 10, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    latime = table.Column<string>(type: "varchar(4)", maxLength: 4, nullable: false)
+                    latime = table.Column<string>(type: "varchar(10)", maxLength: 10, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     pereche_perdea = table.Column<sbyte>(type: "tinyint", nullable: false, defaultValue: (sbyte)0),
                     recomandare_pat = table.Column<string>(type: "varchar(15)", maxLength: 15, nullable: true)
@@ -389,6 +389,7 @@ namespace E_Commerce_BackEnd.Migration.V1
                     is_locked = table.Column<sbyte>(type: "tinyint", nullable: false, defaultValue: (sbyte)0),
                     afiseaza_in_noutati = table.Column<sbyte>(type: "tinyint", nullable: false, defaultValue: (sbyte)0),
                     produs_limitat = table.Column<sbyte>(type: "tinyint", nullable: false, defaultValue: (sbyte)0),
+                    inaltime_maxima_material = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false),
                     id_producator = table.Column<int>(type: "integer", nullable: true)
                 },
                 constraints: table =>

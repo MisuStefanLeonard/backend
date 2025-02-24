@@ -542,6 +542,7 @@ public class CartService : ICartService
                         CodProdus = group.Produs!.CodProdus,
                         NumeProdus =  group.Produs!.NumeProdus!,
                         TipProdus = group.Produs!.TipulProdusului,
+                        
                         CuloareSelectata = new CuloriDto
                         {
                             IdCuloare = group.Culoare.IdCuloare,

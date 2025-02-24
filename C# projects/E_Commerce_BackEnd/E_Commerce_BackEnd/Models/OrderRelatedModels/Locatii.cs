@@ -4,7 +4,7 @@ using E_Commerce_BackEnd.Models.UserRelatedModels;
 
 namespace E_Commerce_BackEnd.Models.OrderRelatedModels;
 
-public class Locatii : ICloneable
+public class Locatii 
 {
     public int IdLocatie { get;  init; }
     public string? Oras { get;  init; }
@@ -26,19 +26,6 @@ public class Locatii : ICloneable
         AdreseLocatii = adreseLocatii == null ? [] : new HashSet<Adrese>(adreseLocatii);
     }
     
-    public Locatii(Locatii other)
-    {
-        ArgumentNullException.ThrowIfNull(other);
-        
-        Oras = other.Oras;
-        Judet = other.Judet;
-        CodPostal = other.CodPostal;
-        AdreseLocatii = new HashSet<Adrese>(other.AdreseLocatii);
-    }
-
-    public object Clone()
-    {
-        return new Locatii(this);
-    }
+   
     
 }

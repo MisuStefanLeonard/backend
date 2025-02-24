@@ -489,7 +489,7 @@ public class ECommerceContext : DbContext
             entity.Property(e => e.Lungime)
                 .HasColumnType("varchar")
                 .HasColumnName("lungime")
-                .HasMaxLength(4)
+                .HasMaxLength(10)
                 .IsRequired();
 
             entity.Property(e => e.PerdeaEstePereche)
@@ -507,7 +507,7 @@ public class ECommerceContext : DbContext
             entity.Property(e => e.Latime)
                 .HasColumnType("varchar")
                 .HasColumnName("latime")
-                .HasMaxLength(4)
+                .HasMaxLength(10)
                 .IsRequired();
             
            
@@ -742,6 +742,11 @@ public class ECommerceContext : DbContext
                 .HasColumnName("produs_limitat")
                 .HasDefaultValue(false)
                 .IsRequired();
+            
+            entity.Property(e => e.InaltimeMaxima)
+                .HasColumnType("decimal")
+                .HasColumnName("inaltime_maxima_material")
+                .HasPrecision(5, 2);
             
             // One-To-Many mappings 
             

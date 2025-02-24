@@ -156,6 +156,7 @@ public partial class ProductService : IProductService
             // If adding a new product
             if (isAddingFlag)
             {
+                _logger.LogInformation("aici");
                 var newProduct = new Produse
                 {
                     CodProdus = modifiedProduct.CodProdusDto!.ToUpper(),
@@ -170,6 +171,7 @@ public partial class ProductService : IProductService
                     IsDeleted = false,
                     ActivInMagazin = modifiedProduct.ActivInMagazinDto,
                     PretDeBaza = modifiedProduct.PretBazaDto,
+                    InaltimeMaxima =modifiedProduct.InaltimeMaximaDto,
                     PretDeBazaRedus = modifiedProduct.PretBazaRedusDto,
                     IdProducator = producator?.IdProducator,
                 };
@@ -187,8 +189,9 @@ public partial class ProductService : IProductService
                     throw new DbUpdateException("Product is locked");
                 }
                 // If updating an existing product
+                _logger.LogInformation($" INALTIME{modifiedProduct.InaltimeMaximaDto}");
                 _mapper.Map(modifiedProduct, productToBeModified);
-                await productRepository.UpdateAsync(productToBeModified!);
+                await productRepository.UpdateAsync(productToBeModified);
                 successCodes[0] = 1;
             }
             
@@ -556,6 +559,7 @@ public partial class ProductService : IProductService
                         IsDeleted = produseDto.IsDeletedDto,
                         ActivInMagazin = produseDto.ActivInMagazinDto,
                         TipulProdusului = produseDto.TipProdusDto,
+                        InaltimeMaxima = produseDto.InaltimeMaximaDto,
                         PretDeBaza = produseDto.PretBazaDto,
                         PretDeBazaRedus = produseDto.PretBazaRedusDto,
                         IdProducator = idProducator,
@@ -585,6 +589,7 @@ public partial class ProductService : IProductService
                         ActivInMagazin = produseDto.ActivInMagazinDto,
                         TipulProdusului = produseDto.TipProdusDto,
                         PretDeBaza = produseDto.PretBazaDto,
+                        InaltimeMaxima = produseDto.InaltimeMaximaDto,
                         PretDeBazaRedus = produseDto.PretBazaRedusDto,
                         IdProducator = null
                     };
@@ -791,6 +796,7 @@ public partial class ProductService : IProductService
                         ActivInMagazin = produseDto.ActivInMagazinDto,
                         TipulProdusului = produseDto.TipProdusDto,
                         PretDeBaza = produseDto.PretBazaDto,
+                        InaltimeMaxima = produseDto.InaltimeMaximaDto,
                         PretDeBazaRedus = produseDto.PretBazaRedusDto,
                         IdProducator = idProducator
                     };
@@ -817,6 +823,7 @@ public partial class ProductService : IProductService
                         Stoc = produseDto.StocDto,
                         PretDeBaza = produseDto.PretBazaDto,
                         IsDeleted = produseDto.IsDeletedDto,
+                        InaltimeMaxima = produseDto.InaltimeMaximaDto,
                         ActivInMagazin = produseDto.ActivInMagazinDto,
                         TipulProdusului = produseDto.TipProdusDto,
                         IdProducator = null
@@ -1582,23 +1589,6 @@ public partial class ProductService : IProductService
                 }
             }
             
-            // Fetch the products to delete
-            // foreach (var productCode in bulkOperationsDto.SelectedItemsToDoBulkOperations!)
-            // {
-            //     var productToDelete = await productRepository
-            //         .FindQueryable(p => p.CodProdus == productCode.ToString())
-            //         .FirstOrDefaultAsync();
-            //
-            //     if (productToDelete is null)
-            //     {
-            //         throw new Exception($"Product with code {productCode} is not in the database");
-            //     }
-            //     productToDelete.IsDeleted = true;
-            //     productToDelete.ActivInMagazin = false;
-            //     productsToDelete.Add(productToDelete);
-            // }
-
-         
             await productRepository.UpdateRangeAsync(productsToDelete);
 
             // Commit the transaction
@@ -1804,19 +1794,38 @@ public partial class ProductService : IProductService
         if (!productTypes.IsNullOrEmpty())
         {
             productTypes = productTypes!.Where(type => onlyLettersAndSpacesBetween.IsMatch(type)).ToList();
+            foreach (var type in productTypes)
+            {
+                _logger.LogInformation(type);
+            }
         }
         if (!productColors.IsNullOrEmpty())
         {
             productColors = productColors!.Where(color => onlyLettersAndSpacesBetween.IsMatch(color)).ToList();
+            foreach (var type in productColors)
+            {
+                _logger.LogInformation(type);
+            }
         }
         if (!productDimensions.IsNullOrEmpty())
         {
             productDimensions = productDimensions!.Where(dimension => onlyLettersAndSpacesBetween.IsMatch(dimension)).ToList();
+            foreach (var type in productDimensions)
+            {
+                _logger.LogInformation(type);
+            }
         }
         if (!productPrices.IsNullOrEmpty())
         {
+           
             productPrices = productPrices!.Where(price => onlyNumbers.IsMatch(price.ToString())).ToList();
+            foreach (var type in productPrices)
+            {
+                _logger.LogInformation($"{type}");
+            }
         }
+        
+        _logger.LogInformation($"REVERSE FACE : {reverseFace}");
 
 
         if (currency == "EUR")
@@ -1838,15 +1847,20 @@ public partial class ProductService : IProductService
                 .ThenInclude(p => p.ImagProduseCuCulori)
             .Include(p => p.PProduseCuDimensiuni!)
                 .ThenInclude(p => p.PdDimensiune)
-            .Where(product => productTypes.IsNullOrEmpty() || productTypes!.Contains(product.TipulProdusului.ToUpper()))
+            .Where(product => productTypes.IsNullOrEmpty() || productTypes!.Contains(product.TipulProdusului.Trim().ToUpper()))
             .Where(product => productColors.IsNullOrEmpty() || 
-                              product.PProduseCuCulori!.Any(culoare => productColors!.Contains(culoare.Culoare.NumeCuloare.ToUpper())))
-            .Where(product => productDimensions.IsNullOrEmpty() || 
-                              product.PProduseCuDimensiuni!
-                                  .Any(dimensiune => Convert.ToInt16(dimensiune.PdDimensiune!.Lungime) >= Convert.ToInt16(productDimensions![0]) && 
-                                                     Convert.ToInt16(dimensiune.PdDimensiune!.Lungime) <= Convert.ToInt16(productDimensions[1]) && 
-                                                     Convert.ToInt16(dimensiune.PdDimensiune!.Latime) >= Convert.ToInt16(productDimensions[2]) &&
-                                                     Convert.ToInt16(dimensiune.PdDimensiune!.Latime) <= Convert.ToInt16(productDimensions[3])))
+                              product.PProduseCuCulori!.Any(culoare => productColors!.Contains(culoare.Culoare.NumeCuloare.Trim().ToUpper())))
+            .Where(product =>
+                productDimensions.IsNullOrEmpty() || 
+                product.PProduseCuDimensiuni!.Count == 0 ||
+                product.PProduseCuDimensiuni!.Any(dimensiune =>
+                    Convert.ToInt16(dimensiune.PdDimensiune!.Lungime) >= Convert.ToInt16(productDimensions![0]) && 
+                    Convert.ToInt16(dimensiune.PdDimensiune!.Lungime) <= Convert.ToInt16(productDimensions[1]) && 
+                    Convert.ToInt16(dimensiune.PdDimensiune!.Latime) >= Convert.ToInt16(productDimensions[2]) &&
+                    Convert.ToInt16(dimensiune.PdDimensiune!.Latime) <= Convert.ToInt16(productDimensions[3])
+                )
+            )
+
             .Where(product => productPrices.IsNullOrEmpty() || 
                               (product.PProduseCuDimensiuni != null && product.PProduseCuDimensiuni.Count > 0
                                   ? product.PProduseCuDimensiuni!.Any(dimension =>
@@ -2080,6 +2094,7 @@ public partial class ProductService : IProductService
                         NumeProducatorDto = product.Producator == null ? null : product.Producator.NumeProducator,
                         PretBazaDto = currency == "EUR" ? UserHelpers.ConvertCurrency("RON" , "EUR" ,product.PretDeBaza , 0 ) : product.PretDeBaza,
                         PretBazaRedusDto = currency == "EUR" ? UserHelpers.ConvertCurrency("RON" , "EUR" , product.PretDeBazaRedus , 0 ) : product.PretDeBazaRedus,
+                        InaltimeMaximaDto = product.InaltimeMaxima,
                         TipuriInele = ringTypesDto!,
                         TipuriRejansa = rejanseTypesDto!,
                         TipuriLinie = liningTypesDto!,
@@ -2171,6 +2186,7 @@ public partial class ProductService : IProductService
                         IngrijireDto = product.Ingrijire,
                         FataReversibilaDto = product.FataReversibila,
                         TipulProdusuluiDto = product.TipulProdusului,
+                        InaltimeMaximaDto = product.InaltimeMaxima,
                         NumeProducatorDto = product.Producator == null ? null : product.Producator.NumeProducator,
                         PretBazaDto = currency == "EUR" ? UserHelpers.ConvertCurrency("RON" , "EUR" ,product.PretDeBaza , 0 ) : product.PretDeBaza,
                         PretBazaRedusDto = currency == "EUR" ? UserHelpers.ConvertCurrency("RON" , "EUR" , product.PretDeBazaRedus , 0 ) : product.PretDeBazaRedus,

@@ -11,20 +11,15 @@ public class Produse
     // Attributes
     
     public int IdProdus { get; init; }
-
     [StringLength(40)] 
     public string CodProdus { get; init; } = null!;
-
     [StringLength(150)]
     public string? Descriere { get; init; }
-    
     [StringLength(50)]
     public string? NumeProdus { get; init; }
-
     [StringLength(50)]
     public string? Compozitie { get; init; }
     public byte Tva { get; init; }
-    
     [StringLength(150)]
     public string? Ingrijire { get; init; }
     public bool? FataReversibila { get; init; }
@@ -38,7 +33,7 @@ public class Produse
     public bool IsLocked { get; set; }
     public bool AfiseazaInNoutati { get; set; } 
     public bool ProdusLimitat { get; set; }
-
+    public decimal InaltimeMaxima { get; init; }
     // Foreign keys
     public int? IdProducator { get; init; }
     public Producatori? Producator { get; init; }

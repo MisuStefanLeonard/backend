@@ -50,6 +50,7 @@ public class ProductController : ControllerBase
         List<string>? listOfProductColors = null;
         List<string>? listOfProductDimensions = null;
         List<decimal>? listOfProductPrices = null;
+       
 
         if (!productTypes.IsNullOrEmpty())
         {

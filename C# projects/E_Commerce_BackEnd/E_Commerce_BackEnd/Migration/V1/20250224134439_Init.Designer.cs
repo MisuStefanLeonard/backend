@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace E_Commerce_BackEnd.Migration.V1
 {
     [DbContext(typeof(ECommerceContext))]
-    [Migration("20250219192755_Init")]
+    [Migration("20250224134439_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -430,13 +430,13 @@ namespace E_Commerce_BackEnd.Migration.V1
 
                     b.Property<string>("Latime")
                         .IsRequired()
-                        .HasMaxLength(4)
+                        .HasMaxLength(10)
                         .HasColumnType("varchar")
                         .HasColumnName("latime");
 
                     b.Property<string>("Lungime")
                         .IsRequired()
-                        .HasMaxLength(4)
+                        .HasMaxLength(10)
                         .HasColumnType("varchar")
                         .HasColumnName("lungime");
 
@@ -658,6 +658,11 @@ namespace E_Commerce_BackEnd.Migration.V1
                     b.Property<int?>("IdProducator")
                         .HasColumnType("integer")
                         .HasColumnName("id_producator");
+
+                    b.Property<decimal>("InaltimeMaxima")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal")
+                        .HasColumnName("inaltime_maxima_material");
 
                     b.Property<string>("Ingrijire")
                         .HasMaxLength(150)

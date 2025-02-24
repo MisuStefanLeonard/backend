@@ -15,7 +15,6 @@ using E_Commerce_BackEnd.Models.UserRelatedModels;
 using E_Commerce_BackEnd.Services.emailService;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
-using E_Commerce_BackEnd.Services.uBucketService;
 using E_Commerce_BackEnd.Services.uMJMLService;
 using E_Commerce_BackEnd.UnitOfWork;
 using Google.Analytics.Data.V1Beta;
@@ -167,6 +166,7 @@ public partial class AdminService : IAdminService
             PretBazaRedusDto = product.PretDeBazaRedus,
             AfiseazaInNoutatiDto = product.AfiseazaInNoutati,
             ProdusLimitatDto = product.ProdusLimitat,
+            InaltimeMaximaDto = product.InaltimeMaxima,
             NumeProducatorDto = product.Producator == null ? "" : product.Producator.NumeProducator,
             TipulProdusuluiDto = product.TipulProdusului,
             TipuriProduseDto = product.PTipuriPeProduse!.Select(tp => new TipuriProdusDto
@@ -1070,7 +1070,7 @@ public async Task<GaDashboardDto> GetGoogleAnalyticsData(string? lowerInterval ,
 }
 
 
-private async Task<string?> GetPresignedUrlFromBucket(string imagePath, string dirInBucket)
+    private async Task<string?> GetPresignedUrlFromBucket(string imagePath, string dirInBucket)
     {
         var url = await _bucketAcces.GenerateUrl(imagePath, dirInBucket);
         return url;

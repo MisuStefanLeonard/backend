@@ -18,5 +18,6 @@ public class ProduseDto
     public string TipProdusDto { get; set; } = null!;
     public bool ProdusLimitatDto { get; set; }
     public bool ActiveazaInNoutati { get; set; }
+    public decimal InaltimeMaximaDto { get; set; }
 
 }

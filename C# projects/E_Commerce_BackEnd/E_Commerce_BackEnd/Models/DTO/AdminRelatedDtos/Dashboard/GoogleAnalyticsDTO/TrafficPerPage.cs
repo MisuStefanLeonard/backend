@@ -6,6 +6,6 @@ public class TrafficPerPage
     public int? TotalActiveUser1DayPerPage { get; set; }
     public int? TotalActiveUser28DayPerPage { get; set; }
     public int TotalCurrentPageViews { get; set; }
-    public HashSet<string> Cities { get; set; }
+    public HashSet<string> Cities { get; set; } = [];
 
 }

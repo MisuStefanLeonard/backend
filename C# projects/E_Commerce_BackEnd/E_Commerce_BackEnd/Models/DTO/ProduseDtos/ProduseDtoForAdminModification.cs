@@ -20,6 +20,7 @@ public class ProduseDtoForAdminModification
     public decimal PretBazaRedusDto { get; set; } 
     public bool AfiseazaInNoutatiDto { get; set; }
     public bool ProdusLimitatDto { get; set; }
+    public decimal InaltimeMaximaDto { get; set; }
 
     public IList<TipuriProdusDto> TipuriProduseDto { get; set; } = [];
     public IList<DimensiuniDto>? DimensiuniProduseDto { get; set; } = [];

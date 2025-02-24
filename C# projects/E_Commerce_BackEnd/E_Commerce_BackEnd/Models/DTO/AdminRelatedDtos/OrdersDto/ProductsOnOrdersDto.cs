@@ -11,6 +11,7 @@ public class ProductsOnOrdersDto
     public string? NumeProducatorDto { get; init; }
     public string TipulProdusuluiDto { get; init; } = null!;
     public decimal PretBazaDto { get; init; }
+    public decimal InaltimeMaximaDto { get; init; }
     // seturi info ( if it has)
     public string? NumeSetDto { get; init; } 
     public string? InaltimeSetDto { get; init; }

@@ -11,10 +11,10 @@ public class Dimensiuni
     
     public int IdDimensiune { get; init; }
 
-    [StringLength(4)] 
+    [StringLength(10)] 
     public string Lungime { get; init; } = null!;
     
-    [StringLength(4)]
+    [StringLength(10)]
     public string Latime { get; init; } = null!;
 
     public bool? PerdeaEstePereche { get; set; }

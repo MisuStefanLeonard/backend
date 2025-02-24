@@ -18,6 +18,7 @@ public class ProductPageForUser
     public string? NumeProducatorDto { get; init; }
     public decimal PretBazaDto { get; init; } 
     public decimal PretBazaRedusDto { get; init; }
+    public decimal InaltimeMaximaDto { get; init; }
     
     // in case of perdea/draperie
     public IList<TipIneleDto> TipuriInele { get; init; } = new List<TipIneleDto>();
