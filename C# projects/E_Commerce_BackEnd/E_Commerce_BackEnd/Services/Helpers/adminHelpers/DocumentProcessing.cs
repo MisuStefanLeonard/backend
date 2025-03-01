@@ -395,6 +395,13 @@ public class DocumentProcessing
                         productBasePriceDiscountedDecimal = decimal.Parse(productBasePriceDiscounted);
                     }
 
+                    var maxMaterialHeight = row.Cells[19].StringValue.Trim();
+                    decimal decMaxMaterialHeight = 0;
+                    if (!string.Equals("-", maxMaterialHeight))
+                    {
+                        decMaxMaterialHeight = decimal.Parse(maxMaterialHeight);
+                    }
+
                     var newProdusDto = new ProduseDto
                     {
                         CodProdusDto = codProdus,
@@ -411,8 +418,8 @@ public class DocumentProcessing
                         ActivInMagazinDto = false,
                         TipProdusDto = tipProdus,
                         ProdusLimitatDto = false,
-                        ActiveazaInNoutati = false
-                        
+                        ActiveazaInNoutati = false,
+                        InaltimeMaximaDto = decMaxMaterialHeight
                     };
                     
                     var responseAddProduct = await _productService.AddOrEditProductFromExcel(newProdusDto, dimensionsIdList,

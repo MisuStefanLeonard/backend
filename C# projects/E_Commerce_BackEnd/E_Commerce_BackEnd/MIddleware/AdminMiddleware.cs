@@ -1,3 +1,6 @@
+using System.Text;
+using E_Commerce_BackEnd.Services.Helpers.AWS_Secret;
+
 namespace E_Commerce_BackEnd.MIddleware
 {
     public class AdminMiddleware : IMiddleware
@@ -21,8 +24,11 @@ namespace E_Commerce_BackEnd.MIddleware
             {
                 _logger.LogInformation("PATH IN ADMIN " + path);
 
-                if (IsValidAdminRequest(context, path))
+                if (await IsValidAdminRequest(context, path))
                 {
+                    _logger.LogInformation("AUTHORIZED ADMIN");
+                   
+
                     await next(context);
                 }
                 else
@@ -33,7 +39,7 @@ namespace E_Commerce_BackEnd.MIddleware
                     context.Response.StatusCode = StatusCodes.Status401Unauthorized;
 
                     // Write response and end request processing
-                    await context.Response.WriteAsync(GetUnauthorizedMessage(context, path));
+                    await context.Response.WriteAsync(GetUnauthorizedMessage(context));
                   
                 }
             }
@@ -50,8 +56,9 @@ namespace E_Commerce_BackEnd.MIddleware
         }
     }
 
-    private bool IsValidAdminRequest(HttpContext context, PathString path)
+    private async Task<bool> IsValidAdminRequest(HttpContext context, PathString path)
     {
+            
         var isLoggedIn = context.Request.Cookies.TryGetValue("userLoggedIn", out var isLoggedInString) && isLoggedInString == "1";
         var isAdmin = context.Request.Cookies.TryGetValue("admin", out var adminString) && adminString == "1";
         var isAdminLoggedIn = context.Request.Cookies.TryGetValue("adminLoggedIn", out var adminLoggedInString) && adminLoggedInString == "1";
@@ -71,6 +78,18 @@ namespace E_Commerce_BackEnd.MIddleware
             _logger.LogWarning($"Non-admin tried to access -> {path}");
             return false;
         }
+        
+        var getHeaderSecret = await TokenService.GetSecret("prod/texx.ro/admin-header");
+        var decodedString = "";
+        if (context.Request.Cookies.TryGetValue("ASP_NET_ADMIN_SESSION", out var encodedString))
+        {
+            decodedString = Encoding.UTF8.GetString(Convert.FromBase64String(encodedString));
+        }
+
+        if (decodedString == "" || decodedString != getHeaderSecret)
+        {
+            return false;
+        }
 
         if (isAdmin && isAdminLoggedIn)
         {
@@ -81,7 +100,7 @@ namespace E_Commerce_BackEnd.MIddleware
         return false;
     }
 
-    private static string GetUnauthorizedMessage(HttpContext context, PathString path)
+    private static string GetUnauthorizedMessage(HttpContext context)
     {
         if (!context.Request.Cookies.ContainsKey("userLoggedIn"))
         {

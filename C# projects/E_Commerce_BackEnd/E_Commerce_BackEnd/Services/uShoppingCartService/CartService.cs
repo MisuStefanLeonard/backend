@@ -536,12 +536,12 @@ public class CartService : ICartService
                     Key = info.Key,
                     CartItems = info.Select(group => new CartItems
                     {
-                        IdProdus = group.Produs!.IdProdus,
+                        IdProdus = group.Produs.IdProdus,
                         IdSet = group.Set!.IdSet,
                         NumeSet = group.Set!.NumeSet,
-                        CodProdus = group.Produs!.CodProdus,
-                        NumeProdus =  group.Produs!.NumeProdus!,
-                        TipProdus = group.Produs!.TipulProdusului,
+                        CodProdus = group.Produs.CodProdus,
+                        NumeProdus =  group.Produs.NumeProdus!,
+                        TipProdus = group.Produs.TipulProdusului,
                         
                         CuloareSelectata = new CuloriDto
                         {
@@ -642,13 +642,28 @@ public class CartService : ICartService
                                           + (currency == "RON" ?
                                               group.Manopera.TipLinieLaManopera.PretPeTipLinie 
                                               :  group.Manopera.TipLinieLaManopera.PretPeTipLinie  / 5 ))
-                            : group.Produs!.PProduseCuDimensiuni!.Count > 0
-                                    ? group.Produs!.PProduseCuDimensiuni!.FirstOrDefault(p => group.IdDimensiune == p.IdDimensiune) != null 
-                                        ? group.Produs!.PProduseCuDimensiuni!.FirstOrDefault(p => group.IdDimensiune == p.IdDimensiune)!.PretRedus > 0
-                                            ? group.Produs!.PProduseCuDimensiuni!.FirstOrDefault(p => group.IdDimensiune == p.IdDimensiune)!.PretRedus
-                                            : group.Produs!.PProduseCuDimensiuni!.FirstOrDefault(p => group.IdDimensiune == p.IdDimensiune)!.Pret
-                                        : 0 // reaches here , means dimension not available anymore!
-                                    : group.Produs!.PretDeBazaRedus > 0 ? group.Produs!.PretDeBazaRedus : group.Produs!.PretDeBaza,
+                            : group.Produs.PProduseCuDimensiuni!.Count > 0
+                                ? group.Produs.PProduseCuDimensiuni!.FirstOrDefault(p => group.IdDimensiune == p.IdDimensiune) != null
+                                    ? (group.Produs.PProduseCuDimensiuni!
+                                        .FirstOrDefault(p => group.IdDimensiune == p.IdDimensiune)!.PretRedus > 0
+                                        ? (currency == "RON"
+                                            ? group.Produs.PProduseCuDimensiuni!
+                                                .FirstOrDefault(p => group.IdDimensiune == p.IdDimensiune)!.PretRedus
+                                            : group.Produs.PProduseCuDimensiuni!
+                                                .FirstOrDefault(p => group.IdDimensiune == p.IdDimensiune)!.PretRedus / 5)
+                                        : (currency == "RON"
+                                            ? group.Produs.PProduseCuDimensiuni!
+                                                .FirstOrDefault(p => group.IdDimensiune == p.IdDimensiune)!.Pret
+                                            : group.Produs.PProduseCuDimensiuni!
+                                                .FirstOrDefault(p => group.IdDimensiune == p.IdDimensiune)!.Pret / 5))
+                                    : 0 // dimension not available anymore
+                                : group.Produs.PretDeBazaRedus > 0 
+                                    ? (currency == "RON" 
+                                        ? group.Produs.PretDeBazaRedus 
+                                        : group.Produs.PretDeBazaRedus / 5)
+                                    : (currency == "RON" 
+                                        ? group.Produs.PretDeBaza 
+                                        : group.Produs.PretDeBaza / 5),
                         Cantitate = group.CantitateProdus,
                         IdentificatorSet = info.Key  
                     }).ToList()
@@ -718,7 +733,7 @@ public class CartService : ICartService
         IDbContextTransaction? updateCartTransaction = null;
         try
         {
-            _logger.LogInformation($"id cont : {idCont}");
+          
             updateCartTransaction = await _unitOfWork.BeginTransactionAsync();
             var updatedItemsForCheckout = await FetchCartProducts(idCont, sessionId, currency);
             
@@ -744,7 +759,7 @@ public class CartService : ICartService
                     where cartItem.PretCurent != cartItem.PretReal
                     select item);
             }
-
+            // de selectat pe moneda curenta !!!
             var updatePrices = await UpdatePrices(productsPriceChanged, idCont, sessionId);
             switch (updatePrices)
             {
@@ -758,7 +773,7 @@ public class CartService : ICartService
                 default:
                     _logger.LogInformation("Error. Exception thrown in UpdatePrices function");
                     break;
-            };
+            }
 
             updatedItemsForCheckout.ModifiedCartItems = productsPriceChanged;
 

@@ -320,6 +320,8 @@ namespace E_Commerce_BackEnd.Controllers
             Response.Cookies.Append("userLoggedIn" , "" , isLoggedInCookieOptions);
             Response.Cookies.Append("admin" , "" , isLoggedInCookieOptions);
             Response.Cookies.Append("adminLoggedIn" , "" , isLoggedInCookieOptions);
+            Response.Cookies.Append("ASP_NET_ADMIN_SESSION" , "" , isLoggedInCookieOptions);
+            
 
             if (googleGeneratedCookie != null)
             {

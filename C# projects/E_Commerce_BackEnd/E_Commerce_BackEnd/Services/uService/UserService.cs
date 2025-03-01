@@ -1110,6 +1110,7 @@ public class UserService : IUserService
 
     public async Task<ConturiDtoForModification?> GetAccountData(int accountId)
     {
+        _logger.LogInformation("Gathering client data");
         var accountData = await _unitOfWork.Repository<Conturi>()
             .FindQueryable(a => a.IdCont == accountId)
             .Include(a => a.AdreseConturi)!

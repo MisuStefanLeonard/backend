@@ -109,7 +109,9 @@ builder.Configuration.AddUserSecrets<Program>();
 // Add data protection using AWS Systems Manager Parameter Store
 builder.Services.AddDataProtection()
     .PersistKeysToAWSSystemsManager("prod/texx.ro/JWT_key")
-    .PersistKeysToAWSSystemsManager("prod/texx.ro/admin");
+    .PersistKeysToAWSSystemsManager("prod/texx.ro/admin")
+    .PersistKeysToAWSSystemsManager("prod/texx.ro/admin-header");
+
 
 // Configure DbContext and logger
 

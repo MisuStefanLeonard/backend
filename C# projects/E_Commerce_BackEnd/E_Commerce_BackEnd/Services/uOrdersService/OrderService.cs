@@ -19,6 +19,7 @@ using E_Commerce_BackEnd.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.IdentityModel.Tokens;
+using Sqids;
 
 namespace E_Commerce_BackEnd.Services.uOrdersService;
 
@@ -29,17 +30,17 @@ public class OrderService : IOrderService
     private readonly ILogger<OrderService> _logger;
     private readonly IEmailService _emailService;
     private readonly IMjmlService _mjmlService;
-    private readonly UserHelpers _userHelpers;
+    private readonly SqidsEncoder<int> _sqidsEncoder;
     
 
-    public OrderService(IUnitOfWork unitOfWork, IBucketAcces bucketAcces, ILogger<OrderService> logger, IEmailService emailService, IMjmlService mjmlService, UserHelpers userHelpers)
+    public OrderService(IUnitOfWork unitOfWork, IBucketAcces bucketAcces, ILogger<OrderService> logger, IEmailService emailService, IMjmlService mjmlService, SqidsEncoder<int> sqidsEncoder)
     {
         _unitOfWork = unitOfWork;
         _bucketAcces = bucketAcces;
         _logger = logger;
         _emailService = emailService;
         _mjmlService = mjmlService;
-        _userHelpers = userHelpers;
+        _sqidsEncoder = sqidsEncoder;
     }
 
     public async Task<IList<ClientOrder>> GetClientOrders(int accountId , string currency = "RON")
@@ -484,10 +485,10 @@ public class OrderService : IOrderService
                     .FirstOrDefaultAsync();
 
 
-                if (getVoucher == null)
+                if (getVoucher == null || getVoucher.DataExpirare >= DateTime.UtcNow)
                 {
                     _logger.LogError("Voucher not found. Cancelling transaction and payment");
-                    return new KeyValuePair<int, string>(-1, "Voucher not found");
+                    return new KeyValuePair<int, string>(-1, "Voucher not found / Expired voucher");
                 }
 
                 voucherApplied = getVoucher;
@@ -678,12 +679,11 @@ public class OrderService : IOrderService
                 {
                     if (!int.TryParse(items.Key, out _))
                     {
-                        _logger.LogInformation("AICI1");
-                        _logger.LogInformation($"id set : {item.IdSet}");
+                       
                         // we are in set
                         var findSet = await bundlesRepository.FindQueryable(s => s.IdSet == item.IdSet)
                             .FirstAsync();
-                        _logger.LogInformation("AICI");
+                       
                         if (!findSet.IsLocked)
                         {
                             findSet.IsLocked = true;
@@ -693,11 +693,6 @@ public class OrderService : IOrderService
                         var selectFromSet = items.Where(cartItem => cartItem.InaltimeAleasaPentruSet != null)
                             .Select(id => id.IdManopera)
                             .ToList();
-                        if (selectFromSet.Count > 0)
-                        {
-                            _logger.LogInformation("ITEME GASITE IN SET CARE AU MANOPERA");
-                        }
-                       
 
                         var findManopereInDbThatNeedToBeLocked = await manopereRepository
                             .FindQueryable(manopera => selectFromSet.Contains(manopera.IdManopera))
@@ -936,7 +931,7 @@ public class OrderService : IOrderService
             _logger.LogInformation($"Succefully unlocked items for client  ");
 
              await SendOrderConfirmationMail(accountId, wasAccountCreated, orderId);
-
+             // trimite mail si la admin aici !
              var response = await RemoveFromCartAfterSuccessfullOrder(accountId, sessionId, wasAccountCreated);
              if (response == 1)
              {
@@ -1011,6 +1006,8 @@ public class OrderService : IOrderService
                 return;
             }
             
+            
+            
             var accountCreationMessageEn = wasAccountCreated
                 ? $"<mj-text font-size=\"18px\" color=\"black\">\n   " +
                   $"       We have automatically created you an account on our website so that you can see your order on the e-mail address that you've ordered : <strong>{findAccountEmail.Email}</strong> and password : <strong>{findAccountEmail.Parola}</strong>. We recommend you that you reset the password so that you can log in normally. Thank you for the order !\n     " +
@@ -1031,6 +1028,27 @@ public class OrderService : IOrderService
                   $" </mj-column>\n" +
                   $"</mj-section>"
                 : "";
+            
+            var mjmlTemplateAdmin = $"<mjml>\n" +
+                               $"  <mj-body>\n" +
+                               $"   {insertLogo}" +
+                               $"    <mj-section>\n" +
+                               $"      <mj-column>\n" +
+                               $"         <mj-text font-size=\"18px\" color=\"#F45E43\" font-family=\"helvetica\" align=\"center\">O noua comanda plasata</mj-text>\n" +
+                               $"         <mj-spacer></mj-spacer>\n" +
+                               $"      </mj-column>\n" +
+                               $"      <mj-column background-color=\"#a8a8a8\" border-radius=\"20px\" padding=\"20px\" width=\"100%\">\n" +
+                               $"         <mj-text font-size=\"18px\" color=\"#333333\">\n" +
+                               $"            O noua comanda a fost plasata. O puteti vedea aici :\n" +
+                               $"         </mj-text>\n" +
+                               $"         <mj-text font-size=\"18px\" color=\"#333333\">\n" +
+                               $"            Intrati pe site la sectiunea de comenzi si vedeti ultima comanda in functie de data\n" +
+                               $"         </mj-text>\n" +
+                               $"      </mj-column>\n" +
+                               $"    </mj-section>\n" +
+                               $"  </mj-body>\n" +
+                               $"</mjml>";
+
 
             var loginOrProfileRo = wasAccountCreated
                 ? $"http://localhost:3000/user/login"
@@ -1078,12 +1096,17 @@ public class OrderService : IOrderService
                                $"  </mj-section>\n" +
                                $"  </mj-body>\n" +
                                $"</mjml>";
-            // de adaugat aici ! login automat cand intri pe link!;
+           
             var convertToHtml = await _mjmlService.ConvertMjmlToHtml(mjmlTemplate);
-
+            var convertToHtmlAdmin = await _mjmlService.ConvertMjmlToHtml(mjmlTemplateAdmin);
             if (convertToHtml != null)
             {
                 await _emailService.SendEmailAsync(findAccountEmail.Email!, $"Confirmare comanda {orderId} / Order confirmation {orderId}" , convertToHtml);
+            }
+
+            if (convertToHtmlAdmin != null)
+            {
+                await _emailService.SendEmailAsync("test.webb1932@gmail.com", $"O noua comanda plasata" , convertToHtmlAdmin);
             }
             
             _logger.LogInformation("Sent order confirmation email succefully!");

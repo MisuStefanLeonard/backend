@@ -16,11 +16,13 @@ public class OrderController : ControllerBase
 {
     private readonly IOrderService _orderService;
     private readonly ITokenService _tokenService;
+    private readonly ILogger<OrderController> _logger;
 
-    public OrderController(IOrderService orderService, ITokenService tokenService)
+    public OrderController(IOrderService orderService, ITokenService tokenService, ILogger<OrderController> logger)
     {
         _orderService = orderService;
         _tokenService = tokenService;
+        _logger = logger;
     }
 
     [HttpGet("client/orders/{currency:required}")]
@@ -114,16 +116,18 @@ public class OrderController : ControllerBase
         {
             return BadRequest("Refresh page again! Session id missing");
         }
-
+        
+        _logger.LogInformation("IN ORDER CONTROLLER ");
 
         var (intResponse, stringValue) = await _orderService.PlaceOrder(id == 0 ? null : id, sessionIdentifier, convertToPlaceOrderDto, currency);
-
+        
+        _logger.LogInformation($"{intResponse} , {stringValue}");
 
         return intResponse switch
         {
             -2 => NotFound("Error thrown. Cancelling transaction"),
             -3 => NoContent(), // PAYMENT REJECTED.
-            -1 => BadRequest($"Voucher not found"),
+            -1 => BadRequest($"Voucher negasit / Voucher expirat / No voucher found / Voucher expired"),
             1 => Ok($"Token {stringValue}"),
             _ => StatusCode(500, "Server error")
         };

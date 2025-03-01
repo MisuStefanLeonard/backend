@@ -533,6 +533,20 @@ public partial class ProductService : IProductService
             {
                 _logger.LogInformation($"No product found with cod {produseDto.CodProdusDto}");
                 Produse newProduct;
+                if (produseDto.InaltimeMaximaDto == 0 && string.Equals(produseDto.TipProdusDto , "perdea") || string.Equals(produseDto.TipProdusDto , "draperie")  )
+                {
+                    throw new DbUpdateException(
+                        $"Produsul cu codul {produseDto.CodProdusDto} este o perdea/draperie si are inaltimea maxima a materialului la 0. ");
+                } 
+                
+                if (produseDto.InaltimeMaximaDto != 0 && !string.Equals(produseDto.TipProdusDto, "perdea") &&
+                          !string.Equals(produseDto.TipProdusDto, "draperie"))
+                {
+                    throw new DbUpdateException(
+                        $"Produsul cu codul {produseDto.CodProdusDto} nu este o perdea/draperie si are inaltimea maxima o valoare diferita de 0. ");
+                }
+                
+                
                 if (idProducator != 0)
                 {
                     var manufacturer = await producatoriRepository
@@ -744,6 +758,25 @@ public partial class ProductService : IProductService
             }
             else
             {
+                
+                if (string.Equals(produseDto.TipProdusDto, "perdea") ||
+                    string.Equals(produseDto.TipProdusDto, "draperie"))
+                {
+                    if (produseDto.InaltimeMaximaDto == 0)
+                    {
+                        throw new DbUpdateException(
+                            "Ati lasat inaltimea maxima la 0 , desi tipul produsului este perdea/draperie");
+                    }
+                }
+                else
+                {
+                    if (produseDto.InaltimeMaximaDto != 0)
+                    {
+                        throw new DbUpdateException(
+                            "Ati lasat inaltimea maxima la o valoare , desi tipul produsului nu este perdea/draperie");
+                    }
+                }
+               
                 // product locked , cannot update
                 if (findProductAlreadyInDb.IsLocked)
                 {
@@ -836,8 +869,24 @@ public partial class ProductService : IProductService
                     await _unitOfWork.CommitAsync();
                     _logger.LogInformation($"Updated product with cod : {produseDto.CodProdusDto} without manufacturer");
                 }
+                
 
                 var dimensionsUpdatedId = idDimensiuni.ToArray();
+                if (findProductAlreadyInDb.TipulProdusului is "draperie" or "perdea")
+                {
+                    if (dimensionsUpdatedId.Length >= 1 )
+                    {
+                        throw new DbUpdateException(
+                            $"Tipul noului produsul este o perdea/draperie dar ati lasat in fisierul excel dimensiuni pentru produsul : {findProductAlreadyInDb.CodProdus}");
+                    }
+                    
+                    if (preturiPerDimensiuni.Length >= 1 )
+                    {
+                        throw new DbUpdateException(
+                            $"Tipul noului produsul este o perdea/draperie dar ati lasat in fisierul excel preturi per dimensiune la produsul: {findProductAlreadyInDb.CodProdus}");
+                    }
+                    
+                }
                 
                 _logger.LogInformation("Retrieving old entry's");
 
@@ -2386,14 +2435,14 @@ public partial class ProductService : IProductService
                             ? p.PretDeBaza
                             : p.PProduseCuDimensiuni.Min(dim => dim.Pret)
                         : p.PProduseCuDimensiuni!.Count == 0
-                            ? p.PretDeBaza
+                            ? p.PretDeBaza * (decimal)0.2
                             : p.PProduseCuDimensiuni.Min(dim => dim.Pret) * (decimal)0.2,
                     PretBazaRedusDto = currency == "RON"
                         ? p.PProduseCuDimensiuni!.Count == 0
                             ? p.PretDeBazaRedus
                             : p.PProduseCuDimensiuni.Min(dim => dim.PretRedus)
                         : p.PProduseCuDimensiuni!.Count == 0
-                            ? p.PretDeBaza
+                            ? p.PretDeBazaRedus * (decimal)0.2
                             : p.PProduseCuDimensiuni.Min(dim => dim.PretRedus) * (decimal)0.2,
                     CuloriProdusDto = p.PProduseCuCulori!
                         .Where(pc => pc.ImagProduseCuCulori!.Count > 0)
@@ -2457,14 +2506,14 @@ public partial class ProductService : IProductService
                             ? p.PretDeBaza
                             : p.PProduseCuDimensiuni.Min(dim => dim.Pret)
                         : p.PProduseCuDimensiuni!.Count == 0
-                            ? p.PretDeBaza
+                            ? p.PretDeBaza * (decimal)0.2
                             : p.PProduseCuDimensiuni.Min(dim => dim.Pret) * (decimal)0.2,
                     PretBazaRedusDto = currency == "RON"
                         ? p.PProduseCuDimensiuni!.Count == 0
                             ? p.PretDeBazaRedus
                             : p.PProduseCuDimensiuni.Min(dim => dim.PretRedus)
                         : p.PProduseCuDimensiuni!.Count == 0
-                            ? p.PretDeBaza
+                            ? p.PretDeBazaRedus * (decimal)0.2
                             : p.PProduseCuDimensiuni.Min(dim => dim.PretRedus) * (decimal)0.2,
                     CuloriProdusDto = p.PProduseCuCulori!
                         .Where(pc => pc.ImagProduseCuCulori!.Count > 0)
@@ -2526,17 +2575,17 @@ public partial class ProductService : IProductService
                     TipulProdusuluiDto = p.TipulProdusului,
                     PretBazaDto = currency == "RON"
                         ? p.PProduseCuDimensiuni!.Count == 0
-                            ? p.PretDeBaza
+                            ? p.PretDeBaza 
                             : p.PProduseCuDimensiuni.Min(dim => dim.Pret)
                         : p.PProduseCuDimensiuni!.Count == 0
-                            ? p.PretDeBaza
+                            ? p.PretDeBaza * (decimal)0.2
                             : p.PProduseCuDimensiuni.Min(dim => dim.Pret) * (decimal)0.2,
                     PretBazaRedusDto = currency == "RON"
                         ? p.PProduseCuDimensiuni!.Count == 0
                             ? p.PretDeBazaRedus
                             : p.PProduseCuDimensiuni.Min(dim => dim.PretRedus)
                         : p.PProduseCuDimensiuni!.Count == 0
-                            ? p.PretDeBaza
+                            ? p.PretDeBazaRedus * (decimal)0.2
                             : p.PProduseCuDimensiuni.Min(dim => dim.PretRedus) * (decimal)0.2,
                     CuloriProdusDto = p.PProduseCuCulori!
                         .Where(pc => pc.ImagProduseCuCulori!.Count > 0)

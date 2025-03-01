@@ -1,3 +1,4 @@
+using System.Text;
 using E_Commerce_BackEnd.Models.DTO;
 using E_Commerce_BackEnd.Models.DTO.AdminRelatedDtos.Accounts;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos;
@@ -10,6 +11,7 @@ using E_Commerce_BackEnd.Models.DTO.ProduseDtos.TipuriLinieDtos;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.VouchereDtos;
 using E_Commerce_BackEnd.Models.Enums;
 using E_Commerce_BackEnd.Services.Helpers.adminHelpers;
+using E_Commerce_BackEnd.Services.Helpers.AWS_Secret;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
 using E_Commerce_BackEnd.Services.uAdminService;
 using E_Commerce_BackEnd.Services.uGeneralService;
@@ -44,7 +46,6 @@ namespace E_Commerce_BackEnd.Controllers
         private readonly IVoucherService _voucherService;
         private readonly IUserService _userService;
         private readonly DocumentProcessing _documentProcessing;
-      
         private readonly IBucketAcces _bucketAcces;
         private readonly IManopereService _manopereService;
         private readonly IGeneralSettingsService _generalSettingsService;
@@ -54,7 +55,8 @@ namespace E_Commerce_BackEnd.Controllers
             , DocumentProcessing documentProcessing, IProductService productService, ISeturiService seturiService, 
              SqidsEncoder<int> sqidsEncoder, 
             IInelePrindereService inelePrindereService, ITipuriGalerieService tipuriGalerieService, 
-            ITipuriLinieService tipuriLinieService, IUserService userService, IVoucherService voucherService, IManopereService manopereService, IGeneralSettingsService generalSettingsService, IBucketAcces bucketAcces)
+            ITipuriLinieService tipuriLinieService, IUserService userService, IVoucherService voucherService, IManopereService manopereService, IGeneralSettingsService generalSettingsService
+            , IBucketAcces bucketAcces)
         {
             _adminService = adminService;
             _documentProcessing = documentProcessing;
@@ -66,7 +68,6 @@ namespace E_Commerce_BackEnd.Controllers
             _tipuriLinieService = tipuriLinieService;
             _userService = userService;
             _voucherService = voucherService;
-          
             _manopereService = manopereService;
             _generalSettingsService = generalSettingsService;
             _bucketAcces = bucketAcces;
@@ -94,7 +95,10 @@ namespace E_Commerce_BackEnd.Controllers
                 SameSite = SameSiteMode.Strict,
                 Expires = DateTime.UtcNow.AddDays(7)
             };
-                
+            
+            var getSecretHeader = await TokenService.GetSecret("prod/texx.ro/admin-header");
+            var bytesSecret = Encoding.UTF8.GetBytes(getSecretHeader);
+            Response.Cookies.Append("ASP_NET_ADMIN_SESSION" , Convert.ToBase64String(bytesSecret) , cookieOptions);
             Response.Cookies.Append("adminLoggedIn" , "1" , cookieOptions);
             return Ok("Succesfully logged in into admin dashboard");
 
