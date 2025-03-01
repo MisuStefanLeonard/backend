@@ -192,12 +192,13 @@ builder.Services.AddAutoMapper((serviceProvider, cfg) =>
 builder.Services.AddScoped<ProducatorValueResolver>();
 
 // CORS configuration
+var corsPolicy = getDockerEnv == "true" ? "http://46.101.141.122:3000" : "http://localhost:3000";
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowVueApp",
         policy =>
         {
-            policy.WithOrigins("http://localhost:3000")
+            policy.WithOrigins(getDockerEnv)
                 .AllowAnyHeader()
                 .AllowAnyMethod()
                 .AllowCredentials();
