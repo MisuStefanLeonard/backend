@@ -68,7 +68,10 @@ public class UserService : IUserService
             transaction = await _unitOfWork.BeginTransactionAsync();
             var repository = _unitOfWork.Repository<Conturi>();
             var getDockerEnv = Environment.GetEnvironmentVariable("DOCKER");
+            _logger.LogInformation(getDockerEnv);
             var siteUrl = getDockerEnv != "TRUE" ? "http://localhost:3000" : "https://www.texxshop.ro";
+            _logger.LogInformation(siteUrl);
+
             var token = UserHelpers.Token(Size, Size2, newAccount.Email!);
             var hashedPassword = UserHelpers.CryptPassword(newAccount.Parola!);
 
