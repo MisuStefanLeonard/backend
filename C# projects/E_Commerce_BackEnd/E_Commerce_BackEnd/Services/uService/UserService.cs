@@ -67,7 +67,8 @@ public class UserService : IUserService
         {
             transaction = await _unitOfWork.BeginTransactionAsync();
             var repository = _unitOfWork.Repository<Conturi>();
-
+            var getDockerEnv = Environment.GetEnvironmentVariable("DOCKER");
+            var siteUrl = getDockerEnv != "TRUE" ? "http://localhost:3000" : "https://www.texxshop.ro";
             var token = UserHelpers.Token(Size, Size2, newAccount.Email!);
             var hashedPassword = UserHelpers.CryptPassword(newAccount.Parola!);
 
@@ -115,7 +116,7 @@ public class UserService : IUserService
                                $"          Noul cod de reactivare. Da click pe acest link pentru a-ti activa contul\n" +
                                $"         </mj-text>\n" +
                                $"          <mj-button color=\"white\" background-color=\"black\">\n" +
-                               $"           <a href=\"http://localhost:3000/user/confirmare/{token}\">CLICK</a>\n" +
+                               $"           <a href=\"{siteUrl}/user/confirmare/{token}\">CLICK</a>\n" +
                                $"        </mj-button>\n" +
                                $"         <mj-text font-size=\"22px\" color=\"#F45E43\">\n" +
                                $"          EN\n " +
@@ -132,7 +133,7 @@ public class UserService : IUserService
                                $"      \t<mj-text font-size=\"18px\" color=\"#333333\">\n " +
                                $"         New reactivation code. Click on the button\n " +
                                $"        </mj-text>\n          <mj-button color=\"white\" background-color=\"black\">\n " +
-                               $"          <a href=\"http://localhost:3000/en/user/confirmare/{token}\">CLICK</a>\n" +
+                               $"          <a href=\"{siteUrl}/en/user/confirmare/{token}\">CLICK</a>\n" +
                                $"        </mj-button>\n\n" +
                                $"      </mj-column>\n" +
                                $"    </mj-section>\n" +
@@ -420,7 +421,8 @@ public class UserService : IUserService
         try
         {
             transaction = await _unitOfWork.BeginTransactionAsync();
-
+            var getDockerEnv = Environment.GetEnvironmentVariable("DOCKER");
+            var siteUrl = getDockerEnv != "TRUE" ? "http://localhost:3000" : "https://www.texxshop.ro";
             var repository = _unitOfWork.Repository<Conturi>();
             var currentUser = await repository.GetByIdAsync(userId);
             var oldEmail = currentUser!.Email;
@@ -502,7 +504,7 @@ public class UserService : IUserService
                      <mj-text font-size='18px' color='black'>V-ați schimbat e-mail-ul contului dumneavoastră.</mj-text>
                      <mj-text font-size='18px' color='black'><strong>Noul email este:</strong> {updatedDto.Email}</mj-text>
                      <mj-button color='white' background-color='black'>
-                       <a href='http://localhost:3000/user/account/changeEmail/{token}?email={updatedDto.Email}&nume={updatedDto.Nume}&prenume={updatedDto.Prenume}&gen={updatedDto.Gen}&nrTelefon={updatedDto.NrTelefon}&username={updatedDto.Username}'>
+                       <a href='{siteUrl}/user/account/changeEmail/{token}?email={updatedDto.Email}&nume={updatedDto.Nume}&prenume={updatedDto.Prenume}&gen={updatedDto.Gen}&nrTelefon={updatedDto.NrTelefon}&username={updatedDto.Username}'>
                          Confirmă schimbarea email-ului
                        </a>
                      </mj-button>
@@ -519,7 +521,7 @@ public class UserService : IUserService
                      <mj-text font-size='18px' color='black'>You have changed your account email.</mj-text>
                      <mj-text font-size='18px' color='black'><strong>Your new email is:</strong> {updatedDto.Email}</mj-text>
                      <mj-button color='white' background-color='black'>
-                       <a href='http://localhost:3000/user/account/changeEmail/{token}?email={updatedDto.Email}&nume={updatedDto.Nume}&prenume={updatedDto.Prenume}&gen={updatedDto.Gen}&nrTelefon={updatedDto.NrTelefon}&username={updatedDto.Username}'>
+                       <a href='{siteUrl}/user/account/changeEmail/{token}?email={updatedDto.Email}&nume={updatedDto.Nume}&prenume={updatedDto.Prenume}&gen={updatedDto.Gen}&nrTelefon={updatedDto.NrTelefon}&username={updatedDto.Username}'>
                          Confirm Email Change
                        </a>
                      </mj-button>
@@ -759,7 +761,8 @@ public class UserService : IUserService
 
             await conturiRepository.UpdateAsync(accountToBeUpdated);
             await _unitOfWork.CommitTransactionAsync(transaction);
-            
+            var getDockerEnv = Environment.GetEnvironmentVariable("DOCKER");
+            var siteUrl = getDockerEnv != "TRUE" ? "http://localhost:3000" : "https://www.texxshop.ro";
             
             var url = await _bucketAcces.GenerateUrl("LogoTexx.png" , null);
             var insertLogo = url != null
@@ -793,7 +796,7 @@ public class UserService : IUserService
                        Dați click pe acest buton pentru a vă reseta parola. Linkul expiră într-o oră!
                      </mj-text>
                      <mj-button color='white' background-color='black'>
-                       <a href='http://localhost:3000/user/forgotpassword/{resetToken}'>RESETARE PAROLĂ</a>
+                       <a href='{siteUrl}/user/forgotpassword/{resetToken}'>RESETARE PAROLĂ</a>
                      </mj-button>
                      <mj-text font-size='22px' color='#F45E43'>EN</mj-text>
                      <mj-text font-size='18px' color='#333333'>
@@ -806,7 +809,7 @@ public class UserService : IUserService
                        Click on the button below to reset your password. The link expires in one hour!
                      </mj-text>
                      <mj-button color='white' background-color='black'>
-                       <a href='http://localhost:3000/en/user/forgotpassword/{resetToken}'>RESET PASSWORD</a>
+                       <a href='{siteUrl}/en/user/forgotpassword/{resetToken}'>RESET PASSWORD</a>
                      </mj-button>
                   </mj-column>
                 </mj-section>
@@ -939,11 +942,12 @@ public class UserService : IUserService
             var newToken = UserHelpers.Token(Size, Size2, currentUser.Email!);
             currentUser.CodActivare = newToken;
 
-            DateTime currentDateTime = DateTime.UtcNow;
+            var currentDateTime = DateTime.UtcNow;
             currentUser.OraLinkConfirmare = currentDateTime;
 
             currentUser.Verificat = false;
-
+            var getDockerEnv = Environment.GetEnvironmentVariable("DOCKER");
+            var siteUrl = getDockerEnv != "TRUE" ? "http://localhost:3000" : "https://www.texxshop.ro";
             await conturiRepository.UpdateAsync(currentUser);
             await _unitOfWork.CommitTransactionAsync(transaction);
             
@@ -982,7 +986,7 @@ public class UserService : IUserService
                                $"          Noul cod de reactivare. Da click pe acest link pentru a-ti activa contul\n" +
                                $"         </mj-text>\n" +
                                $"          <mj-button color=\"white\" background-color=\"black\">\n" +
-                               $"           <a href=\"http://localhost:3000/user/confirmare/{newToken}\">CLICK</a>\n" +
+                               $"           <a href=\"{siteUrl}/user/confirmare/{newToken}\">CLICK</a>\n" +
                                $"        </mj-button>\n" +
                                $"         <mj-text font-size=\"22px\" color=\"#F45E43\">\n" +
                                $"          EN\n " +
@@ -1000,7 +1004,7 @@ public class UserService : IUserService
                                $"         New reactivation code. Click on the button\n " +
                                $"        </mj-text>\n" +
                                $"          <mj-button color=\"white\" background-color=\"black\">\n " +
-                               $"          <a href=\"http://localhost:3000/en/user/confirmare/{newToken}\">CLICK</a>\n" +
+                               $"          <a href=\"{siteUrl}/en/user/confirmare/{newToken}\">CLICK</a>\n" +
                                $"        </mj-button>\n\n" +
                                $"      </mj-column>\n" +
                                $"    </mj-section>\n" +

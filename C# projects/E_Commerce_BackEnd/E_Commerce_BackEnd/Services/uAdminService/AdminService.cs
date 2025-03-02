@@ -217,6 +217,9 @@ public partial class AdminService : IAdminService
                 .FindQueryable(u => u.IdCont == updatedData.IdContDto)
                 .First();
 
+            var getDockerEnv = Environment.GetEnvironmentVariable("DOCKER");
+            var siteUrl = getDockerEnv != "TRUE" ? "http://localhost:3000" : "https://www.texxshop.ro";
+
             if (userToBeModified.Email != updatedData.EmailDto)
             {
                 var newEmail = updatedData.EmailDto;
@@ -271,7 +274,7 @@ public partial class AdminService : IAdminService
                               Dacă dumneavoastră ați avut contact cu administratorul, intrați pe acest link pentru schimbarea email-ului:
                             </mj-text>
                             <mj-button color=""white"" background-color=""black"">
-                              <a href=""http://localhost:3000/user/admin/emailChanged?changeRequestId={{changeRequestId}}"">
+                              <a href=""{siteUrl}/user/admin/emailChanged?changeRequestId={{changeRequestId}}"">
                                 Confirmă Schimbarea Email-ului
                               </a>
                             </mj-button>
@@ -302,7 +305,7 @@ public partial class AdminService : IAdminService
                               If you have been in contact with the administrator, click on this link to confirm your email change:
                             </mj-text>
                             <mj-button color=""white"" background-color=""black"">
-                              <a href=""http://localhost:3000/user/admin/emailChanged?changeRequestId={{changeRequestId}}"">
+                              <a href=""{siteUrl}/user/admin/emailChanged?changeRequestId={{changeRequestId}}"">
                                 Confirm Email Change
                               </a>
                             </mj-button>

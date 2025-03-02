@@ -1005,8 +1005,9 @@ public class OrderService : IOrderService
                 _logger.LogError($"No account found in the database with the id {accountId}");
                 return;
             }
-            
-            
+
+            var getDockerEnv = Environment.GetEnvironmentVariable("DOCKER");
+            var siteUrl = getDockerEnv != "TRUE" ? "http://localhost:3000" : "https://www.texxshop.ro";
             
             var accountCreationMessageEn = wasAccountCreated
                 ? $"<mj-text font-size=\"18px\" color=\"black\">\n   " +
@@ -1051,12 +1052,12 @@ public class OrderService : IOrderService
 
 
             var loginOrProfileRo = wasAccountCreated
-                ? $"http://localhost:3000/user/login"
-                : "http://localhost:3000/user/profile/orders";
+                ? $"{siteUrl}/user/login"
+                : $"{siteUrl}/user/profile/orders";
             
             var loginOrProfileEn = wasAccountCreated
-                ? $"http://localhost:3000/en/user/login"
-                : "http://localhost:3000/en/user/profile/orders";
+                ? $"{siteUrl}/en/user/login"
+                : $"{siteUrl}/en/user/profile/orders";
 
             var mjmlTemplate = $"<mjml>\n" +
                                $"  <mj-body>\n " +
