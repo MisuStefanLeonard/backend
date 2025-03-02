@@ -218,7 +218,7 @@ public partial class AdminService : IAdminService
                 .First();
 
             var getDockerEnv = Environment.GetEnvironmentVariable("DOCKER");
-            var siteUrl = getDockerEnv != "TRUE" ? "http://localhost:3000" : "https://www.texxshop.ro";
+            var siteUrl = getDockerEnv != "true" ? "http://localhost:3000" : "https://www.texxshop.ro";
 
             if (userToBeModified.Email != updatedData.EmailDto)
             {

@@ -68,8 +68,12 @@ public class UserService : IUserService
             transaction = await _unitOfWork.BeginTransactionAsync();
             var repository = _unitOfWork.Repository<Conturi>();
             var getDockerEnv = Environment.GetEnvironmentVariable("DOCKER");
+            _logger.LogInformation("AICI");
+            _logger.LogInformation("AICI");
+            _logger.LogInformation("AICI");
+
             _logger.LogInformation(getDockerEnv);
-            var siteUrl = getDockerEnv != "TRUE" ? "http://localhost:3000" : "https://www.texxshop.ro";
+            var siteUrl = getDockerEnv != "true" ? "http://localhost:3000" : "https://www.texxshop.ro";
             _logger.LogInformation(siteUrl);
 
             var token = UserHelpers.Token(Size, Size2, newAccount.Email!);
@@ -425,7 +429,7 @@ public class UserService : IUserService
         {
             transaction = await _unitOfWork.BeginTransactionAsync();
             var getDockerEnv = Environment.GetEnvironmentVariable("DOCKER");
-            var siteUrl = getDockerEnv != "TRUE" ? "http://localhost:3000" : "https://www.texxshop.ro";
+            var siteUrl = getDockerEnv != "true" ? "http://localhost:3000" : "https://www.texxshop.ro";
             var repository = _unitOfWork.Repository<Conturi>();
             var currentUser = await repository.GetByIdAsync(userId);
             var oldEmail = currentUser!.Email;
