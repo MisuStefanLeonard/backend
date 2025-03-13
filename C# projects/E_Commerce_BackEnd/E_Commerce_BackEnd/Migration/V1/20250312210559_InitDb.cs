@@ -1,5 +1,4 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Metadata;
+﻿using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -7,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace E_Commerce_BackEnd.Migration.V1
 {
     /// <inheritdoc />
-    public partial class Init : Microsoft.EntityFrameworkCore.Migrations.Migration
+    public partial class InitDb : Microsoft.EntityFrameworkCore.Migrations.Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -124,7 +123,7 @@ namespace E_Commerce_BackEnd.Migration.V1
                 {
                     id_inel_prindere = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    culoare_inel = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
+                    culoare_inel_json = table.Column<string>(type: "json", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     cale_relativa = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -177,9 +176,9 @@ namespace E_Commerce_BackEnd.Migration.V1
                 {
                     id_set = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    nume_set = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    nume_set_json = table.Column<string>(type: "json", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    descriere_set = table.Column<string>(type: "varchar(150)", maxLength: 150, nullable: false)
+                    descriere_set_json = table.Column<string>(type: "json", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     pret_set = table.Column<decimal>(type: "decimal(6,2)", precision: 6, scale: 2, nullable: false),
                     pret_set_redus = table.Column<decimal>(type: "decimal(6,2)", precision: 6, scale: 2, nullable: false),
@@ -199,7 +198,7 @@ namespace E_Commerce_BackEnd.Migration.V1
                 {
                     id_tip_galerie = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    nume_galerie = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
+                    nume_tip_galerie_json = table.Column<string>(type: "json", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     incretire = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false),
                     pret_metru_galerie = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false),
@@ -221,7 +220,7 @@ namespace E_Commerce_BackEnd.Migration.V1
                 {
                     id_tip_linie = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    nume_tip_linie = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
+                    nume_tip_linie_json = table.Column<string>(type: "json", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     pret_metru_linie = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false),
                     cale_relativa = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
@@ -241,7 +240,7 @@ namespace E_Commerce_BackEnd.Migration.V1
                 {
                     id_tip_pe_produs = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    categorie = table.Column<string>(type: "varchar(40)", maxLength: 40, nullable: false)
+                    categorie_json = table.Column<string>(type: "json", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4")
                 },
                 constraints: table =>
@@ -274,7 +273,7 @@ namespace E_Commerce_BackEnd.Migration.V1
                 {
                     id_culoare = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    nume_culoare = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
+                    culoare_json = table.Column<string>(type: "json", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     id_cod_culoare = table.Column<int>(type: "integer", nullable: false)
                 },
@@ -369,18 +368,18 @@ namespace E_Commerce_BackEnd.Migration.V1
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     cod_produs = table.Column<string>(type: "varchar(40)", maxLength: 40, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    descriere = table.Column<string>(type: "varchar(150)", maxLength: 150, nullable: true)
+                    descriere_produs_json = table.Column<string>(type: "json", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    nume_produs = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true)
+                    nume_produs_json = table.Column<string>(type: "json", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    compozitie = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true)
+                    compozitie_json = table.Column<string>(type: "json", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     TVA = table.Column<byte>(type: "tinyint unsigned", nullable: false),
-                    ingrijire = table.Column<string>(type: "varchar(150)", maxLength: 150, nullable: true)
+                    ingrijire_json = table.Column<string>(type: "json", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     fata_reversbila = table.Column<sbyte>(type: "tinyint", nullable: true),
                     stoc = table.Column<ushort>(type: "smallint unsigned", nullable: true),
-                    tip_produs = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
+                    tip_produs_json = table.Column<string>(type: "json", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     isDeleted = table.Column<sbyte>(type: "tinyint", nullable: false, defaultValue: (sbyte)0),
                     activ_in_magazin = table.Column<sbyte>(type: "tinyint", nullable: false, defaultValue: (sbyte)1),
@@ -410,7 +409,7 @@ namespace E_Commerce_BackEnd.Migration.V1
                 {
                     id_manopera = table.Column<int>(type: "int(1)", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    nume_manopera = table.Column<string>(type: "varchar(70)", maxLength: 70, nullable: true)
+                    nume_manopera_json = table.Column<string>(type: "json", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     id_inel_prindere = table.Column<int>(type: "integer", nullable: true),
                     id_tip_linie = table.Column<int>(type: "integer", nullable: false),

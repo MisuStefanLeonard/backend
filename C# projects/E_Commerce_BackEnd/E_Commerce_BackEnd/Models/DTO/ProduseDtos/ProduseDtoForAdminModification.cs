@@ -1,4 +1,5 @@
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductOptionsDto;
+using E_Commerce_BackEnd.Models.ProductRelatedModels.JSON_Models;
 
 namespace E_Commerce_BackEnd.Models.DTO.ProduseDtos;
 
@@ -7,14 +8,19 @@ public class ProduseDtoForAdminModification
     public string? CodProdusDto { get; set; }
     public string? OldCodProdusDto { get; set; }
     public string? DescriereDto { get; set; }
+    public Descriere? DescriereJsonDto { get; set; } 
     public string? NumeProdusDto { get; set; }
+    public Nume NumeProdusJsonDto { get; set; } = null!;
     public string? CompozitieDto { get; set; }
+    public Compozitie? CompozitieJsonDto { get; set; } 
     public byte TvaDto { get; set; }
     public string? IngrijireDto { get; set; }
+    public Ingrijire? IngrijireJsonDto { get; set; } 
     public bool? FataReversibilaDto { get; set; }
     public ushort? StocDto { get; set; }
     public bool ActivInMagazinDto { get; set; }
     public string TipulProdusuluiDto { get; set; } = null!;
+    public TipProdus? TipulProdusuluiJsonDto { get; set; } 
     public string? NumeProducatorDto { get; set; }
     public decimal PretBazaDto { get; set; } 
     public decimal PretBazaRedusDto { get; set; } 

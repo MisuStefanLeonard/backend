@@ -403,11 +403,10 @@ namespace E_Commerce_BackEnd.Migration.V1
                         .HasColumnType("integer")
                         .HasColumnName("id_cod_culoare");
 
-                    b.Property<string>("NumeCuloare")
+                    b.Property<string>("NumeCuloareJson")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar")
-                        .HasColumnName("nume_culoare");
+                        .HasColumnType("json")
+                        .HasColumnName("culoare_json");
 
                     b.HasKey("IdCuloare");
 
@@ -498,11 +497,10 @@ namespace E_Commerce_BackEnd.Migration.V1
                         .HasColumnType("varchar")
                         .HasColumnName("cale_relativa");
 
-                    b.Property<string>("CuloareInel")
+                    b.Property<string>("CuloareInelJson")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar")
-                        .HasColumnName("culoare_inel");
+                        .HasColumnType("json")
+                        .HasColumnName("culoare_inel_json");
 
                     b.Property<sbyte>("IsDeleted")
                         .ValueGeneratedOnAdd()
@@ -558,10 +556,9 @@ namespace E_Commerce_BackEnd.Migration.V1
                         .HasColumnType("decimal")
                         .HasColumnName("material_folosit");
 
-                    b.Property<string>("NumeManopera")
-                        .HasMaxLength(70)
-                        .HasColumnType("varchar(70)")
-                        .HasColumnName("nume_manopera");
+                    b.Property<string>("NumeManoperaJson")
+                        .HasColumnType("json")
+                        .HasColumnName("nume_manopera_json");
 
                     b.Property<decimal>("PretCurentTipGalerie")
                         .HasPrecision(6, 2)
@@ -638,15 +635,13 @@ namespace E_Commerce_BackEnd.Migration.V1
                         .HasColumnType("varchar")
                         .HasColumnName("cod_produs");
 
-                    b.Property<string>("Compozitie")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar")
-                        .HasColumnName("compozitie");
+                    b.Property<string>("CompozitieJson")
+                        .HasColumnType("json")
+                        .HasColumnName("compozitie_json");
 
-                    b.Property<string>("Descriere")
-                        .HasMaxLength(150)
-                        .HasColumnType("varchar")
-                        .HasColumnName("descriere");
+                    b.Property<string>("DescriereJson")
+                        .HasColumnType("json")
+                        .HasColumnName("descriere_produs_json");
 
                     b.Property<sbyte?>("FataReversibila")
                         .HasColumnType("tinyint")
@@ -661,10 +656,9 @@ namespace E_Commerce_BackEnd.Migration.V1
                         .HasColumnType("decimal")
                         .HasColumnName("inaltime_maxima_material");
 
-                    b.Property<string>("Ingrijire")
-                        .HasMaxLength(150)
-                        .HasColumnType("varchar")
-                        .HasColumnName("ingrijire");
+                    b.Property<string>("IngrijireJson")
+                        .HasColumnType("json")
+                        .HasColumnName("ingrijire_json");
 
                     b.Property<sbyte>("IsDeleted")
                         .ValueGeneratedOnAdd()
@@ -678,10 +672,10 @@ namespace E_Commerce_BackEnd.Migration.V1
                         .HasDefaultValue((sbyte)0)
                         .HasColumnName("is_locked");
 
-                    b.Property<string>("NumeProdus")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar")
-                        .HasColumnName("nume_produs");
+                    b.Property<string>("NumeProdusJson")
+                        .IsRequired()
+                        .HasColumnType("json")
+                        .HasColumnName("nume_produs_json");
 
                     b.Property<decimal>("PretDeBaza")
                         .HasPrecision(6, 2)
@@ -703,11 +697,10 @@ namespace E_Commerce_BackEnd.Migration.V1
                         .HasColumnType("smallint unsigned")
                         .HasColumnName("stoc");
 
-                    b.Property<string>("TipulProdusului")
+                    b.Property<string>("TipulProdusuluiJson")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar")
-                        .HasColumnName("tip_produs");
+                        .HasColumnType("json")
+                        .HasColumnName("tip_produs_json");
 
                     b.Property<byte>("Tva")
                         .HasColumnType("tinyint unsigned")
@@ -797,11 +790,10 @@ namespace E_Commerce_BackEnd.Migration.V1
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdSet"));
 
-                    b.Property<string>("DescriereSet")
+                    b.Property<string>("DescriereJson")
                         .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("varchar")
-                        .HasColumnName("descriere_set");
+                        .HasColumnType("json")
+                        .HasColumnName("descriere_set_json");
 
                     b.Property<sbyte>("IsDeleted")
                         .ValueGeneratedOnAdd()
@@ -815,11 +807,10 @@ namespace E_Commerce_BackEnd.Migration.V1
                         .HasDefaultValue((sbyte)0)
                         .HasColumnName("is_locked");
 
-                    b.Property<string>("NumeSet")
+                    b.Property<string>("NumeSetJson")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar")
-                        .HasColumnName("nume_set");
+                        .HasColumnType("json")
+                        .HasColumnName("nume_set_json");
 
                     b.Property<decimal>("PretRedusSet")
                         .HasPrecision(6, 2)
@@ -871,11 +862,10 @@ namespace E_Commerce_BackEnd.Migration.V1
                         .HasDefaultValue((sbyte)0)
                         .HasColumnName("is_locked");
 
-                    b.Property<string>("NumeTipGalerie")
+                    b.Property<string>("NumeTipGalerieJson")
                         .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("varchar")
-                        .HasColumnName("nume_galerie");
+                        .HasColumnType("json")
+                        .HasColumnName("nume_tip_galerie_json");
 
                     b.Property<decimal>("PretTipGalerie")
                         .HasPrecision(5, 2)
@@ -919,11 +909,10 @@ namespace E_Commerce_BackEnd.Migration.V1
                         .HasDefaultValue((sbyte)0)
                         .HasColumnName("is_locked");
 
-                    b.Property<string>("NumeTipLinie")
+                    b.Property<string>("NumeTipLinieJson")
                         .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("varchar")
-                        .HasColumnName("nume_tip_linie");
+                        .HasColumnType("json")
+                        .HasColumnName("nume_tip_linie_json");
 
                     b.Property<decimal>("PretPeTipLinie")
                         .HasPrecision(5, 2)
@@ -970,11 +959,10 @@ namespace E_Commerce_BackEnd.Migration.V1
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IdTipProdus"));
 
-                    b.Property<string>("Categorie")
+                    b.Property<string>("CategorieJson")
                         .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("varchar")
-                        .HasColumnName("categorie");
+                        .HasColumnType("json")
+                        .HasColumnName("categorie_json");
 
                     b.HasKey("IdTipProdus");
 

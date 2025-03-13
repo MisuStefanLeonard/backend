@@ -15,7 +15,6 @@ public class BucketAccess : IBucketAcces
     private const string BucketName = "texxbucket";
     private const string DirectoryPrefix = "images/";
     private static readonly AmazonS3Client AmazonS3Client = new (RegionEndpoint.EUCentral1);
-    // private readonly IMemoryCache _cache;
     private readonly ILogger<BucketAccess> _logger;
     private readonly string? _cloudFontDomain;
     
@@ -23,29 +22,9 @@ public class BucketAccess : IBucketAcces
     public BucketAccess(ILogger<BucketAccess> logger, IConfiguration configuration)
     {
         _logger = logger;
-        // _cache = cache;
         _cloudFontDomain = configuration["CloudFont:Id"];
     }
-
-    // private byte[] ResizeImage(MemoryStream imageStream, int maxWidth , int maxHeight)
-    // {
-    //     SKBitmap image = SKBitmap.Decode(imageStream);
-    //
-    //     var ratioX = (double)maxWidth / image.Width;
-    //     var ratioY = (double)maxHeight / image.Height;
-    //     var ratio = Math.Min(ratioX, ratioY);
-    //
-    //     var newWidth = (int)(image.Width * ratio);
-    //     var newHeight = (int)(image.Height * ratio);
-    //
-    //     var info = new SKImageInfo(newWidth, newHeight);
-    //     image = image.Resize(info, SKFilterQuality.High);
-    //
-    //     using var ms = new MemoryStream();
-    //     image.Encode(ms, SKEncodedImageFormat.Jpeg, 100);
-    //     return ms.ToArray();
-    //     
-    // }
+    
 
     private async Task<bool> DirectoryExists(string key)
     {
@@ -261,7 +240,7 @@ public class BucketAccess : IBucketAcces
             // Construct the CloudFront URL directly
             await Task.Delay(1);
             var cloudFrontUrl = bucketDir == null ? $"{_cloudFontDomain}/images/{imagePath}" : $"{_cloudFontDomain}/images/{bucketDir}/{imagePath}";
-
+            _logger.LogInformation(cloudFrontUrl);
             return cloudFrontUrl;
         }
         catch (AmazonS3Exception e)

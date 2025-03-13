@@ -1,7 +1,9 @@
+using System.Text.Json;
 using E_Commerce_BackEnd.Models.ConfigurationModels;
 using E_Commerce_BackEnd.Models.Enums;
 using E_Commerce_BackEnd.Models.OrderRelatedModels;
 using E_Commerce_BackEnd.Models.ProductRelatedModels;
+using E_Commerce_BackEnd.Models.ProductRelatedModels.JSON_Models;
 using E_Commerce_BackEnd.Models.ProductVouchersModels;
 using E_Commerce_BackEnd.Models.UserRelatedModels;
 using Microsoft.EntityFrameworkCore;
@@ -562,7 +564,6 @@ public class ECommerceContext : DbContext
 
         });
         
-        
         modelBuilder.Entity<Culori>(entity =>
         {
             entity.ToTable("culori");
@@ -572,11 +573,18 @@ public class ECommerceContext : DbContext
                 .HasColumnName("id_culoare")
                 .HasColumnType("int(1)");
 
-            entity.Property(e => e.NumeCuloare)
-                .HasColumnName("nume_culoare")
-                .HasColumnType("varchar")
-                .HasMaxLength(20)
-                .IsRequired();
+            // entity.Property(e => e.NumeCuloare)
+            //     .HasColumnName("nume_culoare")
+            //     .HasColumnType("varchar")
+            //     .HasMaxLength(20)
+            //     .IsRequired();
+            
+            entity.Property(e => e.NumeCuloareJson)
+                .HasConversion(
+                    value => JsonSerializer.Serialize(value, (JsonSerializerOptions)null!),
+                    value => JsonSerializer.Deserialize<Culoare>(value, (JsonSerializerOptions)null!)!
+                ).HasColumnType("json")
+                .HasColumnName("culoare_json");
             
             entity.Property(e => e.IdCodCuloare)
                 .HasColumnName("id_cod_culoare")
@@ -657,32 +665,59 @@ public class ECommerceContext : DbContext
                 .IsUnique()
                 .HasDatabaseName("Index_CodProdus");
             
-            entity.Property(e => e.Descriere)
-                .HasColumnType("varchar")
-                .HasColumnName("descriere")
-                .HasMaxLength(150);
-            
-            entity.Property(e => e.NumeProdus)
-                .HasColumnType("varchar")
-                .HasColumnName("nume_produs")
-                .HasMaxLength(50);
-            
-            entity.Property(e => e.Compozitie)
-                .HasColumnType("varchar")
-                .HasColumnName("compozitie")
-                .HasMaxLength(50);
+            // entity.Property(e => e.Descriere)
+            //     .HasColumnType("varchar")
+            //     .HasColumnName("descriere")
+            //     .HasMaxLength(150);
+
+            entity.Property(e => e.DescriereJson)
+                .HasConversion(
+                    value => JsonSerializer.Serialize(value, (JsonSerializerOptions)null!),
+                    value => JsonSerializer.Deserialize<Descriere>(value, (JsonSerializerOptions)null!)
+                ).HasColumnType("json")
+                .HasColumnName("descriere_produs_json");
+         
+            // entity.Property(e => e.NumeProdus)
+            //     .HasColumnType("varchar")
+            //     .HasColumnName("nume_produs")
+            //     .HasMaxLength(50);
+            //
+            entity.Property(e => e.NumeProdusJson)
+                .HasConversion(
+                    value => JsonSerializer.Serialize(value, (JsonSerializerOptions)null!),
+                    value => JsonSerializer.Deserialize<Nume>(value, (JsonSerializerOptions)null!)!
+                ).HasColumnType("json")
+                .HasColumnName("nume_produs_json");
+          
+            // entity.Property(e => e.Compozitie)
+            //     .HasColumnType("varchar")
+            //     .HasColumnName("compozitie")
+            //     .HasMaxLength(50);
+            //
+            entity.Property(e => e.CompozitieJson)
+                .HasConversion(
+                    value => JsonSerializer.Serialize(value, (JsonSerializerOptions)null!),
+                    value => JsonSerializer.Deserialize<Compozitie>(value, (JsonSerializerOptions)null!)!
+                ).HasColumnType("json")
+                .HasColumnName("compozitie_json");
 
             entity.Property(e => e.Tva)
                 .HasColumnType("tinyint unsigned")
                 .HasColumnName("TVA")
                 .IsRequired();
             
-            entity.Property(e => e.Ingrijire)
-                .HasColumnType("varchar")
-                .HasColumnName("ingrijire")
-                .HasMaxLength(150);
-            
-            
+            // entity.Property(e => e.Ingrijire)
+            //     .HasColumnType("varchar")
+            //     .HasColumnName("ingrijire")
+            //     .HasMaxLength(150);
+
+            entity.Property(e => e.IngrijireJson)
+                .HasConversion(
+                    value => JsonSerializer.Serialize(value, (JsonSerializerOptions)null!),
+                    value => JsonSerializer.Deserialize<Ingrijire>(value, (JsonSerializerOptions)null!)!
+                ).HasColumnType("json")
+                .HasColumnName("ingrijire_json");
+       
             entity.Property(e => e.FataReversibila)
                 .HasColumnType("tinyint")
                 .HasColumnName("fata_reversbila");
@@ -691,12 +726,19 @@ public class ECommerceContext : DbContext
                 .HasColumnType("smallint unsigned")
                 .HasColumnName("stoc");
 
-            entity.Property(e => e.TipulProdusului)
-                .HasColumnType("varchar")
-                .HasColumnName("tip_produs")
-                .HasMaxLength(20)
-                .IsRequired();
+            // entity.Property(e => e.TipulProdusului)
+            //     .HasColumnType("varchar")
+            //     .HasColumnName("tip_produs")
+            //     .HasMaxLength(20)
+            //     .IsRequired();
             
+            entity.Property(e => e.TipulProdusuluiJson)
+                .HasConversion(
+                    value => JsonSerializer.Serialize(value, (JsonSerializerOptions)null!),
+                    value => JsonSerializer.Deserialize<TipProdus>(value, (JsonSerializerOptions)null!)!
+                ).HasColumnType("json")
+                .HasColumnName("tip_produs_json");
+         
             entity.Property(e => e.IsDeleted)
                 .HasColumnType("tinyint")
                 .HasColumnName("isDeleted")
@@ -767,17 +809,32 @@ public class ECommerceContext : DbContext
                 .HasColumnName("id_set")
                 .HasColumnType("int(1)");
 
-            entity.Property(e => e.NumeSet)
-                .HasColumnType("varchar")
-                .HasColumnName("nume_set")
-                .HasMaxLength(100)
-                .IsRequired();
+            // entity.Property(e => e.NumeSet)
+            //     .HasColumnType("varchar")
+            //     .HasColumnName("nume_set")
+            //     .HasMaxLength(100)
+            //     .IsRequired();
             
-            entity.Property(e => e.DescriereSet)
-                .HasColumnType("varchar")
-                .HasColumnName("descriere_set")
-                .HasMaxLength(150)
-                .IsRequired();
+            entity.Property(e => e.NumeSetJson)
+                .HasConversion(
+                    value => JsonSerializer.Serialize(value, (JsonSerializerOptions)null!),
+                    value => JsonSerializer.Deserialize<Nume>(value, (JsonSerializerOptions)null!)!
+                ).HasColumnType("json")
+                .HasColumnName("nume_set_json");
+            
+            // entity.Property(e => e.DescriereSet)
+            //     .HasColumnType("varchar")
+            //     .HasColumnName("descriere_set")
+            //     .HasMaxLength(150)
+            //     .IsRequired();
+            
+            entity.Property(e => e.DescriereJson)
+                .HasConversion(
+                    value => JsonSerializer.Serialize(value, (JsonSerializerOptions)null!),
+                    value => JsonSerializer.Deserialize<Descriere>(value, (JsonSerializerOptions)null!)!
+                ).HasColumnType("json")
+                .HasColumnName("descriere_set_json");
+            
 
             entity.Property(e => e.PretRedusSet)
                 .HasColumnType("decimal")
@@ -845,11 +902,18 @@ public class ECommerceContext : DbContext
                 .HasColumnName("id_manopera")
                 .HasColumnType("int(1)");
 
-            entity.Property(e => e.NumeManopera)
-                .HasColumnType("varchar(70)")
-                .HasColumnName("nume_manopera")
-                .HasMaxLength(70);
-
+            // entity.Property(e => e.NumeManopera)
+            //     .HasColumnType("varchar(70)")
+            //     .HasColumnName("nume_manopera")
+            //     .HasMaxLength(70);
+            
+            entity.Property(e => e.NumeManoperaJson)
+                .HasConversion(
+                    value => JsonSerializer.Serialize(value, (JsonSerializerOptions)null!),
+                    value => JsonSerializer.Deserialize<Nume>(value, (JsonSerializerOptions)null!)
+                ).HasColumnType("json")
+                .HasColumnName("nume_manopera_json");
+            
             entity.Property(e => e.IdInelPrindere)
                 .HasColumnType("integer")
                 .HasColumnName("id_inel_prindere");
@@ -922,11 +986,25 @@ public class ECommerceContext : DbContext
                 .HasColumnName("id_tip_pe_produs")
                 .HasColumnType("int(1)");
             
-            entity.Property(e => e.Categorie)
-                .HasColumnType("varchar")
-                .HasColumnName("categorie")
-                .HasMaxLength(40)
-                .IsRequired();
+            // entity.Property(e => e.Categorie)
+            //     .HasColumnType("varchar")
+            //     .HasColumnName("categorie")
+            //     .HasMaxLength(40)
+            //     .IsRequired();
+            
+            entity.Property(e => e.CategorieJson)
+                .HasConversion(
+                    value => JsonSerializer.Serialize(value, (JsonSerializerOptions)null!),
+                    value => JsonSerializer.Deserialize<Categorie>(value, (JsonSerializerOptions)null!)!
+                ).HasColumnType("json")
+                .HasColumnName("categorie_json");
+            
+            // entity.OwnsOne(product => product.CategorieJson, cb =>
+            // {
+            //     cb.ToJson();
+            //     cb.Property(c => c.CategorieRomana).HasColumnName("categorie_ro");
+            //     cb.Property(c => c.CategorieEngleza).HasColumnName("categorie_en");
+            // });
 
             
         });
@@ -1095,11 +1173,18 @@ public class ECommerceContext : DbContext
                 .HasColumnName("id_inel_prindere")
                 .HasColumnType("int(1)");
             
-            entity.Property(e => e.CuloareInel)
-                .HasColumnType("varchar")
-                .HasColumnName("culoare_inel")
-                .HasMaxLength(20)
-                .IsRequired();
+            // entity.Property(e => e.CuloareInel)
+            //     .HasColumnType("varchar")
+            //     .HasColumnName("culoare_inel")
+            //     .HasMaxLength(20)
+            //     .IsRequired();
+            
+            entity.Property(e => e.CuloareInelJson)
+                .HasConversion(
+                    value => JsonSerializer.Serialize(value, (JsonSerializerOptions)null!),
+                    value => JsonSerializer.Deserialize<Culoare>(value, (JsonSerializerOptions)null!)!
+                ).HasColumnType("json")
+                .HasColumnName("culoare_inel_json");
 
             entity.Property(e => e.CaleRelativa)
                 .HasColumnType("varchar")
@@ -1136,11 +1221,18 @@ public class ECommerceContext : DbContext
                 .HasColumnName("id_tip_galerie")
                 .HasColumnType("int(1)");
             
-            entity.Property(e => e.NumeTipGalerie)
-                .HasColumnType("varchar")
-                .HasColumnName("nume_galerie")
-                .HasMaxLength(30)
-                .IsRequired();
+            // entity.Property(e => e.NumeTipGalerie)
+            //     .HasColumnType("varchar")
+            //     .HasColumnName("nume_galerie")
+            //     .HasMaxLength(30)
+            //     .IsRequired();
+            
+            entity.Property(e => e.NumeTipGalerieJson)
+                .HasConversion(
+                    value => JsonSerializer.Serialize(value, (JsonSerializerOptions)null!),
+                    value => JsonSerializer.Deserialize<Nume>(value, (JsonSerializerOptions)null!)!
+                ).HasColumnType("json")
+                .HasColumnName("nume_tip_galerie_json");
 
             entity.Property(e => e.CaleRelativa)
                 .HasColumnType("varchar")
@@ -1195,11 +1287,19 @@ public class ECommerceContext : DbContext
                 .HasColumnName("id_tip_linie")
                 .HasColumnType("int(1)");
             
-            entity.Property(e => e.NumeTipLinie)
-                .HasColumnType("varchar")
-                .HasColumnName("nume_tip_linie")
-                .HasMaxLength(30)
-                .IsRequired();
+            // entity.Property(e => e.NumeTipLinie)
+            //     .HasColumnType("varchar")
+            //     .HasColumnName("nume_tip_linie")
+            //     .HasMaxLength(30)
+            //     .IsRequired();
+            
+            
+            entity.Property(e => e.NumeTipLinieJson)
+                .HasConversion(
+                    value => JsonSerializer.Serialize(value, (JsonSerializerOptions)null!),
+                    value => JsonSerializer.Deserialize<Nume>(value, (JsonSerializerOptions)null!)!
+                ).HasColumnType("json")
+                .HasColumnName("nume_tip_linie_json");
 
             entity.Property(e => e.CaleRelativa)
                 .HasColumnType("varchar")

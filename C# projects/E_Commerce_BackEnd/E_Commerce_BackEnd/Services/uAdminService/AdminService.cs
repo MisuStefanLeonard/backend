@@ -76,14 +76,14 @@ public partial class AdminService : IAdminService
             {
                 var currentType = await productTypeRepository
                     .GetByIdAsync(currentTypeOnProduct.IdTipProdus);
-                categories.Add(currentType!.Categorie);
+                categories.Add(currentType!.CategorieJson.CategorieRomana);
             }
 
             dtoList.Add(new ProduseDtoForAdminListing
             {
                 CodProdusAdminDto = product.CodProdus,
-                NumeProdusAdminDto = product.NumeProdus,
-                TipProdusDto = product.TipulProdusului.ToUpper(),
+                NumeProdusAdminDto = product.NumeProdusJson.NumeRomana,
+                TipProdusDto = product.TipulProdusuluiJson.TipProdusRomana.ToUpper(),
                 ActivInMagazinDto = product.ActivInMagazin,
                 AfiseazaInNoutatiDto = product.AfiseazaInNoutati,
                 ProdusLimitatDto = product.ProdusLimitat,
@@ -154,11 +154,15 @@ public partial class AdminService : IAdminService
         {
             CodProdusDto = product.CodProdus,
             OldCodProdusDto = product.CodProdus,
-            DescriereDto = product.Descriere,
-            NumeProdusDto = product.NumeProdus,
-            CompozitieDto = product.Compozitie,
+            // DescriereDto = product.Descriere,
+            DescriereJsonDto = product.DescriereJson,
+            // NumeProdusDto = product.NumeProdus,
+            NumeProdusJsonDto = product.NumeProdusJson,
+            // CompozitieDto = product.Compozitie,
+            CompozitieJsonDto = product.CompozitieJson,
             TvaDto = product.Tva,
-            IngrijireDto = product.Ingrijire,
+            // IngrijireDto = product.Ingrijire,
+            IngrijireJsonDto = product.IngrijireJson,
             FataReversibilaDto = product.FataReversibila,
             StocDto = product.Stoc,
             ActivInMagazinDto = product.ActivInMagazin,
@@ -168,10 +172,12 @@ public partial class AdminService : IAdminService
             ProdusLimitatDto = product.ProdusLimitat,
             InaltimeMaximaDto = product.InaltimeMaxima,
             NumeProducatorDto = product.Producator == null ? "" : product.Producator.NumeProducator,
-            TipulProdusuluiDto = product.TipulProdusului,
+            // TipulProdusuluiDto = product.TipulProdusului,
+            TipulProdusuluiJsonDto = product.TipulProdusuluiJson,
             TipuriProduseDto = product.PTipuriPeProduse!.Select(tp => new TipuriProdusDto
             {
-                CategorieDto = tp.TppTipProdus.Categorie,
+                // CategorieDto = tp.TppTipProdus.Categorie,
+                CategorieJsonDto = tp.TppTipProdus.CategorieJson,
                 JustAdded = false
             }).ToList(),
             DimensiuniProduseDto = product.PProduseCuDimensiuni!.Select(pd => new DimensiuniDto
@@ -186,7 +192,8 @@ public partial class AdminService : IAdminService
             }).ToList(),
             CuloriProdusDto = product.PProduseCuCulori!.Select(pc => new CuloriDto
             {
-                NumeCuloareDto = pc.Culoare.NumeCuloare,
+                // NumeCuloareDto = pc.Culoare.NumeCuloare,
+                NumeCuloareJsonDto = pc.Culoare.NumeCuloareJson,
                 CodCuloareDto = pc.Culoare.CodCuloare.CodCuloare!,
                 JustAdded = false,
                 ImaginiProdusDto = pc.ImagProduseCuCulori!
@@ -200,7 +207,8 @@ public partial class AdminService : IAdminService
                     }).ToList()
             }).ToList()
         };
-        
+       
+
         return productDto;
     }
 
@@ -662,10 +670,10 @@ public async Task<DashboardGeneralData> GetMainDashboardData(DateTime? lowerInte
         .GetSimpleQueryable()
         .SelectMany(product => product.PTipuriPeProduse!, (product, type) => new
         {
-            product.TipulProdusului,
-            Categorii = type.TppTipProdus.Categorie,
+            TipProdusRomana = EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(product.TipulProdusuluiJson , "$.tip_ro")),
+            Categorii = EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(type.TppTipProdus.CategorieJson , "$.categorie_ro")),
             IsActive = product.ActivInMagazin
-        }).GroupBy(item => item.TipulProdusului)
+        }).GroupBy(item => item.TipProdusRomana)
         .Select(group => new
         {
             TipulProdusului = group.Key,

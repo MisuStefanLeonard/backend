@@ -3,6 +3,7 @@ using E_Commerce_BackEnd.Models.DTO.ProduseDtos.SeturiDtos;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.SeturiDtos.DtoForProductOptions;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.SeturiDtos.User;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.SeturiDtos.User.SetPage;
+using E_Commerce_BackEnd.Models.ProductRelatedModels.JSON_Models;
 
 namespace E_Commerce_BackEnd.Services.uSeturiService;
 
@@ -12,7 +13,7 @@ public interface ISeturiService
     public Task<IList<SeturiDisplayDto>?> GetProductSets();
     public Task<SetModificationDto?> GetSetPage(int idSet);
     public Task<IList<SelectProducts>> GetProductCodes();
-    public Task<IList<string>> GetSetNames();
+    public Task<IList<Nume>> GetSetNames();
     public Task<int> DeleteSet(int idSet);
     public Task<int> DeleteBulkSets(BulkOperationsDto sets);
     public Task<int> ActivateSet(int idSet, bool activationState);

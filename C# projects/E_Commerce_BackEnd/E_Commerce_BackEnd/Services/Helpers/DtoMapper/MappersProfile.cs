@@ -123,17 +123,22 @@ public class MappersProfile : Profile
 
         CreateMap<Produse, ProduseDto>()
             .ForMember(dest => dest.CodProdusDto, opt => opt.MapFrom(src => src.CodProdus))
-            .ForMember(dest => dest.DescriereDto, opt => opt.MapFrom(src => src.Descriere))
-            .ForMember(dest => dest.NumeProdusDto, opt => opt.MapFrom(src => src.NumeProdus))
-            .ForMember(dest => dest.CompozitieDto, opt => opt.MapFrom(src => src.Compozitie))
+            // .ForMember(dest => dest.DescriereDto, opt => opt.MapFrom(src => src.Descriere))
+            .ForMember(dest => dest.DescriereJsonDto, opt => opt.MapFrom(src => src.DescriereJson))
+            // .ForMember(dest => dest.NumeProdusDto, opt => opt.MapFrom(src => src.NumeProdus))
+            .ForMember(dest => dest.NumeProdusJsonDto, opt => opt.MapFrom(src => src.NumeProdusJson))
+            // .ForMember(dest => dest.CompozitieDto, opt => opt.MapFrom(src => src.Compozitie))
+            .ForMember(dest => dest.CompozitieJsonDto, opt => opt.MapFrom(src => src.CompozitieJson))
             .ForMember(dest => dest.TvaDto, opt => opt.MapFrom(src => src.Tva))
-            .ForMember(dest => dest.IngrijireDto, opt => opt.MapFrom(src => src.Ingrijire))
+            // .ForMember(dest => dest.IngrijireDto, opt => opt.MapFrom(src => src.Ingrijire))
+            .ForMember(dest => dest.IngrijireJsonDto, opt => opt.MapFrom(src => src.IngrijireJson))
             .ForMember(dest => dest.FataReversibilaDto, opt => opt.MapFrom(src => src.FataReversibila))
             .ForMember(dest => dest.StocDto, opt => opt.MapFrom(src => src.Stoc))
             .ForMember(dest => dest.InaltimeMaximaDto , opt => opt.MapFrom(src => src.InaltimeMaxima))
             .ForMember(dest => dest.IsDeletedDto, opt => opt.MapFrom(src => src.IsDeleted))
             .ForMember(dest => dest.ActivInMagazinDto, opt => opt.MapFrom(src => src.ActivInMagazin))
-            .ForMember(dest => dest.TipProdusDto, opt => opt.MapFrom(src => src.TipulProdusului))
+            // .ForMember(dest => dest.TipProdusDto, opt => opt.MapFrom(src => src.TipulProdusului))
+            .ForMember(dest => dest.TipProdusJsonDto, opt => opt.MapFrom(src => src.TipulProdusuluiJson))
             .ForMember(dest => dest.ActiveazaInNoutati, opt => opt.MapFrom(src => src.AfiseazaInNoutati))
             .ForMember(dest => dest.ProdusLimitatDto, opt => opt.MapFrom(src => src.ProdusLimitat));
 
@@ -142,11 +147,15 @@ public class MappersProfile : Profile
 
         CreateMap<Produse, Produse>()
             .ForMember(dest => dest.CodProdus, opt => opt.MapFrom(src => src.CodProdus))
-            .ForMember(dest => dest.Descriere, opt => opt.MapFrom(src => src.Descriere))
-            .ForMember(dest => dest.NumeProdus, opt => opt.MapFrom(src => src.NumeProdus))
-            .ForMember(dest => dest.Compozitie, opt => opt.MapFrom(src => src.Compozitie))
+            // .ForMember(dest => dest.Descriere, opt => opt.MapFrom(src => src.Descriere))
+            .ForMember(dest => dest.DescriereJson, opt => opt.MapFrom(src => src.DescriereJson))
+            // .ForMember(dest => dest.NumeProdus, opt => opt.MapFrom(src => src.NumeProdus))
+            .ForMember(dest => dest.NumeProdusJson, opt => opt.MapFrom(src => src.NumeProdusJson))
+            // .ForMember(dest => dest.Compozitie, opt => opt.MapFrom(src => src.Compozitie))
+            .ForMember(dest => dest.CompozitieJson, opt => opt.MapFrom(src => src.CompozitieJson))
             .ForMember(dest => dest.Tva, opt => opt.MapFrom(src => src.Tva))
-            .ForMember(dest => dest.Ingrijire, opt => opt.MapFrom(src => src.Ingrijire))
+            // .ForMember(dest => dest.Ingrijire, opt => opt.MapFrom(src => src.Ingrijire))
+            .ForMember(dest => dest.IngrijireJson, opt => opt.MapFrom(src => src.IngrijireJson))
             .ForMember(dest => dest.FataReversibila, opt => opt.MapFrom(src => src.FataReversibila))
             .ForMember(dest => dest.Stoc, opt => opt.MapFrom(src => src.Stoc))
             .ForMember(dest => dest.IdProducator, opt => opt.MapFrom(src => src.IdProducator))
@@ -154,25 +163,31 @@ public class MappersProfile : Profile
             .ForMember(dest => dest.ActivInMagazin, opt => opt.MapFrom(src => src.ActivInMagazin))
             .ForMember(dest => dest.InaltimeMaxima , opt => opt.MapFrom(src => src.InaltimeMaxima))
             .ForMember(dest => dest.PretDeBaza, opt => opt.MapFrom(src => src.PretDeBaza))
-            .ForMember(dest => dest.TipulProdusului, opt => opt.MapFrom(src => src.TipulProdusului))
+            // .ForMember(dest => dest.TipulProdusului, opt => opt.MapFrom(src => src.TipulProdusului))
+            .ForMember(dest => dest.TipulProdusuluiJson, opt => opt.MapFrom(src => src.TipulProdusuluiJson))
             .ForMember(dest => dest.AfiseazaInNoutati, opt => opt.MapFrom(src => src.AfiseazaInNoutati))
             .ForMember(dest => dest.ProdusLimitat, opt => opt.MapFrom(src => src.ProdusLimitat))
             .ForMember(dest => dest.IdProdus, opt => opt.Ignore());
 
         CreateMap<ProduseDtoForAdminModification, Produse>()
-            .ForMember(dest => dest.Compozitie, opt => opt.MapFrom(src => src.CompozitieDto))
-            .ForMember(dest => dest.Descriere, opt => opt.MapFrom(src => src.DescriereDto))
+            // .ForMember(dest => dest.Compozitie, opt => opt.MapFrom(src => src.CompozitieDto))
+            .ForMember(dest => dest.CompozitieJson, opt => opt.MapFrom(src => src.CompozitieJsonDto))
+            // .ForMember(dest => dest.Descriere, opt => opt.MapFrom(src => src.DescriereDto))
+            .ForMember(dest => dest.DescriereJson, opt => opt.MapFrom(src => src.DescriereJsonDto))
             .ForMember(dest => dest.IdProducator, opt => opt.MapFrom<ProducatorValueResolver>())
-            .ForMember(dest => dest.NumeProdus, opt => opt.MapFrom(src => src.NumeProdusDto))
+            // .ForMember(dest => dest.NumeProdus, opt => opt.MapFrom(src => src.NumeProdusDto))
+            .ForMember(dest => dest.NumeProdusJson, opt => opt.MapFrom(src => src.NumeProdusJsonDto))
             .ForMember(dest => dest.Tva, opt => opt.MapFrom(src => src.TvaDto))
-            .ForMember(dest => dest.Ingrijire, opt => opt.MapFrom(src => src.IngrijireDto))
+            // .ForMember(dest => dest.Ingrijire, opt => opt.MapFrom(src => src.IngrijireDto))
+            .ForMember(dest => dest.IngrijireJson, opt => opt.MapFrom(src => src.IngrijireJsonDto))
             .ForMember(dest => dest.FataReversibila, opt => opt.MapFrom(src => src.FataReversibilaDto))
             .ForMember(dest => dest.Stoc, opt => opt.MapFrom(src => src.StocDto))
             .ForMember(dest => dest.ActivInMagazin, opt => opt.MapFrom(src => src.ActivInMagazinDto))
             .ForMember(dest => dest.PretDeBaza, opt => opt.MapFrom(src => src.PretBazaDto))
             .ForMember(dest => dest.InaltimeMaxima , opt => opt.MapFrom(src => src.InaltimeMaximaDto))
             .ForMember(dest => dest.PretDeBazaRedus, opt => opt.MapFrom(src => src.PretBazaRedusDto))
-            .ForMember(dest => dest.TipulProdusului, opt => opt.MapFrom(src => src.TipulProdusuluiDto))
+            // .ForMember(dest => dest.TipulProdusului, opt => opt.MapFrom(src => src.TipulProdusuluiDto))
+            .ForMember(dest => dest.TipulProdusuluiJson, opt => opt.MapFrom(src => src.TipulProdusuluiJsonDto))
             .ForMember(dest => dest.AfiseazaInNoutati, opt => opt.MapFrom(src => src.AfiseazaInNoutatiDto))
             .ForMember(dest => dest.ProdusLimitat, opt => opt.MapFrom(src => src.ProdusLimitatDto));
         
@@ -181,14 +196,17 @@ public class MappersProfile : Profile
         CreateMap<Produse, ProductForSetDto >()
             .ForMember(dest => dest.IdProdusDto, opt => opt.MapFrom(src => src.IdProdus))
             .ForMember(dest => dest.CodProdusDto, opt => opt.MapFrom(src => src.CodProdus))
-            .ForMember(dest => dest.NumeProdusDto, opt => opt.MapFrom(src => src.NumeProdus))
+            // .ForMember(dest => dest.NumeProdusDto, opt => opt.MapFrom(src => src.NumeProdus))
+            .ForMember(dest => dest.NumeProdusJsonDto, opt => opt.MapFrom(src => src.NumeProdusJson))
             .ForMember(dest => dest.ActivInMagazinDto, opt => opt.MapFrom(src => src.ActivInMagazin))
             .ForMember(dest => dest.PretBazaDto, opt => opt.MapFrom(src => src.PretDeBaza))
-            .ForMember(dest => dest.TipProdusDto, opt => opt.MapFrom(src => src.TipulProdusului));
+            // .ForMember(dest => dest.TipProdusDto, opt => opt.MapFrom(src => src.TipulProdusului))
+            .ForMember(dest => dest.TipProdusJsonDto, opt => opt.MapFrom(src => src.TipulProdusuluiJson));
 
         
         CreateMap<Culori, CuloriDto>()
-            .ForMember(dest => dest.NumeCuloareDto, opt => opt.MapFrom(src => src.NumeCuloare))
+            // .ForMember(dest => dest.NumeCuloareDto, opt => opt.MapFrom(src => src.NumeCuloare))
+            .ForMember(dest => dest.NumeCuloareJsonDto, opt => opt.MapFrom(src => src.NumeCuloareJson))
             .ForMember(dest => dest.CodCuloareDto, opt => opt.MapFrom<ColorCodesResolver>());
         
         // de adaugat un resolver pentru generarea imaginilor din bucket
@@ -208,16 +226,19 @@ public class MappersProfile : Profile
             
 
         CreateMap<IneleDto, InelePrindere>()
-            .ForMember(dest => dest.CuloareInel, opt => opt.MapFrom(src => src.CuloareInelDto))
+            // .ForMember(dest => dest.CuloareInel, opt => opt.MapFrom(src => src.CuloareInelDto))
+            .ForMember(dest => dest.CuloareInelJson, opt => opt.MapFrom(src => src.CuloareInelJsonDto))
             .ForMember(dest => dest.CaleRelativa, opt => opt.MapFrom(src => src.CaleRelativa));
 
         CreateMap<InelePrindere, IneleDisplayDto>()
-            .ForMember(dest => dest.CuloareInelDto, opt => opt.MapFrom(src => src.CuloareInel))
+            // .ForMember(dest => dest.CuloareInelDto, opt => opt.MapFrom(src => src.CuloareInel))
+            .ForMember(dest => dest.CuloareInelJsonDto, opt => opt.MapFrom(src => src.CuloareInelJson))
             .ForMember(dest => dest.IdInelDto, opt => opt.MapFrom(src => src.IdInel))
             .ForMember(dest => dest.EncodedIdInelDto, opt => opt.MapFrom(src => src.EncodedIdInel));
 
         CreateMap<TipuriGalerieDto, TipuriGalerie>()
-            .ForMember(dest => dest.NumeTipGalerie, opt => opt.MapFrom(src => src.NumeTipGalerieDto))
+            // .ForMember(dest => dest.NumeTipGalerie, opt => opt.MapFrom(src => src.NumeTipGalerieDto))
+            .ForMember(dest => dest.NumeTipGalerieJson, opt => opt.MapFrom(src => src.NumeTipGalerieJsonDto))
             .ForMember(dest => dest.PretTipGalerie, opt => opt.MapFrom(src => src.PretTipGalerieDto))
             .ForMember(dest => dest.CaleRelativa, opt => opt.MapFrom(src => src.CaleRelativa))
             .ForMember(dest => dest.IncretireRejansa, opt => opt.MapFrom(src => src.IncretireDto))
@@ -225,7 +246,8 @@ public class MappersProfile : Profile
 
 
         CreateMap<TipuriGalerie, TipuriGalerieDisplayDto>()
-            .ForMember(dest => dest.NumeTipGalerieDto, opt => opt.MapFrom(src => src.NumeTipGalerie))
+            // .ForMember(dest => dest.NumeTipGalerieDto, opt => opt.MapFrom(src => src.NumeTipGalerie))
+            .ForMember(dest => dest.NumeTipGalerieJsonDto, opt => opt.MapFrom(src => src.NumeTipGalerieJson))
             .ForMember(dest => dest.IdTipGalerieDto, opt => opt.MapFrom(src => src.IdTipGalerie))
             .ForMember(dest => dest.EncodedIdTipGalerieDto, opt => opt.MapFrom(src => src.EncodedIdTipGalerie))
             .ForMember(dest => dest.PretTipGalerieDto, opt => opt.MapFrom(src => src.PretTipGalerie))
@@ -234,12 +256,14 @@ public class MappersProfile : Profile
 
         
         CreateMap<TipuriLinieDto, TipuriLinie>()
-            .ForMember(dest => dest.NumeTipLinie, opt => opt.MapFrom(src => src.NumeTipLinieDto))
+            // .ForMember(dest => dest.NumeTipLinie, opt => opt.MapFrom(src => src.NumeTipLinieDto))
+            .ForMember(dest => dest.NumeTipLinieJson, opt => opt.MapFrom(src => src.NumeTipLinieJsonDto))
             .ForMember(dest => dest.PretPeTipLinie, opt => opt.MapFrom(src => src.PretPeTipLinieDto))
             .ForMember(dest => dest.CaleRelativa, opt => opt.MapFrom(src => src.CaleRelativa));
 
         CreateMap<TipuriLinie, TipuriLinieDisplayDto>()
-            .ForMember(dest => dest.NumeTipLinieDto, opt => opt.MapFrom(src => src.NumeTipLinie))
+            // .ForMember(dest => dest.NumeTipLinieDto, opt => opt.MapFrom(src => src.NumeTipLinie))
+            .ForMember(dest => dest.NumeTipLinieJsonDto, opt => opt.MapFrom(src => src.NumeTipLinieJson))
             .ForMember(dest => dest.IdTipLinieDto, opt => opt.MapFrom(src => src.IdTipLinie))
             .ForMember(dest => dest.EncodedIdTipLinie, opt => opt.MapFrom(src => src.EncodedIdTipLinie))
             .ForMember(dest => dest.PretPeTipLinieDto, opt => opt.MapFrom(src => src.PretPeTipLinie));
@@ -282,8 +306,8 @@ public class MappersProfile : Profile
         CreateMap<Seturi, SeturiDisplayDto>()
             .ForMember(dest => dest.IdSetDto, opt => opt.MapFrom(src => src.IdSet))
             .ForMember(dest => dest.EncodedIdSetDto, opt => opt.MapFrom(src => src.EncodedIdSet))
-            .ForMember(dest => dest.NumeSetDto, opt => opt.MapFrom(src => src.NumeSet))
-            .ForMember(dest => dest.DescriereSetDto, opt => opt.MapFrom(src => src.DescriereSet))
+            .ForMember(dest => dest.NumeSetDto, opt => opt.MapFrom(src => src.NumeSetJson.NumeRomana))
+            .ForMember(dest => dest.DescriereSetDto, opt => opt.MapFrom(src => src.DescriereJson.DescriereRomana))
             .ForMember(dest => dest.PretSetDto, opt => opt.MapFrom(src => src.PretSet))
             .ForMember(dest => dest.PretRedusSetDto, opt => opt.MapFrom(src => src.PretRedusSet))
             .ForMember(dest => dest.SetActivInMagazin, opt => opt.MapFrom(src => src.SetActivInMagazin));
@@ -318,10 +342,12 @@ public class MappersProfile : Profile
 
         CreateMap<Produse, ProductsListingForUsers>()
             .ForMember(dest => dest.CodProdusDto, opt => opt.MapFrom(src => src.CodProdus))
-            .ForMember(dest => dest.NumeProdusDto, opt => opt.MapFrom(src => src.NumeProdus))
+            // .ForMember(dest => dest.NumeProdusDto, opt => opt.MapFrom(src => src.NumeProdus))
+            .ForMember(dest => dest.NumeProdusJsonDto, opt => opt.MapFrom(src => src.NumeProdusJson))
             .ForMember(dest => dest.PretBazaDto, opt => opt.MapFrom(src => src.PretDeBaza))
             .ForMember(dest => dest.PretBazaRedusDto, opt => opt.MapFrom(src => src.PretDeBazaRedus))
-            .ForMember(dest => dest.TipulProdusuluiDto, opt => opt.MapFrom(src => src.TipulProdusului));
+            // .ForMember(dest => dest.TipulProdusuluiDto, opt => opt.MapFrom(src => src.TipulProdusului))
+            .ForMember(dest => dest.TipulProdusuluiJsonDto, opt => opt.MapFrom(src => src.TipulProdusuluiJson));
 
 
         CreateMap<Reviews, ReviewsDto>()
@@ -336,26 +362,31 @@ public class MappersProfile : Profile
             .ForMember(dest => dest.IdRejansa  , opt => opt.MapFrom(src => src.IdTipGalerie))
             .ForMember(dest => dest.SePrindeCuInele, opt => opt.MapFrom(src => src.SePrindeCuInele))
             .ForMember(dest => dest.PretTipRejansa, opt => opt.MapFrom(src => src.PretTipGalerie))
-            .ForMember(dest => dest.NumeTipRejansa, opt => opt.MapFrom(src => src.NumeTipGalerie))
+            // .ForMember(dest => dest.NumeTipRejansa, opt => opt.MapFrom(src => src.NumeTipGalerie))
+            .ForMember(dest => dest.NumeTipRejansaDto, opt => opt.MapFrom(src => src.NumeTipGalerieJson))
             .ForMember(dest => dest.IncretireRejansa, opt => opt.MapFrom(src => src.IncretireRejansa))
             .ForMember(dest => dest.CaleRelativa, opt => opt.MapFrom(src => src.CaleRelativa));
         
         CreateMap<TipuriLinie, TipLinieDto>()
             .ForMember(dest => dest.IdTipLinie  , opt => opt.MapFrom(src => src.IdTipLinie))
-            .ForMember(dest => dest.NumeTipCusaturaColt, opt => opt.MapFrom(src => src.NumeTipLinie))
+            // .ForMember(dest => dest.NumeTipCusaturaColt, opt => opt.MapFrom(src => src.NumeTipLinie))
+            .ForMember(dest => dest.NumeTipCusaturaColtJson, opt => opt.MapFrom(src => src.NumeTipLinieJson))
             .ForMember(dest => dest.PretTipCusaturaColt, opt => opt.MapFrom(src => src.PretPeTipLinie))
             .ForMember(dest => dest.CaleRelativa, opt => opt.MapFrom(src => src.CaleRelativa));
 
         
         CreateMap<InelePrindere, TipIneleDto>()
             .ForMember(dest => dest.IdInelPrindere  , opt => opt.MapFrom(src => src.IdInel))
-            .ForMember(dest => dest.NumeTipInel, opt => opt.MapFrom(src => src.CuloareInel))
+            // .ForMember(dest => dest.NumeTipInel, opt => opt.MapFrom(src => src.CuloareInel))
+            .ForMember(dest => dest.CuloareInelJsonDto, opt => opt.MapFrom(src => src.CuloareInelJson))
             .ForMember(dest => dest.CaleRelativa, opt => opt.MapFrom(src => src.CaleRelativa));
 
 
         CreateMap<ManoperaPageModification, Manopere>()
             .ForMember(dest => dest.IdManopera, opt => opt.Ignore())
-            .ForMember(dest => dest.NumeManopera, opt => opt.MapFrom(src => src.NumeManopera))
+            // .ForMember(dest => dest.NumeManopera, opt => opt.MapFrom(src => src.NumeManopera))
+            .ForMember(dest => dest.NumeManoperaJson, opt => opt.MapFrom(src => src.NumeManoperaJson))
+            .ForMember(dest => dest.InaltimeMaxima, opt => opt.MapFrom(src => src.InaltimeMaxima))
             .ForMember(dest => dest.MaterialFolosit, opt => opt.MapFrom(src => src.MetruTotalFolosit));
 
     }

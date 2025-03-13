@@ -17,11 +17,12 @@ public class ColorCodesResolver : IValueResolver<Culori,CuloriDto,string>
     public string Resolve(Culori source, CuloriDto destination, string? destMember, ResolutionContext context)
     {
         var colorCodesRepository = _unitOfWork.Repository<CodCulori>();
+        
 
         var colorCode = colorCodesRepository
             .FindQueryable(cc => cc.IdCodCuloare == source.IdCodCuloare)
             .First();
-
+        
         return colorCode.CodCuloare!;
     }
 }

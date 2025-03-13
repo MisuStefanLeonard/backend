@@ -42,10 +42,10 @@ public class ManopereService : IManopereService
             .Select(m => new ManopereListingDto
             {
                 EncodedIdManoperaDto = _sqidsEncoder.Encode(m.IdManopera),
-                NumeManoperaDto = m.NumeManopera!,
-                TipLinieDto = m.TipLinieLaManopera.NumeTipLinie,
-                TipInelDto = m.InelPrindereLaManopera!.CuloareInel,
-                TipCusaturaDto = m.TipGalerieLaManopera.NumeTipGalerie
+                NumeManoperaDto = m.NumeManoperaJson!.NumeRomana,
+                TipLinieDto = m.TipLinieLaManopera.NumeTipLinieJson.NumeRomana,
+                TipInelDto = m.InelPrindereLaManopera!.CuloareInelJson.CuloareRomana,
+                TipCusaturaDto = m.TipGalerieLaManopera.NumeTipGalerieJson.NumeRomana
             }).ToListAsync();
 
         return manopereToDto;
@@ -57,7 +57,7 @@ public class ManopereService : IManopereService
 
         var manopereNames = manoperaRepository
             .FindQueryable(m => m.TipManopera == TipManopere.Standard)
-            .Select(m => m.NumeManopera)
+            .Select(m => m.NumeManoperaJson)
             .ToList();
 
         var availableOptions = await GetAvailableOptions();
@@ -67,16 +67,19 @@ public class ManopereService : IManopereService
             .Where(m => m.IdManopera == manoperaId && m.TipManopera == TipManopere.Standard)
             .Select(m => new ManoperaPageModification
             {
-                NumeManopera = m.NumeManopera!,
+                // NumeManopera = m.NumeManopera!,
+                NumeManoperaJson = m.NumeManoperaJson,
                 TipInel = m.InelPrindereLaManopera != null ? new TipIneleDto
                 {
-                    NumeTipInel = m.InelPrindereLaManopera!.CuloareInel,
+                    // NumeTipInel = m.InelPrindereLaManopera!.CuloareInel,
+                    CuloareInelJsonDto = m.InelPrindereLaManopera.CuloareInelJson,
                     CaleRelativa = null,
                     PresignedUrl = "empty"
                 } : null,
                 TipGalerie = new TipRejansaDto
                 {
-                    NumeTipRejansa = m.TipGalerieLaManopera.NumeTipGalerie,
+                    // NumeTipRejansa = m.TipGalerieLaManopera.NumeTipGalerie,
+                    NumeTipRejansaDto = m.TipGalerieLaManopera.NumeTipGalerieJson,
                     PretTipRejansa = m.TipGalerieLaManopera.PretTipGalerie,
                     IncretireRejansa = m.TipGalerieLaManopera.IncretireRejansa,
                     CaleRelativa = null,
@@ -85,28 +88,26 @@ public class ManopereService : IManopereService
                 },
                 TipLinie = new TipLinieDto
                 {
-                    NumeTipCusaturaColt = m.TipLinieLaManopera.NumeTipLinie,
+                    // NumeTipCusaturaColt = m.TipLinieLaManopera.NumeTipLinie,
+                    NumeTipCusaturaColtJson = m.TipLinieLaManopera.NumeTipLinieJson,
                     PretTipCusaturaColt = m.TipLinieLaManopera.PretPeTipLinie,
                     CaleRelativa = null,
                     PresignedUrl = "empty"
                 },
                 MetruTotalFolosit = m.MaterialFolosit,
                 InaltimeMaxima = m.InaltimeMaxima,
-                NumeDeManopere = manopereNames,
+                NumeDeManopere = new List<string?>(),
+                NumeDeManopereJson = manopereNames,
                 OptiuniDisponibile = availableOptions
                 
             }).FirstOrDefaultAsync();
 
         if (getManoperaForModification !=  null)
         {
-            if (getManoperaForModification.TipInel != null)
+            if (getManoperaForModification.TipInel?.CaleRelativa != null)
             {
-                if (getManoperaForModification.TipInel.CaleRelativa != null)
-                {
-                    getManoperaForModification.TipInel.PresignedUrl = await
-                        _bucketAcces.GenerateUrl(getManoperaForModification.TipInel.CaleRelativa, "inele_prindere");
-                }
-
+                getManoperaForModification.TipInel.PresignedUrl = await
+                    _bucketAcces.GenerateUrl(getManoperaForModification.TipInel.CaleRelativa, "inele_prindere");
             }
 
             if (getManoperaForModification.TipGalerie.CaleRelativa != null)
@@ -136,7 +137,7 @@ public class ManopereService : IManopereService
         var manoperaRepository = _unitOfWork.Repository<Manopere>();
         var manopereNames = manoperaRepository
             .FindQueryable(m => m.TipManopera == TipManopere.Standard)
-            .Select(m => m.NumeManopera)
+            .Select(m => m.NumeManoperaJson)
             .ToList();
 
         var ringTypesDto = await _cache.GetOrCreateAsync($"ringTypes", async entry =>
@@ -217,11 +218,13 @@ public class ManopereService : IManopereService
             updateOrAddTransaction = await _unitOfWork.BeginTransactionAsync();
             var manoperaRepository = _unitOfWork.Repository<Manopere>();
             var galeryTypeInDb = await _unitOfWork.Repository<TipuriGalerie>()
-                .FindQueryable(tipGalerie => tipGalerie.NumeTipGalerie == manopera.TipGalerie.NumeTipRejansa)
+                .FindQueryable(tipGalerie => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(tipGalerie.NumeTipGalerieJson , "$.nume_ro"))
+                                             == manopera.TipGalerie.NumeTipRejansaDto.NumeRomana)
                 .FirstAsync();
                 
             var liningTypeInDb = await _unitOfWork.Repository<TipuriLinie>()
-                .FindQueryable(tipLinie => tipLinie.NumeTipLinie == manopera.TipLinie.NumeTipCusaturaColt)
+                .FindQueryable(tipLinie => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(tipLinie.NumeTipLinieJson , "$.nume_ro"))
+                                           == manopera.TipLinie.NumeTipCusaturaColtJson.NumeRomana)
                 .FirstAsync();
 
             InelePrindere? ringTypeInDb = null;
@@ -229,11 +232,13 @@ public class ManopereService : IManopereService
             if (manopera.TipInel != null)
             {
                 ringTypeInDb = await _unitOfWork.Repository<InelePrindere>()
-                    .FindQueryable(ring => ring.CuloareInel == manopera.TipInel!.NumeTipInel)
+                    .FindQueryable(ring => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(ring.CuloareInelJson , "$.culoare_ro")) == 
+                                           manopera.TipInel!.CuloareInelJsonDto!.CuloareRomana)
                     .FirstAsync();
             }
             if (isUpdating && idManopera != null)
             {
+                // de terminat update aici si frontend
                 var manoperaToBeUpdated = await manoperaRepository
                     .FindQueryable(m => m.IdManopera == idManopera
                                         && m.TipManopera == TipManopere.Standard)
@@ -262,7 +267,8 @@ public class ManopereService : IManopereService
             {
                 var newManoperaToBeAdded = new Manopere
                 {
-                    NumeManopera = manopera.NumeManopera,
+                    // NumeManopera = manopera.NumeManopera,
+                    NumeManoperaJson = manopera.NumeManoperaJson,
                     IdInelPrindere = ringTypeInDb?.IdInel,
                     IdTipLinie = liningTypeInDb.IdTipLinie,
                     IdTipGalerie = galeryTypeInDb.IdTipGalerie,

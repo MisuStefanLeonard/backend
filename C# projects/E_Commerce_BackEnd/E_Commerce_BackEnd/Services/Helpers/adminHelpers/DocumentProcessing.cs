@@ -1,5 +1,7 @@
+using System.Globalization;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos;
 using E_Commerce_BackEnd.Models.ProductRelatedModels;
+using E_Commerce_BackEnd.Models.ProductRelatedModels.JSON_Models;
 using E_Commerce_BackEnd.Services.uProductsService;
 using E_Commerce_BackEnd.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
@@ -111,18 +113,38 @@ public class DocumentProcessing
                         throw new Exception($"Codul produsului nu poate fi gol. Vezi linia {row.Name} in fisierul excel.");
                     }
 
-
                     var tipProdus = row.Cells[14].StringValue.ToLower().Trim();
                     
+                    if (tipProdus.IsNullOrEmpty() || !tipProdus.Contains('-'))
+                    {
+                        throw new Exception($"Tipul produsului trebuie sa fie in formatul Romana-Engleza .Vezi randul {row.Name} coloana {i-1} in excel ");
+                    }
+                    
+                    var tipProdusParts = tipProdus.Split('-');
                     
                     var descriereProdus = row.Cells[1].StringValue.Trim();
+                    var descriereProdusEn = row.Cells[20].StringValue.Trim();
+                    
                     var numeProdus = row.Cells[2].StringValue.Trim();
+                    
                     if (numeProdus.IsNullOrEmpty())
                     {
                         throw new Exception(
                             $"Numele produsului nu poate fi gol! Vezi linia {row.Name} in fisierul excel.");
                     }
+
+                    if (!numeProdus.Contains('-'))
+                    {
+                        throw new Exception(
+                            $"Numele produsului trebuie sa fie in forma Denumire_Romana-Denumire_Engleza ! Vezi linia {row.Name} in fisierul excel.");
+                    }
+
+                    var numeProdusParts = numeProdus.Split('-');
+                    var numeProdusRo = numeProdusParts[0].Trim();
+                    var numeProdusEn = numeProdusParts[1].Trim();
+                    
                     var compozitieProdus = row.Cells[3].StringValue.Trim();
+                    var compozitieProdusEn = row.Cells[21].StringValue.Trim();
                     // processing the prices
                     var pretProdusString = row.Cells[4].StringValue.Trim();
                     string[] pretProdusArray = [];
@@ -144,6 +166,8 @@ public class DocumentProcessing
 
                     //--
                     var ingrijireProdus = row.Cells[6].StringValue.Trim();
+                    var ingrijireProdusEn = row.Cells[22].StringValue.Trim();
+
                     
                     // fata reversibila
                     var fataReversibila = row.Cells[7].StringValue.ToUpper().Trim() == "TRUE";
@@ -268,8 +292,9 @@ public class DocumentProcessing
                     foreach (var culoriPair in culoriArray)
                     {
                         var currentPair = culoriPair.Split("-");
-                        var numeCuloare = currentPair[0].Trim();
+                        var numeCuloare = currentPair[0].Trim().ToLower();
                         var codCuloare = currentPair[1].Trim();
+                        var numeCuloareEn = currentPair[2].Trim().ToLower();
                         
                         _docsLogger.LogInformation($"numeculoare -> {numeCuloare}");
                         _docsLogger.LogInformation($"codCuloare -> {codCuloare}");
@@ -297,23 +322,35 @@ public class DocumentProcessing
                             _docsLogger.LogInformation($"Cod culoare {codCuloare} already was in db");
                         }
 
+                        // var isCuloareInDb = await culoriRepository
+                        //     .FindQueryable(c =>
+                        //         c.NumeCuloare == numeCuloare && c.IdCodCuloare == isCodCuloareInDb.IdCodCuloare)
+                        //     .FirstOrDefaultAsync();
+                        
                         var isCuloareInDb = await culoriRepository
                             .FindQueryable(c =>
-                                c.NumeCuloare == numeCuloare && c.IdCodCuloare == isCodCuloareInDb.IdCodCuloare)
+                                EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(c.NumeCuloareJson , "$.culoare_ro")) == numeCuloare && 
+                                EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(c.NumeCuloareJson , "$.culoare_en")) == numeCuloareEn &&
+                                c.IdCodCuloare == isCodCuloareInDb.IdCodCuloare)
                             .FirstOrDefaultAsync();
 
                         if (isCuloareInDb is null)
                         {
                             var newCuloare = new Culori
                             {
-                                NumeCuloare = numeCuloare.ToLower(),
+                                // NumeCuloare = numeCuloare.ToLower(),
+                                NumeCuloareJson = new Culoare
+                                {
+                                    CuloareRomana = numeCuloare,
+                                    CuloareEngleza = numeCuloareEn
+                                },
                                 IdCodCuloare = isCodCuloareInDb.IdCodCuloare
                             };
                             await culoriRepository.AddAsync(newCuloare);
                             await _unitOfWork.CommitAsync();
                             isCuloareInDb = newCuloare;
                             _docsLogger.LogInformation(
-                                $"Culoare({isCuloareInDb.NumeCuloare} - cod(FK)-> {isCuloareInDb.IdCodCuloare}) saved succesfully");
+                                $"Culoare({isCuloareInDb.NumeCuloareJson.CuloareRomana} - cod(FK)-> {isCuloareInDb.IdCodCuloare}) saved succesfully");
                             colorIdList.Add(isCuloareInDb.IdCuloare);
                         }else
                         {
@@ -329,15 +366,32 @@ public class DocumentProcessing
 
                     if (string.Equals(categoriiProdus, "-") && string.IsNullOrEmpty(categoriiProdus))
                     {
-                        _docsLogger.LogError($"Categoria produsului nu poate fi goala! Vezi randul {row.Name} in excelcoloana 14");
+                        _docsLogger.LogError($"Categoria produsului nu poate fi goala! Vezi randul {row.Name} in excel coloana 14");
                         throw new Exception("Category cannot be null. Rolling back transactions");
                     }
 
                     var arrayCateogriiProdus = categoriiProdus.Split(","); // will be parsed!
+                   
                     foreach (var categorie in arrayCateogriiProdus)
                     {
+                        if (!categorie.Contains('-'))
+                        {
+                            _docsLogger.LogError($"Categoria produsului trebuie sa fie in formatul CATEGORIE_ROMANA-CATEGORIE_ENGLEZA! Vezi randul {row.Name} in excel coloana 14");
+                            throw new Exception("Category format incorrect. Rolling back transactions");
+                        }
+                        
+                        var parts = categorie.Split('-', 2); // Split into at most 2 parts
+                        if (parts.Length != 2 || string.IsNullOrWhiteSpace(parts[0]) || string.IsNullOrWhiteSpace(parts[1]))
+                        {
+                            _docsLogger.LogError($"Categoria produsului trebuie sa fie in formatul CATEGORIE_ROMANA-CATEGORIE_ENGLEZA si nicio parte nu poate fi goala ! Vezi randul {row.Name} in excel coloana 14");
+                            throw new Exception("Category format incorrect. Rolling back transactions");
+                        }
+                        var categoryRo = parts[0].ToUpper();
+                        var categoryEn = parts[1].ToUpper();
+
                         var isCategorieInDatabase = await tipuriProduseRepository
-                            .FindQueryable(tp => tp.Categorie == categorie)
+                            .FindQueryable(tp =>   EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(tp.CategorieJson , "$.categorie_ro")) == categoryRo &&
+                                                   EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(tp.CategorieJson , "$.categorie_en")) == categoryEn)
                             .FirstOrDefaultAsync();
 
                         if (isCategorieInDatabase is null)
@@ -345,7 +399,12 @@ public class DocumentProcessing
 
                             var newCategorie = new TipuriProduse
                             {
-                                Categorie = categorie
+                                // Categorie = categorie,
+                                CategorieJson = new Categorie
+                                {
+                                    CategorieRomana = categoryRo,
+                                    CategorieEngleza = categoryEn
+                                }
                             };
                             await tipuriProduseRepository.AddAsync(newCategorie);
                             await _unitOfWork.CommitAsync();
@@ -399,17 +458,37 @@ public class DocumentProcessing
                     decimal decMaxMaterialHeight = 0;
                     if (!string.Equals("-", maxMaterialHeight))
                     {
-                        decMaxMaterialHeight = decimal.Parse(maxMaterialHeight);
+                        decMaxMaterialHeight = decimal.Parse(maxMaterialHeight , CultureInfo.InvariantCulture);
                     }
 
                     var newProdusDto = new ProduseDto
                     {
                         CodProdusDto = codProdus,
                         DescriereDto = descriereProdus,
+                        DescriereJsonDto = new Descriere
+                        {
+                            DescriereRomana = descriereProdus,
+                            DescriereEngleza = descriereProdusEn
+                        }, // de completat
                         NumeProdusDto = numeProdus,
+                        NumeProdusJsonDto = new Nume
+                        {
+                            NumeRomana = numeProdusRo,
+                            NumeEngleza = numeProdusEn
+                        },
                         CompozitieDto = compozitieProdus,
+                        CompozitieJsonDto = new Compozitie
+                        {
+                            CompozitieRomana = compozitieProdus,
+                            CompozitieEngleza = compozitieProdusEn
+                        },
                         TvaDto = tvaProdus,
                         IngrijireDto = ingrijireProdus,
+                        IngrijireJsonDto = new Ingrijire
+                        {
+                            IngrijireRomana = ingrijireProdus,
+                            IngrijireEngleza = ingrijireProdusEn
+                        },
                         PretBazaDto = productBasePriceDecimal,
                         PretBazaRedusDto = productBasePriceDiscountedDecimal,
                         FataReversibilaDto = fataReversibila,
@@ -417,6 +496,11 @@ public class DocumentProcessing
                         IsDeletedDto = false,
                         ActivInMagazinDto = false,
                         TipProdusDto = tipProdus,
+                        TipProdusJsonDto = new TipProdus
+                        {
+                            TipProdusRomana = tipProdusParts[0].ToLower(),
+                            TipProdusEngleza = tipProdusParts[1].ToLower()
+                        },
                         ProdusLimitatDto = false,
                         ActiveazaInNoutati = false,
                         InaltimeMaximaDto = decMaxMaterialHeight

@@ -1,7 +1,6 @@
-
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 using E_Commerce_BackEnd.Models.OrderRelatedModels;
+using E_Commerce_BackEnd.Models.ProductRelatedModels.JSON_Models;
 
 namespace E_Commerce_BackEnd.Models.ProductRelatedModels;
 
@@ -10,9 +9,8 @@ public class Culori
     // Attributes
     
     public int IdCuloare { get; init; }
-
-    [StringLength(20)] 
-    public string NumeCuloare { get; init; } = null!;
+    
+    public Culoare NumeCuloareJson { get; set; } = null!;
     
     // Foreign keys
     public int IdCodCuloare { get; init; }

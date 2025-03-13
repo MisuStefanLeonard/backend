@@ -1,12 +1,13 @@
 using E_Commerce_BackEnd.Models.Enums;
 using E_Commerce_BackEnd.Models.OrderRelatedModels;
+using E_Commerce_BackEnd.Models.ProductRelatedModels.JSON_Models;
 
 namespace E_Commerce_BackEnd.Models.ProductRelatedModels;
 
 public class Manopere 
 {
     public int IdManopera { get; init; }
-    public string? NumeManopera { get; init; }
+    public Nume? NumeManoperaJson { get; init; }
     public int? IdInelPrindere { get; set; }
     public InelePrindere? InelPrindereLaManopera { get; init; }
     public int IdTipLinie { get; set; }

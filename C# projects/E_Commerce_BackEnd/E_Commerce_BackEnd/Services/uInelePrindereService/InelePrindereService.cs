@@ -3,6 +3,7 @@ using E_Commerce_BackEnd.CustomExceptions;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.BulkOperationsDto;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.InelePrindereDtos;
 using E_Commerce_BackEnd.Models.ProductRelatedModels;
+using E_Commerce_BackEnd.Models.ProductRelatedModels.JSON_Models;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
 using E_Commerce_BackEnd.Services.uBucketService;
 using E_Commerce_BackEnd.UnitOfWork;
@@ -41,13 +42,13 @@ public class InelePrindereService : IInelePrindereService
         return toDtoList;
     }
 
-    public async Task<IList<string>?> GetAllIneleColors()
+    public async Task<IList<Culoare>?> GetAllIneleColors()
     {
         var inelePrindereRepository = _unitOfWork.Repository<InelePrindere>();
 
         var listOfAllIneleColors = await inelePrindereRepository
             .GetSimpleQueryable()
-            .Select(i => i.CuloareInel)
+            .Select(i => i.CuloareInelJson)
             .ToListAsync();
 
         return listOfAllIneleColors;
@@ -81,7 +82,8 @@ public class InelePrindereService : IInelePrindereService
 
         var inelDto = new IneleDto
         {
-            CuloareInelDto = inelToReturn.CuloareInel,
+            // CuloareInelDto = inelToReturn.CuloareInel,
+            CuloareInelJsonDto = inelToReturn.CuloareInelJson,
             CaleRelativa = inelToReturn.CaleRelativa,
             PresignedUrl =  url
             
@@ -329,7 +331,8 @@ public class InelePrindereService : IInelePrindereService
                 // Add new material
                 var newInel = new InelePrindere
                 {
-                    CuloareInel = ineleDto.CuloareInelDto,
+                    // CuloareInel = ineleDto.CuloareInelDto,
+                    CuloareInelJson = ineleDto.CuloareInelJsonDto,
                     CaleRelativa = ineleDto.CaleRelativa
                 };
 

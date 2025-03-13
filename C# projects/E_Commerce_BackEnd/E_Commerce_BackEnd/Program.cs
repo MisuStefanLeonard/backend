@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
@@ -39,9 +40,26 @@ using E_Commerce_BackEnd.Services.uVoucherService;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
 using Quartz;
 using Sqids;
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddResponseCompression(options =>
+{
+    options.Providers.Add<GzipCompressionProvider>();
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+        new[] { "application/json" });
+});
+builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+{
+    options.Level = CompressionLevel.Fastest; // Choose Fastest or Optimal
+});
+
+builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
+{
+    options.Level = CompressionLevel.Fastest; // Choose Fastest or Optimal
+});
 builder.Services.AddHealthChecks();
 // Configure AWS options
 // FOR DOCKER AWS CREDENTIALS
@@ -190,15 +208,20 @@ builder.Services.AddAutoMapper((serviceProvider, cfg) =>
 },typeof(Program));
 // Resolver for mapper
 builder.Services.AddScoped<ProducatorValueResolver>();
+// builder.Services.AddScoped<ColorCodesResolver>();
+
+
 
 // CORS configuration
 var corsPolicy = getDockerEnv == "true" ? "http://46.101.141.122:3000" : "http://localhost:3000";
+
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowVueApp",
         policy =>
         {
-            policy.WithOrigins(getDockerEnv)
+            policy.WithOrigins(corsPolicy)
                 .AllowAnyHeader()
                 .AllowAnyMethod()
                 .AllowCredentials();
@@ -329,6 +352,7 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+
 app.UseCors("AllowVueApp");
 app.MapHealthChecks("/healthz").AllowAnonymous();
 if (app.Environment.IsDevelopment())
@@ -342,6 +366,7 @@ app.UseMiddleware<CartMiddleware>();
 app.UseMiddleware<JwtTokenMiddleware>();
 app.UseMiddleware<AdminMiddleware>();
 app.UseHttpsRedirection();
+app.UseResponseCompression();
 app.UseAuthentication();
 app.UseAuthorization();
 

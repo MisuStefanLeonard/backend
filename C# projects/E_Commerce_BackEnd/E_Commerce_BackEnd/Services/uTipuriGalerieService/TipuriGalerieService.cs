@@ -3,8 +3,8 @@ using E_Commerce_BackEnd.CustomExceptions;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.BulkOperationsDto;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.TipuriGalerieDtos;
 using E_Commerce_BackEnd.Models.ProductRelatedModels;
+using E_Commerce_BackEnd.Models.ProductRelatedModels.JSON_Models;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
-using E_Commerce_BackEnd.Services.uBucketService;
 using E_Commerce_BackEnd.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -41,13 +41,13 @@ public class TipuriGalerieService : ITipuriGalerieService
         return toDtoList;
     }
 
-    public async Task<IList<string>?> GetAllTipGalerieNames()
+    public async Task<IList<Nume>?> GetAllTipGalerieNames()
     {
         var tipuriGalerieRepository = _unitOfWork.Repository<TipuriGalerie>();
 
         var listOfTipuriGalerie = await tipuriGalerieRepository
             .GetSimpleQueryable()
-            .Select(tp => tp.NumeTipGalerie)
+            .Select(tp => tp.NumeTipGalerieJson)
             .ToListAsync();
 
         return listOfTipuriGalerie;
@@ -80,7 +80,8 @@ public class TipuriGalerieService : ITipuriGalerieService
 
         var tipGalerieDto = new TipuriGalerieDto
         {
-            NumeTipGalerieDto = tipGalerieToReturn.NumeTipGalerie,
+            // NumeTipGalerieDto = tipGalerieToReturn.NumeTipGalerie,
+            NumeTipGalerieJsonDto = tipGalerieToReturn.NumeTipGalerieJson,
             PretTipGalerieDto = tipGalerieToReturn.PretTipGalerie,
             CaleRelativa = tipGalerieToReturn.CaleRelativa,
             IncretireDto = tipGalerieToReturn.IncretireRejansa,
@@ -330,7 +331,8 @@ public class TipuriGalerieService : ITipuriGalerieService
                 // Add new material
                 var newTipGalerie = new TipuriGalerie
                 {
-                    NumeTipGalerie = tipuriGalerieDto.NumeTipGalerieDto,
+                    // NumeTipGalerie = tipuriGalerieDto.NumeTipGalerieDto,
+                    NumeTipGalerieJson = tipuriGalerieDto.NumeTipGalerieJsonDto,
                     PretTipGalerie = tipuriGalerieDto.PretTipGalerieDto,
                     CaleRelativa = tipuriGalerieDto.CaleRelativa,
                     IncretireRejansa = tipuriGalerieDto.IncretireDto,

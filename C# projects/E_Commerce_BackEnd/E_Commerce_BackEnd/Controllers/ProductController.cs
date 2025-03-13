@@ -42,11 +42,12 @@ public class ProductController : ControllerBase
     [HttpGet("paginated/{pageNumber:int?}/{currency}")]
     [AllowAnonymous]
     public async Task<IActionResult> GetProductsPerPage([FromRoute] int? pageNumber ,[FromQuery] string? productTypes,
-        [FromQuery] string? productColors, [FromQuery] string? productDimensions, [FromQuery] string? productPrice, 
+        [FromQuery] string? productCategories,[FromQuery] string? productColors, [FromQuery] string? productDimensions, [FromQuery] string? productPrice, 
         [FromQuery] bool? productReverseFace , [FromRoute] string currency)
     {
         
         List<string>? listOfProductTypes = null;
+        List<string>? listOfProductCategories = null;
         List<string>? listOfProductColors = null;
         List<string>? listOfProductDimensions = null;
         List<decimal>? listOfProductPrices = null;
@@ -55,6 +56,10 @@ public class ProductController : ControllerBase
         if (!productTypes.IsNullOrEmpty())
         {
             listOfProductTypes = productTypes!.Split(",").ToList();
+        }
+        if (!productCategories.IsNullOrEmpty())
+        {
+            listOfProductCategories = productCategories!.Split(",").ToList();
         }
         if (!productColors.IsNullOrEmpty())
         {
@@ -69,7 +74,7 @@ public class ProductController : ControllerBase
             listOfProductPrices = productPrice!.Split(",").Select(Convert.ToDecimal).ToList();
         } 
         
-        var productsPerPage = await _productService.GetProductsForUsers(pageNumber, listOfProductTypes, listOfProductColors
+        var productsPerPage = await _productService.GetProductsForUsers(pageNumber, listOfProductTypes,listOfProductCategories ,listOfProductColors
                             ,listOfProductDimensions,listOfProductPrices,productReverseFace , currency.ToUpper());
         
         return Ok(productsPerPage);

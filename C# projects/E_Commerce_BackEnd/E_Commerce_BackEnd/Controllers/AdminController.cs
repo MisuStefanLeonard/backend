@@ -26,6 +26,7 @@ using E_Commerce_BackEnd.Services.uVoucherService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
 using Sqids;
 
@@ -74,11 +75,35 @@ namespace E_Commerce_BackEnd.Controllers
         }
 
        
-        [HttpGet("login")]
+        [HttpGet("login/{redirect}")]
         [Authorize]
-        public IActionResult GetAdminLogIn()
+        public async Task<IActionResult> GetAdminLogIn([FromRoute] string redirect)
         {
-            return Ok("Authorized");
+            if (redirect != "redirect")
+            {
+                return Ok("Authorized");
+            }
+            else
+            {
+                var isAdminLoggedIn = Request.Cookies.TryGetValue("adminLoggedIn", out var adminLoggedInString) && adminLoggedInString == "1";
+                var getHeaderSecret = await TokenService.GetSecret("prod/texx.ro/admin-header");
+                var decodedString = "";
+                if (Request.Cookies.TryGetValue("ASP_NET_ADMIN_SESSION", out var encodedString))
+                {
+                    decodedString = Encoding.UTF8.GetString(Convert.FromBase64String(encodedString));
+                }
+
+                if (isAdminLoggedIn && decodedString != "" && decodedString == getHeaderSecret)
+                {
+                    return NoContent(); // redirect to dashboard
+                }
+                else
+                {
+                    return Ok("Please authorize yourself");
+                }
+            }
+            
+           
         }
 
         [HttpPost("login")]
@@ -333,8 +358,23 @@ namespace E_Commerce_BackEnd.Controllers
             try
             {
                 // Deserialize the product DTO
+                // vezi de ce cand deserializezi obiectul nu intra pe coloanele json si sunt null!!!!
                 var modifiedProduct = JsonConvert.DeserializeObject<ProduseDtoForAdminModification>(productDto);
+                
+                Console.WriteLine($"----------------");
+                Console.WriteLine($"----------------");
+                Console.WriteLine($"{modifiedProduct!.TipuriProduseDto.IsNullOrEmpty()}");
+                Console.WriteLine($"{modifiedProduct!.OldCodProdusDto}");
+                Console.WriteLine($"----------------");
+                Console.WriteLine($"----------------");
 
+                foreach (var item in modifiedProduct!.TipuriProduseDto)
+                {
+                    Console.WriteLine("--------------------");
+                    Console.WriteLine($"{item.CategorieJsonDto} / {item.CategorieJsonDto.CategorieRomana}");
+                    Console.WriteLine("--------------------");
+
+                }
                
                 if (modifiedProduct is null)
                 {
@@ -549,6 +589,10 @@ namespace E_Commerce_BackEnd.Controllers
                 {
                     return BadRequest("Invalid deserializing from the JSON to Dto");
                 }
+                Console.WriteLine($"{decodedId}");
+                Console.WriteLine($"{decodedId}");
+                Console.WriteLine($"{decodedId}");
+                Console.WriteLine($"{decodedId}");
 
                 var updateResponse = await _seturiService.AddOrUpdateSet(modifiedSetToDto, decodedId, false);
 

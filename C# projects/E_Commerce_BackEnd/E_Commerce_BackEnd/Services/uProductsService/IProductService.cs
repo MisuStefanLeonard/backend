@@ -41,7 +41,7 @@ public interface IProductService
 
     #region ProductsForUsers
 
-    public Task<IList<ProductsListingForUsers>> GetProductsForUsers(int? pageNumber, List<string>? productTypes ,List<string>? productColors,
+    public Task<IList<ProductsListingForUsers>> GetProductsForUsers(int? pageNumber, List<string>? productTypes,List<string>? productCategories ,List<string>? productColors,
         List<string>? productDimensions , List<decimal>? productPrices , bool? reverseFace,string currency = "RON");
     public Task<ProductsFilterOptions> FilterOptions(string currency = "RON");
     public Task<KeyValuePair<int , ProductPageForUser?>> GetProductPage(string codProdus , string tipProdus,string currency = "RON");

@@ -19,7 +19,6 @@ using E_Commerce_BackEnd.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.IdentityModel.Tokens;
-using Sqids;
 
 namespace E_Commerce_BackEnd.Services.uOrdersService;
 
@@ -30,17 +29,15 @@ public class OrderService : IOrderService
     private readonly ILogger<OrderService> _logger;
     private readonly IEmailService _emailService;
     private readonly IMjmlService _mjmlService;
-    private readonly SqidsEncoder<int> _sqidsEncoder;
     
 
-    public OrderService(IUnitOfWork unitOfWork, IBucketAcces bucketAcces, ILogger<OrderService> logger, IEmailService emailService, IMjmlService mjmlService, SqidsEncoder<int> sqidsEncoder)
+    public OrderService(IUnitOfWork unitOfWork, IBucketAcces bucketAcces, ILogger<OrderService> logger, IEmailService emailService, IMjmlService mjmlService)
     {
         _unitOfWork = unitOfWork;
         _bucketAcces = bucketAcces;
         _logger = logger;
         _emailService = emailService;
         _mjmlService = mjmlService;
-        _sqidsEncoder = sqidsEncoder;
     }
 
     public async Task<IList<ClientOrder>> GetClientOrders(int accountId , string currency = "RON")
@@ -63,14 +60,14 @@ public class OrderService : IOrderService
                             {
                                 IdProdus = product.Produs.IdProdus,
                                 IdSet = product.Set!.IdSet,
-                                NumeSet = product.Set!.NumeSet,
+                                NumeSet =  currency == "RON" ? product.Set!.NumeSetJson.NumeRomana :  product.Set!.NumeSetJson.NumeEngleza,
                                 CodProdus = product.Produs.CodProdus,
-                                NumeProdus =  product.Produs.NumeProdus!,
-                                TipProdus = product.Produs.TipulProdusului,
+                                NumeProdus = currency == "RON" ?  product.Produs.NumeProdusJson.NumeRomana : product.Produs.NumeProdusJson.NumeEngleza ,
+                                TipProdus = currency == "RON" ?  product.Produs.TipulProdusuluiJson.TipProdusRomana :  product.Produs.TipulProdusuluiJson.TipProdusEngleza,
                                 CuloareSelectata = new CuloriDto
                                 {
                                     IdCuloare = product.PcCuloare.IdCuloare,
-                                    NumeCuloareDto = product.PcCuloare.NumeCuloare,
+                                    NumeCuloareDto = currency == "RON" ?  product.PcCuloare.NumeCuloareJson.CuloareRomana : product.PcCuloare.NumeCuloareJson.CuloareEngleza,
                                     CodCuloareDto = product.PcCuloare.CodCuloare.CodCuloare!,
                                     JustAdded = false,
                                     ImaginiProdusDto = product.Produs.PProduseCuCulori!
@@ -88,32 +85,34 @@ public class OrderService : IOrderService
                                 DimensiuneSelectata = new DimensiuniDto
                                 {
                                     IdDimensiune = product.PcDimensiune!.IdDimensiune,
-                                    LungimeDto = product.PcManopera!.NumeManopera != "STAN" ?  product.PcDimensiune.Lungime : ((int)(product.PcManopera.MaterialFolosit * 100)).ToString(),
+                                    LungimeDto = product.PcManopera!.NumeManoperaJson!.NumeRomana != "STAN" ?  product.PcDimensiune.Lungime : ((int)(product.PcManopera.MaterialFolosit * 100)).ToString(),
                                     LatimeDto = product.PcDimensiune.Lungime,
                                     RecomandarePat = product.PcDimensiune.RecomandarePat,
                                     PretDto = 0,
                                     PretRedusDto = 0,
                                     JustAdded = false,
-                                    PerdeaEstePerecheDto = product.PcManopera!.NumeManopera == "STAN" ? null : product.PcDimensiune.PerdeaEstePereche 
+                                    PerdeaEstePerecheDto = product.PcManopera!.NumeManoperaJson.NumeRomana == "STAN" ? null : product.PcDimensiune.PerdeaEstePereche 
                                         
                                 },
-                                SelectedManopera = product.Produs.TipulProdusului == "perdea" || product.Produs.TipulProdusului == "draperie" ? new StandardManopereOnSet
+                                SelectedManopera = product.Produs.TipulProdusuluiJson.TipProdusRomana == "perdea" || product.Produs.TipulProdusuluiJson.TipProdusRomana == "draperie" ? new StandardManopereOnSet
                                 {
                                     IdManopera = product.PcManopera!.IdManopera,
-                                    NumeManopera = product.PcManopera.NumeManopera!,
+                                    NumeManopera = currency == "RON" ?  product.PcManopera.NumeManoperaJson!.NumeRomana : product.PcManopera.NumeManoperaJson!.NumeEngleza ,
                                     MetruTotalFolosit = product.PcManopera.MaterialFolosit,
                                     InaltimeMaxima = product.PcManopera.InaltimeMaxima,
                                     TipInel = product.PcManopera.InelPrindereLaManopera != null ? new TipIneleDto
                                     {
                                         IdInelPrindere = product.PcManopera.InelPrindereLaManopera.IdInel,
-                                        NumeTipInel = product.PcManopera.InelPrindereLaManopera.CuloareInel,
+                                        NumeTipInel =  currency == "RON" ?  product.PcManopera.InelPrindereLaManopera.CuloareInelJson.CuloareRomana
+                                            : product.PcManopera.InelPrindereLaManopera.CuloareInelJson.CuloareEngleza,
                                         CaleRelativa = product.PcManopera.InelPrindereLaManopera.CaleRelativa,
                                         PresignedUrl = "empty"
                                     } : null,
                                     TipGalerie = new TipRejansaDto
                                     {
                                         IdRejansa = product.PcManopera.TipGalerieLaManopera.IdTipGalerie,
-                                        NumeTipRejansa = product.PcManopera.TipGalerieLaManopera.NumeTipGalerie,
+                                        NumeTipRejansa =  currency == "RON" ?  product.PcManopera.TipGalerieLaManopera.NumeTipGalerieJson.NumeRomana
+                                            :  product.PcManopera.TipGalerieLaManopera.NumeTipGalerieJson.NumeEngleza,
                                         PretTipRejansa = currency == "RON" ? product.PcManopera.TipGalerieLaManopera.PretTipGalerie
                                             :  product.PcManopera.TipGalerieLaManopera.PretTipGalerie / 5,
                                         IncretireRejansa = product.PcManopera.TipGalerieLaManopera.IncretireRejansa,
@@ -124,7 +123,8 @@ public class OrderService : IOrderService
                                     TipLinie = new TipLinieDto
                                     {
                                         IdTipLinie = product.PcManopera.TipLinieLaManopera.IdTipLinie,
-                                        NumeTipCusaturaColt = product.PcManopera.TipLinieLaManopera.NumeTipLinie,
+                                        NumeTipCusaturaColt =  currency == "RON" ?  product.PcManopera.TipLinieLaManopera.NumeTipLinieJson.NumeRomana
+                                            : product.PcManopera.TipLinieLaManopera.NumeTipLinieJson.NumeEngleza,
                                         PretTipCusaturaColt = currency == "RON" ? product.PcManopera.TipLinieLaManopera.PretPeTipLinie
                                             :  product.PcManopera.TipLinieLaManopera.PretPeTipLinie / 5,
                                         CaleRelativa = product.PcManopera.TipLinieLaManopera.CaleRelativa,
@@ -132,7 +132,7 @@ public class OrderService : IOrderService
                                     }
                                 } : null,
                                 LungimeCeruta = product.PcManopera != null ?
-                                    product.PcManopera.NumeManopera == "STAN" ? product.PcManopera.MaterialFolosit.ToString() : "empty"
+                                    product.PcManopera.NumeManoperaJson.NumeRomana == "STAN" ? product.PcManopera.MaterialFolosit.ToString() : "empty"
                                 : "not_perdea",
                                 InaltimeCeruta = product.IdSet != null ? product.InaltimeAleasaPentruSet : "not_set",
                                 PretCurent = currency == "RON" ? product.PretCumparat : product.PretCumparat / 5 ,
@@ -325,14 +325,12 @@ public class OrderService : IOrderService
                 var findAccountToUpdate = await _unitOfWork.Repository<Conturi>()
                     .FindQueryable(acc => acc.IdCont == accountId)
                     .FirstAsync();
+
+                findAccountToUpdate.Nume ??= orderToBePlaced.NumePeComanda;
+                findAccountToUpdate.Prenume ??= orderToBePlaced.PrenumePeComanda;
+                findAccountToUpdate.NrTelefon ??= orderToBePlaced.NrTelefonPeComanda;
                 
-                findAccountToUpdate.Nume = orderToBePlaced.NumePeComanda;
-                findAccountToUpdate.Prenume = orderToBePlaced.PrenumePeComanda;
-                findAccountToUpdate.Email = orderToBePlaced.EmailPeComanda;
-                findAccountToUpdate.NrTelefon = orderToBePlaced.NrTelefonPeComanda;
-
                 await _unitOfWork.Repository<Conturi>().UpdateAsync(findAccountToUpdate);
-
             }
             
             
@@ -720,7 +718,7 @@ public class OrderService : IOrderService
                             lockedProducts.Add(findProduct);
                         }
 
-                        if (findProduct.TipulProdusului is "perdea" or "draperie")
+                        if (findProduct.TipulProdusuluiJson.TipProdusRomana is "perdea" or "draperie")
                         {
                             var findManoperaOfTheCurrentProduct = await manopereRepository
                                 .FindQueryable(man => man.IdManopera == item.IdManopera)
@@ -867,7 +865,7 @@ public class OrderService : IOrderService
                             productsToUnlock.Add(findProduct);
                         }
 
-                        if (findProduct.TipulProdusului is "perdea" or "draperie")
+                        if (findProduct.TipulProdusuluiJson.TipProdusRomana is "perdea" or "draperie")
                         {
                             var findManoperaOfTheCurrentProduct = await manopereRepository
                                 .FindQueryable(man => man.IdManopera == item.IdManopera)

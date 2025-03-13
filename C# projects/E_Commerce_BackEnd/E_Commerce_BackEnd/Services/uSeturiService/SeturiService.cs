@@ -13,12 +13,12 @@ using E_Commerce_BackEnd.Models.DTO.ProduseDtos.SeturiDtos.User;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.SeturiDtos.User.SetPage;
 using E_Commerce_BackEnd.Models.Enums;
 using E_Commerce_BackEnd.Models.ProductRelatedModels;
+using E_Commerce_BackEnd.Models.ProductRelatedModels.JSON_Models;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
 using E_Commerce_BackEnd.Services.Helpers.UserHelpers;
 using E_Commerce_BackEnd.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
 
 namespace E_Commerce_BackEnd.Services.uSeturiService;
@@ -31,15 +31,13 @@ public class SeturiService : ISeturiService
     private readonly IMapper _mapper;
     private readonly ILogger<SeturiService> _logger;
     private readonly IBucketAcces _bucketAcces;
-    private readonly IMemoryCache _cache;
 
-    public SeturiService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<SeturiService> logger, IBucketAcces bucketAcces, IMemoryCache cache)
+    public SeturiService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<SeturiService> logger, IBucketAcces bucketAcces)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _logger = logger;
         _bucketAcces = bucketAcces;
-        _cache = cache;
     }
 
     public async Task<IList<SeturiDisplayDto>?> GetProductSets()
@@ -98,30 +96,33 @@ public class SeturiService : ISeturiService
     // Helper method to add manopere to a product
     private async Task AddManopereToProduct(ProductForSetDto productDto, Produse product, List<AsociereSeturi> listOfProductsOnSets,List<Manopere> standardManopere)
     {
-        if (product.TipulProdusului != "perdea" && product.TipulProdusului != "draperie")
+        if (product.TipulProdusuluiJson.TipProdusRomana != "perdea" && product.TipulProdusuluiJson.TipProdusRomana != "draperie")
             return;
         
         foreach (var manopera in standardManopere)
         {
-            if (productDto.ProductOptions.StandardManopere!.Any(m => m.NumeManopera == manopera.NumeManopera))
+            if (productDto.ProductOptions.StandardManopere!.Any(m => m.NumeManoperaJson!.NumeRomana == manopera.NumeManoperaJson!.NumeRomana))
             {
-                _logger.LogInformation($"Manopera '{manopera.NumeManopera}' already exists in StandardManopere. Skipping...");
+                _logger.LogInformation($"Manopera '{manopera.NumeManoperaJson!.NumeRomana}' already exists in StandardManopere. Skipping...");
                 continue;
             }
 
             var mappedManopera = new StandardManopereOnSet
             {
-                NumeManopera = manopera.NumeManopera!,
+                // NumeManopera = manopera.NumeManoperaJson!.NumeRomana!,
+                NumeManoperaJson = manopera.NumeManoperaJson!,
                 MetruTotalFolosit = manopera.MaterialFolosit,
                 TipInel = manopera.InelPrindereLaManopera != null ? new TipIneleDto
                 {
-                    NumeTipInel = manopera.InelPrindereLaManopera?.CuloareInel,
+                    NumeTipInel = manopera.InelPrindereLaManopera?.CuloareInelJson.CuloareRomana,
+                    CuloareInelJsonDto = manopera.InelPrindereLaManopera?.CuloareInelJson,
                     CaleRelativa = manopera.InelPrindereLaManopera?.CaleRelativa,
                     PresignedUrl = "empty"
                 } : null ,
                 TipGalerie = new TipRejansaDto
                 {
-                    NumeTipRejansa = manopera.TipGalerieLaManopera.NumeTipGalerie,
+                    // NumeTipRejansa = manopera.TipGalerieLaManopera.NumeTipGalerieJson.NumeRomana,
+                    NumeTipRejansaDto = manopera.TipGalerieLaManopera.NumeTipGalerieJson,
                     PretTipRejansa = manopera.TipGalerieLaManopera.PretTipGalerie,
                     IncretireRejansa = manopera.TipGalerieLaManopera.IncretireRejansa,
                     CaleRelativa = manopera.TipGalerieLaManopera.CaleRelativa,
@@ -130,7 +131,8 @@ public class SeturiService : ISeturiService
                 },
                 TipLinie = new TipLinieDto
                 {
-                    NumeTipCusaturaColt = manopera.TipLinieLaManopera.NumeTipLinie,
+                    // NumeTipCusaturaColt = manopera.TipLinieLaManopera.NumeTipLinieJson.NumeRomana,
+                    NumeTipCusaturaColtJson = manopera.TipLinieLaManopera.NumeTipLinieJson,
                     PretTipCusaturaColt = manopera.TipLinieLaManopera.PretPeTipLinie,
                     CaleRelativa = manopera.TipLinieLaManopera.CaleRelativa,
                     PresignedUrl = null
@@ -160,9 +162,12 @@ public class SeturiService : ISeturiService
 
         foreach (var asoc in listOfProductsOnSets.Where(a => a.IdProdus == product.IdProdus && a.Manopera != null))
         {
-            if (productDto.SelectedManopere.Contains(asoc.Manopera!.NumeManopera!))
+            // if (productDto.SelectedManopere.Contains(asoc.Manopera!.NumeManopera!))
+            //     continue;
+            // productDto.SelectedManopere.Add(asoc.Manopera!.NumeManopera!);
+            if (productDto.SelectedManopere.Contains(asoc.Manopera!.NumeManoperaJson!.NumeRomana))
                 continue;
-            productDto.SelectedManopere.Add(asoc.Manopera!.NumeManopera!);
+            productDto.SelectedManopere.Add(asoc.Manopera!.NumeManoperaJson.NumeRomana);
         }
     }
     
@@ -246,8 +251,10 @@ public class SeturiService : ISeturiService
         var setModificationDto = new SetModificationDto
         {
             ProductsOnSet = listOfProductVariaties,
-            NumeSetDto = currentSet.NumeSet,
-            DescriereSetDto = currentSet.DescriereSet,
+            // NumeSetDto = currentSet.NumeSet,
+            NumeSetJsonDto = currentSet.NumeSetJson,
+            // DescriereSetDto = currentSet.DescriereSet,
+            DescriereSetJsonDto = currentSet.DescriereJson,
             PretSetDto = currentSet.PretSet,
             PretRedusSetDto = currentSet.PretRedusSet
         };
@@ -262,14 +269,14 @@ public class SeturiService : ISeturiService
         
         var listOfProductCodes = await productsRepository
             .GetSimpleQueryable()
-            .GroupBy(p => p.TipulProdusului)
+            .GroupBy(p => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(p.TipulProdusuluiJson , "$.tip_ro")))
             .Select(group => new SelectProducts
             {
                 Title = group.Key.ToUpper(),  // Mapping to TipulProdusuluiDto
                 Children = group.Select(p => new ProdusDto
                 {
                     Id = p.CodProdus,
-                    Title = p.NumeProdus!.ToUpper()// Mapping to CodProdus
+                    Title = p.NumeProdusJson.NumeRomana.ToUpper()// Mapping to CodProdus
                 }).ToList()  // Projecting to the ProduseDto list
             })
             .ToListAsync();
@@ -277,13 +284,13 @@ public class SeturiService : ISeturiService
         return listOfProductCodes;
     }
 
-    public async Task<IList<string>> GetSetNames()
+    public async Task<IList<Nume>> GetSetNames()
     {
         var seturiRepository = _unitOfWork.Repository<Seturi>();
 
         var listOfSeturiNames = await seturiRepository
             .GetSimpleQueryable()
-            .Select(s => s.NumeSet)
+            .Select(s => s.NumeSetJson)
             .ToListAsync();
 
         return listOfSeturiNames;
@@ -572,18 +579,13 @@ public class SeturiService : ISeturiService
             var dimensionsRepository = _unitOfWork.Repository<Dimensiuni>();
             var manopereRepository = _unitOfWork.Repository<Manopere>();
             var asociereSeturiRepository = _unitOfWork.Repository<AsociereSeturi>();
-           
-            foreach (var product in modifiedSet.ProductsOnSet)
-            {
-                _logger.LogInformation($"Nume produs : {product.NumeProdusDto} - {product.TipProdusDto} ");
-            }
             
             if (!isAdding)
             {
                 var findSet = await _unitOfWork.Repository<Seturi>()
                     .FindQueryable(set => set.IdSet == idSet).FirstOrDefaultAsync();
                 // set locked
-                if (findSet != null)
+                if (findSet is { IsLocked: true })
                 {
                     return -3;
                 }
@@ -603,7 +605,7 @@ public class SeturiService : ISeturiService
                     // nume manopera (test)
                     var selectedManopere = productOnSet.SelectedManopere;
 
-                    if (productOnSet.TipProdusDto is "perdea" or "draperie")
+                    if (productOnSet.TipProdusJsonDto!.TipProdusRomana is "perdea" or "draperie")
                     {
                         foreach (var color in selectedColors)
                         {
@@ -614,7 +616,7 @@ public class SeturiService : ISeturiService
 
                             var colorInDb = await colorsRepository
                                 .GetSimpleQueryable()
-                                .Where(c => c.NumeCuloare == colorName
+                                .Where(c => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(c.NumeCuloareJson , "$.culoare_ro")) == colorName
                                             && c.CodCuloare.CodCuloare == colorCode)
                                 .FirstAsync();
 
@@ -622,7 +624,7 @@ public class SeturiService : ISeturiService
                             {
                                 var findManoperaInDb = await manopereRepository
                                     .GetSimpleQueryable()
-                                    .Where(m => m.NumeManopera == manopera)
+                                    .Where(m => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(m.NumeManoperaJson! , "$.nume_ro")) == manopera)
                                     .FirstAsync();
 
                                 var isManoperaVariantionInDb = oldOptions
@@ -659,8 +661,8 @@ public class SeturiService : ISeturiService
 
                             var colorInDb = await colorsRepository
                                 .GetSimpleQueryable()
-                                .Where(c => c.NumeCuloare == colorName
-                                            && c.CodCuloare.CodCuloare == colorCode)
+                                .Where(c =>EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(c.NumeCuloareJson , "$.culoare_ro")) == colorName
+                                           && c.CodCuloare.CodCuloare == colorCode)
                                 .FirstAsync();
 
                             if (selectedDimensions.Count != 0)
@@ -760,8 +762,10 @@ public class SeturiService : ISeturiService
             var optionsToBeAdded = new List<AsociereSeturi>();
             var newSet = new Seturi
             {
-                NumeSet = modifiedSet.NumeSetDto,
-                DescriereSet = modifiedSet.DescriereSetDto,
+                // NumeSet = modifiedSet.NumeSetDto,
+                NumeSetJson = modifiedSet.NumeSetJsonDto,
+                // DescriereSet = modifiedSet.DescriereSetDto,
+                DescriereJson = modifiedSet.DescriereSetJsonDto,
                 PretSet = modifiedSet.PretSetDto,
                 PretRedusSet = modifiedSet.PretRedusSetDto,
                 SetActivInMagazin = false,
@@ -784,8 +788,8 @@ public class SeturiService : ISeturiService
                 // nume manopera (test)
                 var selectedManopere = productOnSet.SelectedManopere;
 
-                if (string.Equals(productOnSet.TipProdusDto, "draperie") ||
-                    string.Equals(productOnSet.TipProdusDto, "perdea"))
+                if (string.Equals(productOnSet.TipProdusJsonDto!.TipProdusRomana, "draperie") ||
+                    string.Equals(productOnSet.TipProdusJsonDto.TipProdusRomana, "perdea"))
                 {
                     _logger.LogInformation("Adaugam perdea/ draperie");
                     foreach (var color in selectedColors)
@@ -796,19 +800,19 @@ public class SeturiService : ISeturiService
 
                         var colorInDb = await colorsRepository
                             .GetSimpleQueryable()
-                            .Where(c => c.NumeCuloare == colorName
+                            .Where(c => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(c.NumeCuloareJson , "$.culoare_ro")) == colorName
                                         && c.CodCuloare.CodCuloare == colorCode)
                             .FirstAsync();
 
-                        _logger.LogError($"Culoare curenta : {colorInDb.NumeCuloare}");
+                        _logger.LogError($"Culoare curenta : {colorInDb.NumeCuloareJson.CuloareRomana}");
 
                         foreach (var manopera in selectedManopere)
                         {
                             var findManoperaInDb = await manopereRepository
                                 .GetSimpleQueryable()
-                                .Where(m => m.NumeManopera == manopera)
+                                .Where(m => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(m.NumeManoperaJson! , "$.nume_ro")) == manopera)
                                 .FirstAsync();
-                            _logger.LogError($"Nume manopera curenta : {findManoperaInDb.NumeManopera}");
+                            _logger.LogError($"Nume manopera curenta : {findManoperaInDb.NumeManoperaJson!.NumeRomana}");
 
 
                             var newProductOptionOnSet = new AsociereSeturi
@@ -835,7 +839,7 @@ public class SeturiService : ISeturiService
 
                         var colorInDb = await colorsRepository
                             .GetSimpleQueryable()
-                            .Where(c => c.NumeCuloare == colorName
+                            .Where(c => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(c.NumeCuloareJson , "$.culoare_ro")) == colorName
                                         && c.CodCuloare.CodCuloare == colorCode)
                             .FirstAsync();
 
@@ -959,24 +963,27 @@ public class SeturiService : ISeturiService
         }
 
 
-        if (productToGetData.TipulProdusului is "perdea" or "draperie")
+        if (productToGetData.TipulProdusuluiJson.TipProdusRomana is "perdea" or "draperie")
         {
             var standardManopere = await manopereRepository
                 .GetSimpleQueryable()
                 .Where(m => m.TipManopera == TipManopere.Standard)
                 .Select(m => new StandardManopereOnSet
                 {
-                    NumeManopera = m.NumeManopera!,
+                    // NumeManopera = m.NumeManoperaJson.NumeRomana!,
+                    NumeManoperaJson = m.NumeManoperaJson,
                     MetruTotalFolosit = m.MaterialFolosit,
                     TipInel = new TipIneleDto
                     {
-                        NumeTipInel = m.InelPrindereLaManopera == null ? null : m.InelPrindereLaManopera.CuloareInel,
+                        // NumeTipInel = m.InelPrindereLaManopera == null ? null : m.InelPrindereLaManopera.CuloareInel,
+                        CuloareInelJsonDto = m.InelPrindereLaManopera == null ? null : m.InelPrindereLaManopera.CuloareInelJson,
                         CaleRelativa = m.InelPrindereLaManopera!.CaleRelativa,
                         PresignedUrl = "empty"
                     },
                     TipGalerie = new TipRejansaDto
                     {
-                        NumeTipRejansa = m.TipGalerieLaManopera.NumeTipGalerie,
+                        // NumeTipRejansa = m.TipGalerieLaManopera.NumeTipGalerie,
+                        NumeTipRejansaDto = m.TipGalerieLaManopera.NumeTipGalerieJson,
                         PretTipRejansa = m.TipGalerieLaManopera.PretTipGalerie,
                         IncretireRejansa = m.TipGalerieLaManopera.IncretireRejansa,
                         CaleRelativa = m.TipGalerieLaManopera.CaleRelativa,
@@ -985,11 +992,13 @@ public class SeturiService : ISeturiService
                     },
                     TipLinie = new TipLinieDto
                     {
-                        NumeTipCusaturaColt = m.TipLinieLaManopera.NumeTipLinie,
+                        // NumeTipCusaturaColt = m.TipLinieLaManopera.NumeTipLinie,
+                        NumeTipCusaturaColtJson = m.TipLinieLaManopera.NumeTipLinieJson,
                         PretTipCusaturaColt = m.TipLinieLaManopera.PretPeTipLinie,
                         CaleRelativa = m.TipLinieLaManopera.CaleRelativa,
                         PresignedUrl = "empty"
-                    }
+                    },
+                    InaltimeMaxima = m.InaltimeMaxima,
                 })
                 .ToListAsync();
 
@@ -1043,11 +1052,16 @@ public class SeturiService : ISeturiService
                     .ThenInclude(prod => prod.PProduseCuCulori!)
                         .ThenInclude(color => color.ImagProduseCuCulori)
             .Include(set => set.ReviewPeSet)
-            .Where(set => productName.IsNullOrEmpty() || set.SAsociereSeturi!
-                .Any(product => product.Produs.NumeProdus!.ToLower().Contains(productName!.ToLower())))
+            .Where(set => productName.IsNullOrEmpty() ||
+                          set.SAsociereSeturi!
+                              .Any(product =>
+                                  EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(product.Produs.NumeProdusJson, "$.nume_ro")).ToLower().Contains(productName!.ToLower()) ||
+                                  EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(product.Produs.NumeProdusJson, "$.nume_en")).ToLower().Contains(productName.ToLower())
+                              )
+            )
             .Where(set => !set.IsDeleted && set.SetActivInMagazin)
             .Where(set => productTypes.IsNullOrEmpty() || set.SAsociereSeturi!
-                .Any(product => productTypes!.Contains(product.Produs.TipulProdusului)))
+                .Any(product => productTypes!.Contains(EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(product.Produs.TipulProdusuluiJson , "$.tip_ro").ToLower()))))
             .Where(set => productPrices.IsNullOrEmpty() ||
                           currency == "EUR"
                 ? set.PretRedusSet > 0
@@ -1063,29 +1077,29 @@ public class SeturiService : ISeturiService
         var totalSetsFiltered = await mainQuery.CountAsync();
 
         var takePaginatedSets = await mainQuery
-            .OrderBy(set => set.NumeSet)
+            .OrderBy(set => set.NumeSetJson.NumeRomana)
             .Skip((pageNumber ?? 0) * PageSize)
             .Take(PageSize)
             .Select(set => new SetsListingForUsers
             {
                 EncodedIdSet  = set.EncodedIdSet,
-                NumeSetDto = set.NumeSet,
+                NumeSetJsonDto =  set.NumeSetJson,
                 PretSetDto =
                     currency == "EUR" ? UserHelpers.ConvertCurrency("RON", "EUR", set.PretSet, 0) : set.PretSet,
                 PretRedusSetDto = currency == "EUR"
                     ? UserHelpers.ConvertCurrency("RON", "EUR", set.PretRedusSet, 0)
                     : set.PretRedusSet,
                 SetProductsDto = set.SAsociereSeturi!
-                    .GroupBy(asoc => asoc.Produs.NumeProdus)
+                    .GroupBy(asoc => asoc.Produs.NumeProdusJson.NumeRomana)
                     .Select(asoc => new ProductsInSet
                     {
-                        NumeProdusDto = asoc.First().Produs.NumeProdus!,
+                        NumeProdusDto = currency == "RON" ?  asoc.First().Produs.NumeProdusJson.NumeRomana : asoc.First().Produs.NumeProdusJson.NumeEngleza,
                         CuloriProdusDto = asoc.SelectMany(a => a.Produs.PProduseCuCulori!)
                             .Where(color => asoc.Any(a => a.IdCuloare == color.IdCuloare))
                             .Distinct()
                             .Select(color => new ColorsWithImages
                             {
-                                NumeCuloareDto = color.Culoare.NumeCuloare,
+                                NumeCuloareDto = currency == "RON" ?  color.Culoare.NumeCuloareJson.CuloareRomana :  color.Culoare.NumeCuloareJson.CuloareEngleza,
                                 ImaginiProdusDto = color.ImagProduseCuCulori!.Select(imag => new ImagesDtoForUsers
                                 {
                                     CaleImagineDto = imag.CaleImagine!,
@@ -1125,7 +1139,7 @@ public class SeturiService : ISeturiService
     {
         try
         {
-            
+            _logger.LogInformation($"set id : {setId} , set name : {setName}");
             var setPageInfo = await _unitOfWork.Repository<Seturi>()
                 .GetSimpleQueryable()
                 .Include(set => set.SAsociereSeturi!)
@@ -1153,28 +1167,31 @@ public class SeturiService : ISeturiService
                     .ThenInclude(asoc => asoc.Manopera)
                         .ThenInclude(man => man!.TipLinieLaManopera)
                 .Include(set => set.ReviewPeSet) 
-                .Where(set => set.NumeSet.ToLower() == setName.ToLower() && set.IdSet == setId
+                .Where(set => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(set.NumeSetJson , "$.nume_ro")).ToLower() == setName.ToLower() 
+                              && set.IdSet == setId
                               && set.SetActivInMagazin
                               && !set.IsDeleted)
                 .Select(set => new SetPage
                 {
-                    NumeSetDto = set.NumeSet,
+                    NumeSetDto = currency == "RON" ? set.NumeSetJson.NumeRomana : set.NumeSetJson.NumeEngleza,
+                    // NumeSetJsonDto = set.NumeSetJson,
                     PretSetDto = currency == "EUR" ? set.PretSet * (decimal)0.2 : set.PretSet,
                     PretRedusSetDto = currency == "EUR" ? set.PretRedusSet * (decimal)0.2 : set.PretRedusSet,
-                    DescriereSetDto = set.DescriereSet,
+                    DescriereSetDto = currency == "RON" ? set.DescriereJson.DescriereRomana! : set.DescriereJson.DescriereEngleza!,
+                    // DescriereJsonDto = set.DescriereJson,
                     ProdusePeSet = set.SAsociereSeturi!
                         .GroupBy(product => product.Produs.CodProdus)
                         .Select(asoc => new ProductOnSet
                         {
                             IdProdus = asoc.First().IdProdus,
                             CodProdusDto = asoc.Key,
-                            DescriereDto = asoc.First().Produs.Descriere,
-                            NumeProdusDto = asoc.First().Produs.NumeProdus,
-                            CompozitieDto = asoc.First().Produs.Compozitie,
+                            DescriereDto = currency == "RON" ? asoc.First().Produs.DescriereJson!.DescriereRomana : asoc.First().Produs.DescriereJson!.DescriereEngleza,
+                            NumeProdusDto = currency == "RON" ? asoc.First().Produs.NumeProdusJson.NumeRomana : asoc.First().Produs.NumeProdusJson.NumeEngleza,
+                            CompozitieDto = currency == "RON" ? asoc.First().Produs.CompozitieJson!.CompozitieRomana :  asoc.First().Produs.CompozitieJson!.CompozitieEngleza,
                             TvaDto = asoc.First().Produs.Tva,
-                            IngrijireDto = asoc.First().Produs.Ingrijire,
+                            IngrijireDto = currency == "RON" ? asoc.First().Produs.IngrijireJson!.IngrijireRomana : asoc.First().Produs.IngrijireJson!.IngrijireEngleza,
                             FataReversibilaDto = asoc.First().Produs.FataReversibila,
-                            TipulProdusuluiDto = asoc.First().Produs.TipulProdusului,
+                            TipulProdusuluiDto = currency == "RON" ? asoc.First().Produs.TipulProdusuluiJson.TipProdusRomana : asoc.First().Produs.TipulProdusuluiJson.TipProdusEngleza,
                             NumeProducatorDto = asoc.First().Produs.Producator != null 
                                 ? asoc.First().Produs.Producator!.NumeProducator 
                                 : null,
@@ -1185,7 +1202,7 @@ public class SeturiService : ISeturiService
                                 .Select(colorDto => new CuloriDto
                                 {
                                     IdCuloare = colorDto.IdCuloare,
-                                    NumeCuloareDto = colorDto.Culoare.NumeCuloare,
+                                    NumeCuloareDto = currency == "RON" ? colorDto.Culoare.NumeCuloareJson.CuloareRomana : colorDto.Culoare.NumeCuloareJson.CuloareEngleza,
                                     CodCuloareDto = colorDto.Culoare.CodCuloare.CodCuloare!,
                                     JustAdded = false,
                                     ImaginiProdusDto = colorDto.ImagProduseCuCulori != null 
@@ -1218,7 +1235,7 @@ public class SeturiService : ISeturiService
                                 .Select(man => new 
                                 {
                                     man.Manopera!.IdManopera,
-                                    NumeManopera = man.Manopera!.NumeManopera!,
+                                    NumeManopera = currency == "RON" ? man.Manopera.NumeManoperaJson!.NumeRomana : man.Manopera.NumeManoperaJson!.NumeEngleza,
                                     man.Manopera.MaterialFolosit,
                                     man.Manopera.InaltimeMaxima,
                                     TipInel = man.Manopera.InelPrindereLaManopera,
@@ -1234,13 +1251,13 @@ public class SeturiService : ISeturiService
                                     InaltimeMaxima = man.InaltimeMaxima,
                                     TipInel = new TipIneleDto
                                     {
-                                        NumeTipInel = man.TipInel!.CuloareInel,
+                                        NumeTipInel = currency == "RON" ? man.TipInel!.CuloareInelJson.CuloareRomana :man.TipInel!.CuloareInelJson.CuloareEngleza ,
                                         CaleRelativa = man.TipInel.CaleRelativa,
                                         PresignedUrl = "empty"
                                     },
                                     TipGalerie = new TipRejansaDto
                                     {
-                                        NumeTipRejansa = man.TipGalerie.NumeTipGalerie,
+                                        NumeTipRejansa =  currency == "RON" ? man.TipGalerie.NumeTipGalerieJson.NumeRomana : man.TipGalerie.NumeTipGalerieJson.NumeEngleza,
                                         PretTipRejansa = 0,
                                         IncretireRejansa =  man.TipGalerie.IncretireRejansa,
                                         CaleRelativa =  man.TipGalerie.CaleRelativa,
@@ -1249,7 +1266,7 @@ public class SeturiService : ISeturiService
                                     },
                                     TipLinie = new TipLinieDto
                                     {
-                                        NumeTipCusaturaColt = man.TipLinie.NumeTipLinie,
+                                        NumeTipCusaturaColt = currency == "RON" ?  man.TipLinie.NumeTipLinieJson.NumeRomana : man.TipLinie.NumeTipLinieJson.NumeEngleza,
                                         PretTipCusaturaColt = 0,
                                         CaleRelativa = man.TipLinie.CaleRelativa,
                                         PresignedUrl = "empty"

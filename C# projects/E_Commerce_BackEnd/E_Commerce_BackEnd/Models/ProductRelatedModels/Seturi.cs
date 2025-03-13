@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using E_Commerce_BackEnd.Models.OrderRelatedModels;
+using E_Commerce_BackEnd.Models.ProductRelatedModels.JSON_Models;
 using E_Commerce_BackEnd.Models.UserRelatedModels;
 using Sqids;
 
@@ -13,10 +14,9 @@ public class Seturi
 
     private static readonly SqidsEncoder<int> SqidsEncoder = new ();
     public string EncodedIdSet => SqidsEncoder.Encode(IdSet);
-    [StringLength(100)] 
-    public string NumeSet { get; init; } = null!;
-    [StringLength(150)] 
-    public string DescriereSet { get; init; } = null!;
+    public Nume NumeSetJson { get; init; } = null!;
+    
+    public Descriere DescriereJson { get; init; } = null!;
     public decimal PretSet { get; init; }
     public decimal PretRedusSet { get; init; }
     public bool SetActivInMagazin { get; set; }

@@ -3,8 +3,8 @@ using E_Commerce_BackEnd.CustomExceptions;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.BulkOperationsDto;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.TipuriLinieDtos;
 using E_Commerce_BackEnd.Models.ProductRelatedModels;
+using E_Commerce_BackEnd.Models.ProductRelatedModels.JSON_Models;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
-using E_Commerce_BackEnd.Services.uBucketService;
 using E_Commerce_BackEnd.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -40,13 +40,13 @@ public class TipuriLinieService : ITipuriLinieService
         return toDtoList;
     }
 
-    public async Task<IList<string>?> GetAllTipuriLinieNames()
+    public async Task<IList<Nume>?> GetAllTipuriLinieNames()
     {
         var tipuriLinieRepository = _unitOfWork.Repository<TipuriLinie>();
 
         var listOfTipuriLinie = await tipuriLinieRepository
             .GetSimpleQueryable()
-            .Select(tl => tl.NumeTipLinie)
+            .Select(tl => tl.NumeTipLinieJson)
             .ToListAsync();
 
         return listOfTipuriLinie;
@@ -79,7 +79,8 @@ public class TipuriLinieService : ITipuriLinieService
 
         var tipLinieDto = new TipuriLinieDto
         {
-            NumeTipLinieDto = tipLinieToReturn.NumeTipLinie,
+            // NumeTipLinieDto = tipLinieToReturn.NumeTipLinie,
+            NumeTipLinieJsonDto = tipLinieToReturn.NumeTipLinieJson,
             PretPeTipLinieDto = tipLinieToReturn.PretPeTipLinie,
             CaleRelativa = tipLinieToReturn.CaleRelativa,
             PresignedUrl =  url
@@ -321,7 +322,8 @@ public class TipuriLinieService : ITipuriLinieService
                 // Add new material
                 var newTipLinie = new TipuriLinie
                 {
-                    NumeTipLinie = tipuriLinieDto.NumeTipLinieDto,
+                    // NumeTipLinie = tipuriLinieDto.NumeTipLinieDto,
+                    NumeTipLinieJson = tipuriLinieDto.NumeTipLinieJsonDto,
                     PretPeTipLinie = tipuriLinieDto.PretPeTipLinieDto,
                     CaleRelativa = tipuriLinieDto.CaleRelativa
                 };

@@ -70,6 +70,7 @@
 
     <ItemGroup>
       <Folder Include="Migration\" />
+      <Folder Include="Migration\V1\" />
     </ItemGroup>
 
 </Project>

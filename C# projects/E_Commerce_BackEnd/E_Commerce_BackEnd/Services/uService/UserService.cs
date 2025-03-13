@@ -39,7 +39,7 @@ public class UserService : IUserService
     private readonly ILogger<Conturi> _logger;
     private readonly IBucketAcces _bucketAcces;
     private readonly IMjmlService _mjmlService;
-    private const string ReCaptchaURL = "https://www.google.com/recaptcha/api/siteverify";
+    private const string ReCaptchaUrl = "https://www.google.com/recaptcha/api/siteverify";
     private const int Size = 30;
     private const int Size2 = 30;
 
@@ -465,7 +465,7 @@ public class UserService : IUserService
                 
                 var cacheKey = $"ProfileData_{currentUser.IdCont}";
                 
-                if (_cache.TryGetValue(cacheKey, out ConturiDto? cachedData))
+                if (_cache.TryGetValue(cacheKey, out ConturiDto? _))
                 {
                     var replaceOldCacheDto = _mapper.Map<ConturiDto>(newDataFromUser);
 
@@ -619,7 +619,7 @@ public class UserService : IUserService
             
             var cacheKey = $"ProfileData_{currentUser.IdCont}";
                 
-            if (_cache.TryGetValue(cacheKey, out ConturiDto? cachedData))
+            if (_cache.TryGetValue(cacheKey, out ConturiDto? _))
             {
                 var replaceOldCacheDto = _mapper.Map<ConturiDto>(newDataFromUser);
                 
@@ -659,7 +659,7 @@ public class UserService : IUserService
                 new KeyValuePair<string, string>("response", detaliiContact.CaptchaToken),
                 new KeyValuePair<string, string>("remoteip", string.Empty)
             });
-            var response = await client.PostAsync(ReCaptchaURL, parameters);
+            var response = await client.PostAsync(ReCaptchaUrl, parameters);
             
             if (!response.IsSuccessStatusCode)
             {
@@ -678,7 +678,7 @@ public class UserService : IUserService
             }
             else
             {
-                _logger.LogError($"reCAPTCHA verification failed. Error codes: {string.Join(", ", recaptchaResult.ErrorCodes)}");
+                _logger.LogError($"reCAPTCHA verification failed. Error codes: {string.Join(", ", recaptchaResult!.ErrorCodes)}");
                 return 0;
             }
             
@@ -1155,16 +1155,16 @@ public class UserService : IUserService
                             Key = item.Key,
                             CartItems = item.Select(product => new CartItems
                             {
-                                IdProdus = product.Produs!.IdProdus,
+                                IdProdus = product.Produs.IdProdus,
                                 IdSet = product.Set!.IdSet,
-                                NumeSet = product.Set!.NumeSet,
-                                CodProdus = product.Produs!.CodProdus,
-                                NumeProdus =  product.Produs!.NumeProdus!,
-                                TipProdus = product.Produs!.TipulProdusului,
+                                NumeSet = product.Set!.NumeSetJson.NumeRomana,
+                                CodProdus = product.Produs.CodProdus,
+                                NumeProdus =  product.Produs.NumeProdusJson.NumeRomana,
+                                TipProdus = product.Produs.TipulProdusuluiJson.TipProdusRomana,
                                 CuloareSelectata = new CuloriDto
                                 {
                                     IdCuloare = product.PcCuloare.IdCuloare,
-                                    NumeCuloareDto = product.PcCuloare.NumeCuloare,
+                                    NumeCuloareDto = product.PcCuloare.NumeCuloareJson.CuloareRomana,
                                     CodCuloareDto = product.PcCuloare.CodCuloare.CodCuloare!,
                                     JustAdded = false,
                                     ImaginiProdusDto = product.Produs.PProduseCuCulori!
@@ -1182,32 +1182,32 @@ public class UserService : IUserService
                                 DimensiuneSelectata = new DimensiuniDto
                                 {
                                     IdDimensiune = product.PcDimensiune!.IdDimensiune,
-                                    LungimeDto = product.PcManopera!.NumeManopera != "STAN" ?  product.PcDimensiune.Lungime : ((int)(product.PcManopera.MaterialFolosit * 100)).ToString(),
+                                    LungimeDto = product.PcManopera!.NumeManoperaJson!.NumeRomana != "STAN" ?  product.PcDimensiune.Lungime : ((int)(product.PcManopera.MaterialFolosit * 100)).ToString(),
                                     LatimeDto = product.PcDimensiune.Lungime,
                                     RecomandarePat = product.PcDimensiune.RecomandarePat,
                                     PretDto = 0,
                                     PretRedusDto = 0,
                                     JustAdded = false,
-                                    PerdeaEstePerecheDto = product.PcManopera!.NumeManopera == "STAN" ? null : product.PcDimensiune.PerdeaEstePereche 
+                                    PerdeaEstePerecheDto = product.PcManopera!.NumeManoperaJson.NumeRomana == "STAN" ? null : product.PcDimensiune.PerdeaEstePereche 
                                         
                                 },
-                                SelectedManopera = product.Produs.TipulProdusului == "perdea" || product.Produs.TipulProdusului == "draperie" ? new StandardManopereOnSet
+                                SelectedManopera = product.Produs.TipulProdusuluiJson.TipProdusRomana == "perdea" || product.Produs.TipulProdusuluiJson.TipProdusRomana == "draperie" ? new StandardManopereOnSet
                                 {
                                     IdManopera = product.PcManopera!.IdManopera,
-                                    NumeManopera = product.PcManopera.NumeManopera!,
+                                    NumeManopera = product.PcManopera.NumeManoperaJson.NumeRomana,
                                     MetruTotalFolosit = product.PcManopera.MaterialFolosit,
                                     InaltimeMaxima = product.PcManopera.InaltimeMaxima,
                                     TipInel = product.PcManopera.InelPrindereLaManopera != null ? new TipIneleDto
                                     {
                                         IdInelPrindere = product.PcManopera.InelPrindereLaManopera.IdInel,
-                                        NumeTipInel = product.PcManopera.InelPrindereLaManopera.CuloareInel,
+                                        NumeTipInel = product.PcManopera.InelPrindereLaManopera.CuloareInelJson.CuloareRomana,
                                         CaleRelativa = product.PcManopera.InelPrindereLaManopera.CaleRelativa,
                                         PresignedUrl = "empty"
                                     } : null,
                                     TipGalerie = new TipRejansaDto
                                     {
                                         IdRejansa = product.PcManopera.TipGalerieLaManopera.IdTipGalerie,
-                                        NumeTipRejansa = product.PcManopera.TipGalerieLaManopera.NumeTipGalerie,
+                                        NumeTipRejansa = product.PcManopera.TipGalerieLaManopera.NumeTipGalerieJson.NumeRomana,
                                         PretTipRejansa = product.PcManopera.TipGalerieLaManopera.PretTipGalerie
                                            ,
                                         IncretireRejansa = product.PcManopera.TipGalerieLaManopera.IncretireRejansa,
@@ -1218,14 +1218,14 @@ public class UserService : IUserService
                                     TipLinie = new TipLinieDto
                                     {
                                         IdTipLinie = product.PcManopera.TipLinieLaManopera.IdTipLinie,
-                                        NumeTipCusaturaColt = product.PcManopera.TipLinieLaManopera.NumeTipLinie,
+                                        NumeTipCusaturaColt = product.PcManopera.TipLinieLaManopera.NumeTipLinieJson.NumeRomana,
                                         PretTipCusaturaColt =  product.PcManopera.TipLinieLaManopera.PretPeTipLinie,
                                         CaleRelativa = product.PcManopera.TipLinieLaManopera.CaleRelativa,
                                         PresignedUrl = "empty"
                                     }
                                 } : null,
                                 LungimeCeruta = product.PcManopera != null ?
-                                    product.PcManopera.NumeManopera == "STAN" ? product.PcManopera.MaterialFolosit.ToString() : "empty"
+                                    product.PcManopera.NumeManoperaJson.NumeRomana == "STAN" ? product.PcManopera.MaterialFolosit.ToString() : "empty"
                                 : "not_perdea",
                                 InaltimeCeruta = product.IdSet != null ? product.InaltimeAleasaPentruSet : "not_set",
                                 PretCurent =  product.PretCumparat ,
@@ -1286,19 +1286,9 @@ public class UserService : IUserService
                     TotalProduse = 0,
                 }).ToListAsync();
         
-            decimal cartTotal = 0;
-            var totalProducts = 0;
-            //
-            // if (clientOrders.Count > 0)
-            // {
-            //     _logger.LogInformation("A LUAT COMENZILE");
-            // }
-            // else
-            // {
-            //     _logger.LogError("NU A LUAT COMENZILE");
-            //
-            // }
-            //
+            // decimal cartTotal = 0;
+            // var totalProducts = 0;
+        
             
             foreach (var order in clientOrders)
             {
@@ -1323,11 +1313,15 @@ public class UserService : IUserService
                                 exit = true;
                                 break;
                         }
-                        if (cartItem.CuloareSelectata.ImaginiProdusDto!.Count <= 0) continue;
-                        foreach (var image in cartItem.CuloareSelectata.ImaginiProdusDto)
+
+                        if (cartItem.CuloareSelectata.ImaginiProdusDto!.Count > 0)
                         {
-                            image.PresignedUrl = await _bucketAcces.GenerateUrl(image.CaleImagineDto, image.FisierInBucketDto);
+                            foreach (var image in cartItem.CuloareSelectata.ImaginiProdusDto)
+                            {
+                                image.PresignedUrl = await _bucketAcces.GenerateUrl(image.CaleImagineDto, image.FisierInBucketDto);
+                            }
                         }
+                        
                         
                         if (cartItem.SelectedManopera == null) continue;
                         
@@ -1351,169 +1345,5 @@ public class UserService : IUserService
 
             contDataToDto.ComenziClient = clientOrders;
             return contDataToDto;
-
-            // var accountsRepository = _unitOfWork.Repository<Conturi>();
-            // var adressesRepository = _unitOfWork.Repository<Adrese>();
-            // var productsOnOrdersRepository = _unitOfWork.Repository<ProduseCuComenzi>();
-            // var accountData = await accountsRepository
-            //     .FindQueryable(a => a.IdCont == accountId)
-            //     .Include(a => a.AdreseConturi)!
-            //         .ThenInclude(df => df.DetaliuFactura)
-            //     .Include(a => a.AdreseConturi)!
-            //         .ThenInclude(l => l.Locatie)
-            //     .FirstAsync();
-            // // the address and the info for the current client
-            // var contDataToDto = _mapper.Map<ConturiDtoForModification>(accountData);
-            // var adreseToDto = _mapper.Map<IList<AdreseDto>>(accountData.AdreseConturi);
-            // foreach (var adressDto in adreseToDto)
-            // {
-            //     contDataToDto.AdreseClient.Add(adressDto);
-            // }
-            // now processing orders of the client
-
-            // var ordersOfTheCurrentClient = await adressesRepository
-            //     .FindQueryable(a => a.IdCont == accountId)
-            //     // .Include(a => a.AdreseFacturarePeComanda)
-            //     .Include(a => a.AdreseLivrarePeComanda)
-            //     .Include(a => a.DetaliuFactura)
-            //     .Include(a => a.Locatie)
-            //     .AsSplitQuery()
-            //     .ToListAsync();
-            //
-            //
-            // var ordersList = new List<OrdersDisplayDto>();
-            //
-            // foreach (var address in ordersOfTheCurrentClient)
-            // {
-            //     // Log the count of orders for both billing and delivery addresses
-            //    
-            //
-            //     // Process delivery addresses
-            //     if (address.AdreseLivrarePeComanda!.Count > 0)
-            //     {
-            //         _logger.LogTrace("Processing delivery addresses to DTO");
-            //         foreach (var order in address.AdreseLivrarePeComanda)
-            //         {
-            //             var newOrdersDisplayDto = _mapper.Map<OrdersDisplayDto>(order);
-            //             var adresaLivrareToDto = _mapper.Map<AdreseDto>(order.CAdresaLivrare);
-            //             
-            //             // Check if billing address is the same as delivery address
-            //             if (order.CAdresaFacturare.IdAdresa == order.CAdresaLivrare.IdAdresa)
-            //             {
-            //                 // Billing and delivery addresses are the same, so reuse the delivery address DTO
-            //                 newOrdersDisplayDto.AdresaLivrareDto = adresaLivrareToDto;
-            //                 newOrdersDisplayDto.AdresaFacturareDto = adresaLivrareToDto;
-            //             }
-            //             else
-            //             {
-            //                 // Billing and delivery addresses are different, map separately
-            //                 var adresaFacturareToDto = _mapper.Map<AdreseDto>(order.CAdresaFacturare);
-            //                 newOrdersDisplayDto.AdresaLivrareDto = adresaLivrareToDto;
-            //                 newOrdersDisplayDto.AdresaFacturareDto = adresaFacturareToDto;
-            //             }
-            //
-            //             ordersList.Add(newOrdersDisplayDto);
-            //         }
-            //     }
-            //     else
-            //     {
-            //         _logger.LogInformation("No orders for this client");
-            //     }
-            //
-            //     
-            // }
-            //
-            //
-            // foreach (var order in ordersList)
-            // {
-            //     // de facut proiectie!
-            //     _logger.LogInformation("Proceesing  order");
-            //     var allProductsOnCurrentOrder = await productsOnOrdersRepository
-            //         .FindQueryable(pc => pc.IdComanda == order.IdComandaDto)
-            //             .Select(ord => new ProductsOnOrdersDto
-            //         {
-            //             IdProdusDto = ord.Produs.IdProdus,
-            //             CodProdusDto = ord.Produs.CodProdus,
-            //             NumeProdusDto = ord.Produs.NumeProdus!,
-            //             FataReversibilaDto = ord.Produs.FataReversibila,
-            //             NumeProducatorDto = ord.Produs.Producator!.NumeProducator,
-            //             TipulProdusuluiDto = ord.Produs.TipulProdusului,
-            //             NumeSetDto = ord.Set!.NumeSet,
-            //             InaltimeSetDto = ord.InaltimeAleasaPentruSet,
-            //             PretBazaDto = ord.PretCumparat,
-            //             NumeCuloareDto = ord.PcCuloare.NumeCuloare,
-            //             CodCuloareDto = ord.PcCuloare.CodCuloare.CodCuloare!,
-            //             LungimeDto = ord.PcDimensiune!.Lungime,
-            //             LatimeDto = ord.PcDimensiune.Latime,
-            //             RecomandarePatDto = ord.PcDimensiune.RecomandarePat,
-            //             PerdeaEstePerecheDto = ord.PcDimensiune.PerdeaEstePereche,
-            //             TipGalerieCusaturaDto = ord.PcManopera!.TipGalerieLaManopera.NumeTipGalerie,
-            //             IncretireRejansaDto = ord.PcManopera.TipGalerieLaManopera.IncretireRejansa,
-            //             PretTipGalerieCusaturaDto = ord.PcManopera.PretCurentTipGalerie,
-            //             TipLinieCusaturaDto = ord.PcManopera.TipLinieLaManopera.NumeTipLinie,
-            //             PretTipLinieCusaturaDto = ord.PcManopera.PretCurentTipLinie,
-            //             InelePrindereDto = ord.PcManopera.InelPrindereLaManopera!.CuloareInel,
-            //             TotalMetruMaterial = ord.PcDimensiune == null ? 0 : ord.PcManopera.MaterialFolosit,
-            //             VoucherFolositDto = ord.Comanda.VoucherPeComanda != null,
-            //             CodVoucherFolositDto = ord.Comanda.VoucherPeComanda!.CodVoucher,
-            //             ReducereVoucherDto =  ord.Comanda.VoucherPeComanda!.Reducere * 100,
-            //             NrBucatiDto = ord.NrBucati
-            //         }).ToListAsync();
-            //
-            //     
-            //
-            //     var orderedSets = allProductsOnCurrentOrder
-            //         .AsQueryable()
-            //         .Where(p => p.NumeSetDto != null)
-            //         .OrderBy(p => p.NumeSetDto)
-            //         .GroupBy(p => p.NumeSetDto)
-            //         .ToList();
-            //     
-            //     var simpleProducts = allProductsOnCurrentOrder
-            //         .AsQueryable()
-            //         .Where(p => p.NumeSetDto == null)
-            //         .OrderBy(p => p.NumeSetDto)
-            //         .ToList();
-            //
-            //     order.ProduseCuComenziDto = simpleProducts;
-            //     order.Seturi = orderedSets;
-            //     
-            //     foreach (var product in order.ProduseCuComenziDto)
-            //     {
-            //         if (!string.Equals(product.TipulProdusuluiDto , "perdea") && !string.Equals(product.TipulProdusuluiDto , "draperie") 
-            //                                                                   && product.NumeSetDto == null)
-            //         {
-            //             order.PretTotalComanda += product.PretBazaDto * product.NrBucatiDto;
-            //         }
-            //
-            //         if (product.TipulProdusuluiDto is not ("perdea" or "draperie")) continue;
-            //         var totalMetri = product.TotalMetruMaterial;
-            //     
-            //         var pretManoperaMaterial = product.PretBazaDto * totalMetri;
-            //         var pretManoperaCusatura = product.PretTipGalerieCusaturaDto * totalMetri;
-            //         var pretTipLinieCusatura = product.PretTipLinieCusaturaDto * totalMetri;
-            //         var totalManopera = pretManoperaMaterial + pretManoperaCusatura + pretTipLinieCusatura;
-            //         order.PretTotalComanda += totalManopera;
-            //     }
-            //
-            //     foreach (var set in order.Seturi)
-            //     {
-            //         foreach (var product in set)
-            //         {
-            //             order.PretTotalComanda += product.PretBazaDto * product.NrBucatiDto;
-            //             break;
-            //         }
-            //         
-            //     }
-            //
-            // }
-            //
-            // foreach (var orderDto in ordersList)
-            // {
-            //     
-            //     contDataToDto.ComenziClient.Add(orderDto);
-            // }
-            //
-            // return contDataToDto;
     }
 }

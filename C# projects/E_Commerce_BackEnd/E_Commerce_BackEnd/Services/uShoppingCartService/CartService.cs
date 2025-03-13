@@ -9,6 +9,7 @@ using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ShoppingCartDtos;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.VouchereDtos;
 using E_Commerce_BackEnd.Models.Enums;
 using E_Commerce_BackEnd.Models.ProductRelatedModels;
+using E_Commerce_BackEnd.Models.ProductRelatedModels.JSON_Models;
 using E_Commerce_BackEnd.Models.ProductVouchersModels;
 using E_Commerce_BackEnd.Models.UserRelatedModels;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
@@ -151,7 +152,8 @@ public class CartService : ICartService
                     {
                         var createNewManopera = new Manopere
                         {
-                            NumeManopera = null,
+                            // NumeManopera = null,
+                            NumeManoperaJson = null,
                             IdInelPrindere = productOnCart.IdInelPrindere,
                             IdTipLinie = productOnCart.IdTipLinie,
                             IdTipGalerie = productOnCart.IdRejansa,
@@ -208,14 +210,19 @@ public class CartService : ICartService
                         var liningTypeRepository = _unitOfWork.Repository<TipuriLinie>();
 
                         var findStandardRing = await ringsRepository
-                            .FindQueryable(ring => ring.CuloareInel == "STAN")
+                            .FindQueryable(ring => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(ring.CuloareInelJson , "$.culoare_ro")) == "STAN")
                             .FirstOrDefaultAsync();
                        
                         if (findStandardRing == null)
                         {
                             var standardInelPrindere = new InelePrindere
                             {
-                                CuloareInel = "STAN",
+                                // CuloareInel = "", // removeS
+                                CuloareInelJson = new Culoare
+                                {
+                                    CuloareEngleza = "STAN",
+                                    CuloareRomana = "STAN"
+                                },
                                 CaleRelativa = null,
                                 IsDeleted = false
                             };
@@ -226,14 +233,19 @@ public class CartService : ICartService
                         }
                         
                         var findStandardRejansa = await rejansaRepository
-                            .FindQueryable(rejansa => rejansa.NumeTipGalerie == "STAN")
+                            .FindQueryable(rejansa => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(rejansa.NumeTipGalerieJson , "$.nume_ro")) == "STAN")
                             .FirstOrDefaultAsync();
 
                         if (findStandardRejansa == null)
                         {
                             var standardRejansa = new TipuriGalerie
                             {
-                                NumeTipGalerie = "STAN",
+                                // NumeTipGalerie = "", // removeS
+                                NumeTipGalerieJson = new Nume
+                                {
+                                    NumeEngleza = "STAN",
+                                    NumeRomana = "STAN"
+                                },
                                 IncretireRejansa = 0,
                                 PretTipGalerie = 0,
                                 IsDeleted = false,
@@ -247,14 +259,19 @@ public class CartService : ICartService
                         }
                         
                         var findStandardLiningType = await liningTypeRepository
-                            .FindQueryable(line => line.NumeTipLinie == "STAN")
+                            .FindQueryable(line => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(line.NumeTipLinieJson , "$.nume_ro")) == "STAN")
                             .FirstOrDefaultAsync();
 
                         if (findStandardLiningType == null)
                         {
                             var standardLiningType= new TipuriLinie
                             {
-                                NumeTipLinie = "STAN",
+                                // NumeTipLinie = "" , // removeS
+                                NumeTipLinieJson = new Nume
+                                {
+                                    NumeEngleza = "STAN",
+                                    NumeRomana = "STAN"
+                                },
                                 PretPeTipLinie = 0,
                                 CaleRelativa = null,
                                 IsDeleted = false
@@ -267,7 +284,11 @@ public class CartService : ICartService
 
                         var manoperaWithOnlyMaterial = new Manopere
                         {
-                            NumeManopera = "STAN",
+                            NumeManoperaJson = new Nume
+                            {
+                                NumeEngleza = "STAN",
+                                NumeRomana = "STAN"
+                            },
                             IdInelPrindere = findStandardRing.IdInel,
                             IdTipLinie = findStandardLiningType.IdTipLinie,
                             IdTipGalerie = findStandardRejansa.IdTipGalerie,
@@ -538,15 +559,14 @@ public class CartService : ICartService
                     {
                         IdProdus = group.Produs.IdProdus,
                         IdSet = group.Set!.IdSet,
-                        NumeSet = group.Set!.NumeSet,
+                        NumeSet = currency == "RON" ? group.Set!.NumeSetJson.NumeRomana : group.Set!.NumeSetJson.NumeEngleza,
                         CodProdus = group.Produs.CodProdus,
-                        NumeProdus =  group.Produs.NumeProdus!,
-                        TipProdus = group.Produs.TipulProdusului,
-                        
+                        NumeProdus =   currency == "RON" ? group.Produs.NumeProdusJson.NumeRomana : group.Produs.NumeProdusJson.NumeEngleza,
+                        TipProdus = currency == "RON" ? group.Produs.TipulProdusuluiJson.TipProdusRomana : group.Produs.TipulProdusuluiJson.TipProdusEngleza,
                         CuloareSelectata = new CuloriDto
                         {
                             IdCuloare = group.Culoare.IdCuloare,
-                            NumeCuloareDto = group.Culoare.NumeCuloare,
+                            NumeCuloareDto = currency == "RON" ? group.Culoare.NumeCuloareJson.CuloareRomana : group.Culoare.NumeCuloareJson.CuloareEngleza,
                             CodCuloareDto = group.Culoare.CodCuloare.CodCuloare!,
                             JustAdded = false,
                             ImaginiProdusDto = group.Produs.PProduseCuCulori!
@@ -564,32 +584,34 @@ public class CartService : ICartService
                         DimensiuneSelectata = new DimensiuniDto
                         {
                             IdDimensiune = group.Dimensiune!.IdDimensiune,
-                            LungimeDto = group.Manopera!.NumeManopera != "STAN" ?  group.Dimensiune.Lungime : ((int)(group.Manopera.MaterialFolosit * 100)).ToString(),
+                            LungimeDto = group.Manopera!.NumeManoperaJson!.NumeRomana != "STAN" ?  group.Dimensiune.Lungime : ((int)(group.Manopera.MaterialFolosit * 100)).ToString(),
                             LatimeDto = group.Dimensiune.Lungime,
                             RecomandarePat = group.Dimensiune.RecomandarePat,
                             PretDto = 0,
                             PretRedusDto = 0,
                             JustAdded = false,
-                            PerdeaEstePerecheDto = group.Manopera!.NumeManopera == "STAN" ? null : group.Dimensiune.PerdeaEstePereche 
+                            PerdeaEstePerecheDto = group.Manopera!.NumeManoperaJson!.NumeRomana == "STAN" ? null : group.Dimensiune.PerdeaEstePereche 
                                 
                         },
-                        SelectedManopera = group.Produs.TipulProdusului == "perdea" || group.Produs.TipulProdusului == "draperie" ? new StandardManopereOnSet
+                        SelectedManopera = group.Produs.TipulProdusuluiJson.TipProdusRomana == "perdea" || group.Produs.TipulProdusuluiJson.TipProdusRomana == "draperie" ? new StandardManopereOnSet
                         {
                             IdManopera = group.Manopera!.IdManopera,
-                            NumeManopera = group.Manopera.NumeManopera!,
+                            NumeManopera = currency == "RON" ?  group.Manopera.NumeManoperaJson!.NumeRomana :  group.Manopera.NumeManoperaJson!.NumeEngleza,
                             MetruTotalFolosit = group.Manopera.MaterialFolosit,
                             InaltimeMaxima = group.Manopera.InaltimeMaxima,
                             TipInel = group.Manopera.InelPrindereLaManopera != null ? new TipIneleDto
                             {
                                 IdInelPrindere = group.Manopera.InelPrindereLaManopera.IdInel,
-                                NumeTipInel = group.Manopera.InelPrindereLaManopera.CuloareInel,
+                                NumeTipInel =  currency == "RON" ? group.Manopera.InelPrindereLaManopera.CuloareInelJson.CuloareRomana 
+                                    :  group.Manopera.InelPrindereLaManopera.CuloareInelJson.CuloareEngleza,
                                 CaleRelativa = group.Manopera.InelPrindereLaManopera.CaleRelativa,
                                 PresignedUrl = "empty"
                             } : null,
                             TipGalerie = new TipRejansaDto
                             {
                                 IdRejansa = group.Manopera.TipGalerieLaManopera.IdTipGalerie,
-                                NumeTipRejansa = group.Manopera.TipGalerieLaManopera.NumeTipGalerie,
+                                NumeTipRejansa = currency == "RON" ? group.Manopera.TipGalerieLaManopera.NumeTipGalerieJson.NumeRomana 
+                                    : group.Manopera.TipGalerieLaManopera.NumeTipGalerieJson.NumeEngleza,
                                 PretTipRejansa = currency == "RON" ? group.Manopera.TipGalerieLaManopera.PretTipGalerie
                                     :  group.Manopera.TipGalerieLaManopera.PretTipGalerie / 5,
                                 IncretireRejansa = group.Manopera.TipGalerieLaManopera.IncretireRejansa,
@@ -600,7 +622,8 @@ public class CartService : ICartService
                             TipLinie = new TipLinieDto
                             {
                                 IdTipLinie = group.Manopera.TipLinieLaManopera.IdTipLinie,
-                                NumeTipCusaturaColt = group.Manopera.TipLinieLaManopera.NumeTipLinie,
+                                NumeTipCusaturaColt = currency == "RON" ? group.Manopera.TipLinieLaManopera.NumeTipLinieJson.NumeRomana
+                                    :  group.Manopera.TipLinieLaManopera.NumeTipLinieJson.NumeEngleza,
                                 PretTipCusaturaColt = currency == "RON" ? group.Manopera.TipLinieLaManopera.PretPeTipLinie
                                     :  group.Manopera.TipLinieLaManopera.PretPeTipLinie / 5,
                                 CaleRelativa = group.Manopera.TipLinieLaManopera.CaleRelativa,
@@ -608,7 +631,7 @@ public class CartService : ICartService
                             }
                         } : null,
                         LungimeCeruta = group.Manopera != null ?
-                            group.Manopera.NumeManopera == "STAN" ? group.Manopera.MaterialFolosit.ToString() : "empty"
+                            group.Manopera!.NumeManoperaJson!.NumeRomana == "STAN" ? group.Manopera.MaterialFolosit.ToString() : "empty"
                         : "not_perdea",
                         InaltimeCeruta = group.IdSet != null ? group.InaltimeAleasaPentruSet : "not_set",
                         PretCurent = currency == "RON" ? group.PretProdus : group.PretProdus / 5 ,
@@ -618,7 +641,7 @@ public class CartService : ICartService
                                      ? group.Set.PretRedusSet : group.Set.PretRedusSet / 5 
                                  : currency == "RON" 
                                      ? group.Set.PretSet : group.Set.PretSet / 5 
-                             : group.Produs.TipulProdusului == "draperie" || group.Produs.TipulProdusului ==  "perdea" 
+                             : group.Produs.TipulProdusuluiJson.TipProdusRomana == "draperie" || group.Produs.TipulProdusuluiJson.TipProdusRomana ==  "perdea" 
                                 ? group.IdDimensiune == null
                                     ?  group.Produs.PretDeBazaRedus > 0 
                                         ? currency == "RON" 
@@ -679,6 +702,7 @@ public class CartService : ICartService
             var exit = false; // true if end or false if not
             foreach (var cartItem in item.CartItems)
             {
+               
                 switch (isSet)
                 {
                     // if we found the product!
@@ -693,14 +717,19 @@ public class CartService : ICartService
                         exit = true;
                         break;
                 }
-                if (cartItem.CuloareSelectata.ImaginiProdusDto!.Count <= 0) continue;
-                foreach (var image in cartItem.CuloareSelectata.ImaginiProdusDto)
+                if (cartItem.CuloareSelectata.ImaginiProdusDto!.Count > 0)
                 {
-                    image.PresignedUrl = await _bucketAcces.GenerateUrl(image.CaleImagineDto, image.FisierInBucketDto);
+                    foreach (var image in cartItem.CuloareSelectata.ImaginiProdusDto)
+                    {
+
+                        image.PresignedUrl =
+                            await _bucketAcces.GenerateUrl(image.CaleImagineDto, image.FisierInBucketDto);
+
+                    }
                 }
                 
                 if (cartItem.SelectedManopera == null) continue;
-                
+                _logger.LogInformation(cartItem.SelectedManopera!.TipGalerie.NumeTipRejansa );
                 if (cartItem.SelectedManopera.TipInel != null)
                 {
                     if(cartItem.SelectedManopera.TipInel.CaleRelativa == null) continue;
@@ -711,10 +740,12 @@ public class CartService : ICartService
                 if(cartItem.SelectedManopera.TipGalerie.CaleRelativa == null) continue;
                 cartItem.SelectedManopera.TipGalerie.PresignedUrl = await
                     _bucketAcces.GenerateUrl(cartItem.SelectedManopera.TipGalerie.CaleRelativa!, "tipuri_galerie");
+
                 
                 if(cartItem.SelectedManopera.TipLinie.CaleRelativa == null) continue;
                 cartItem.SelectedManopera.TipLinie.PresignedUrl = await
                     _bucketAcces.GenerateUrl(cartItem.SelectedManopera.TipLinie.CaleRelativa!, "tipuri_linie");
+
             }
         }
 

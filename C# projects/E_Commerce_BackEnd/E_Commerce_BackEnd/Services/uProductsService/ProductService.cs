@@ -11,6 +11,7 @@ using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.ProductP
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.ProductPage.OptionsForCurtain;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.ReviewsDto;
 using E_Commerce_BackEnd.Models.ProductRelatedModels;
+using E_Commerce_BackEnd.Models.ProductRelatedModels.JSON_Models;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
 using E_Commerce_BackEnd.Services.Helpers.UserHelpers;
 using E_Commerce_BackEnd.UnitOfWork;
@@ -26,8 +27,9 @@ namespace E_Commerce_BackEnd.Services.uProductsService;
 
 public partial class ProductService : IProductService
 {
-    [GeneratedRegex("^[a-z-0-9A-Z]+$")]
+    [GeneratedRegex(@"^[a-zA-Z0-9!@#$%^&*()_+\-\.]+$")]
     private static partial Regex ValidateQueryParams();
+
     [GeneratedRegex("^[0-9]+$")]
     private static partial Regex ValidateNumberesOnly();
     private readonly IUnitOfWork _unitOfWork;
@@ -156,18 +158,42 @@ public partial class ProductService : IProductService
             // If adding a new product
             if (isAddingFlag)
             {
-                _logger.LogInformation("aici");
                 var newProduct = new Produse
                 {
                     CodProdus = modifiedProduct.CodProdusDto!.ToUpper(),
-                    Descriere = modifiedProduct.DescriereDto,
-                    NumeProdus = modifiedProduct.NumeProdusDto,
-                    Compozitie = modifiedProduct.CompozitieDto,
+                    // Descriere = modifiedProduct.DescriereDto, 
+                    // NumeProdus = modifiedProduct.NumeProdusDto, 
+                    NumeProdusJson = new Nume
+                    {
+                        NumeRomana = modifiedProduct.NumeProdusJsonDto.NumeRomana,
+                        NumeEngleza = modifiedProduct.NumeProdusJsonDto.NumeEngleza,
+                    },
+                    // Compozitie = modifiedProduct.CompozitieDto, // aici
+                    CompozitieJson = new Compozitie
+                    {
+                        CompozitieRomana = modifiedProduct.CompozitieJsonDto!.CompozitieRomana,
+                        CompozitieEngleza = modifiedProduct.CompozitieJsonDto!.CompozitieEngleza
+                    },
+                    DescriereJson = modifiedProduct.DescriereJsonDto != null ? new Descriere
+                    {
+                        DescriereRomana = modifiedProduct.DescriereJsonDto.DescriereRomana,
+                        DescriereEngleza =  modifiedProduct.DescriereJsonDto.DescriereEngleza
+                    } : null,
                     Tva = modifiedProduct.TvaDto,
-                    Ingrijire = modifiedProduct.IngrijireDto,
+                    // Ingrijire = modifiedProduct.IngrijireDto,
+                    IngrijireJson = modifiedProduct.IngrijireJsonDto != null ? new Ingrijire()
+                    {
+                        IngrijireRomana = modifiedProduct.IngrijireJsonDto.IngrijireRomana,
+                        IngrijireEngleza =  modifiedProduct.IngrijireJsonDto.IngrijireEngleza
+                    } : null,
                     FataReversibila = modifiedProduct.FataReversibilaDto,
                     Stoc = modifiedProduct.StocDto,
-                    TipulProdusului = modifiedProduct.TipulProdusuluiDto,
+                    // TipulProdusului = modifiedProduct.TipulProdusuluiDto, // aici
+                    TipulProdusuluiJson = new TipProdus
+                    {
+                        TipProdusRomana = modifiedProduct.TipulProdusuluiJsonDto!.TipProdusRomana,
+                        TipProdusEngleza = modifiedProduct.TipulProdusuluiJsonDto!.TipProdusEngleza
+                    },
                     IsDeleted = false,
                     ActivInMagazin = modifiedProduct.ActivInMagazinDto,
                     PretDeBaza = modifiedProduct.PretBazaDto,
@@ -203,7 +229,11 @@ public partial class ProductService : IProductService
             var typesOnProductsRepository = _unitOfWork.Repository<TipuriPeProduse>();
             var productTypesRepository = _unitOfWork.Repository<TipuriProduse>();
             var modifiedProductTypes = modifiedProduct.TipuriProduseDto;
-    
+
+            foreach (var item in modifiedProductTypes)
+            {
+                _logger.LogInformation($"{item.CategorieJsonDto.CategorieEngleza} / {item.CategorieJsonDto.CategorieRomana}");
+            }
             
             var allProductTypes = await productTypesRepository.GetSimpleQueryable().ToListAsync();
             var allTypesOnProducts = await typesOnProductsRepository
@@ -216,12 +246,20 @@ public partial class ProductService : IProductService
             // Step 1: Add new product types to the database if they don't exist
             foreach (var newType in modifiedProductTypes)
             {
-                var existingType = allProductTypes.FirstOrDefault(t => t.Categorie == newType.CategorieDto.ToUpper());
-                if (existingType == null)
+                _logger.LogInformation($"{newType.CategorieJsonDto.CategorieEngleza} / { newType.CategorieJsonDto.CategorieRomana}");
+                newType.CategorieJsonDto.CategorieEngleza = newType.CategorieJsonDto.CategorieEngleza.ToUpper();
+                newType.CategorieJsonDto.CategorieRomana = newType.CategorieJsonDto.CategorieRomana.ToUpper();
+                var existingType = allProductTypes.FirstOrDefault(t => 
+                  t.CategorieJson.CategorieRomana == newType.CategorieJsonDto.CategorieRomana &&  
+                 t.CategorieJson.CategorieEngleza == newType.CategorieJsonDto.CategorieEngleza);
+                // var existingType = allProductTypes.FirstOrDefault(t => t.Categorie == newType.CategorieDto.ToUpper());
+                if (existingType != null) continue;
+                existingType = new TipuriProduse
                 {
-                    existingType = new TipuriProduse { Categorie = newType.CategorieDto.ToUpper() };
-                    newProductTypes.Add(existingType);
-                }
+                    // Categorie = newType.CategorieDto.ToUpper(),
+                    CategorieJson = newType.CategorieJsonDto,
+                };
+                newProductTypes.Add(existingType);
             }
 
             if (newProductTypes.Count > 0)
@@ -236,7 +274,7 @@ public partial class ProductService : IProductService
             // Step 2: Prepare the new types-on-products entries
             foreach (var newType in modifiedProductTypes)
             {
-                var associatedType = allProductTypes.First(t => t.Categorie == newType.CategorieDto.ToUpper());
+                var associatedType = allProductTypes.First(t => t.CategorieJson.CategorieRomana == newType.CategorieJsonDto.CategorieRomana.ToUpper());
     
                 // Check if the type-on-product already exists
                 var existingTypeOnProduct = allTypesOnProducts
@@ -284,8 +322,17 @@ public partial class ProductService : IProductService
                         isCurrentUpdatedColorCodeInDb = newUpdatedColorCode;
                     }
     
+                    // var isCurrentUpdatedColorInDb = await colorRepository
+                    //     .FindQueryable(c => c.NumeCuloare == color.NumeCuloareDto
+                    //                         && c.IdCodCuloare == isCurrentUpdatedColorCodeInDb.IdCodCuloare)
+                    //     .FirstOrDefaultAsync();
+                    
+                    color.NumeCuloareJsonDto.CuloareRomana = color.NumeCuloareJsonDto.CuloareRomana.ToLower();
+                    color.NumeCuloareJsonDto.CuloareEngleza = color.NumeCuloareJsonDto.CuloareEngleza.ToLower();
+                    
                     var isCurrentUpdatedColorInDb = await colorRepository
-                        .FindQueryable(c => c.NumeCuloare == color.NumeCuloareDto
+                        .FindQueryable(c => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(c.NumeCuloareJson , "$.culoare_ro")) == color.NumeCuloareJsonDto.CuloareRomana
+                                            && EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(c.NumeCuloareJson , "$.culoare_en")) == color.NumeCuloareJsonDto.CuloareEngleza 
                                             && c.IdCodCuloare == isCurrentUpdatedColorCodeInDb.IdCodCuloare)
                         .FirstOrDefaultAsync();
     
@@ -293,7 +340,8 @@ public partial class ProductService : IProductService
                     {
                         var newUpdatedColor = new Culori
                         {
-                            NumeCuloare = color.NumeCuloareDto.ToUpper(),
+                            // NumeCuloare = "empty",
+                            NumeCuloareJson = color.NumeCuloareJsonDto,
                             IdCodCuloare = isCurrentUpdatedColorCodeInDb.IdCodCuloare
                         };
     
@@ -418,36 +466,35 @@ public partial class ProductService : IProductService
                     await _unitOfWork.CommitAsync();
                     newDimensions = await dimensionsRepository.GetSimpleQueryable()
                         .ToListAsync();
-                }
-                
-
-                foreach (var dimension in modifiedDimensions!)
-                {
                     
-                    var newDimensionAdded = newDimensions.First(d => d.Lungime == dimension.LungimeDto
-                                                                     && d.Latime == dimension.LatimeDto &&
-                                                                     d.RecomandarePat == dimension.RecomandarePat);
-                    var isNewDimensionLinkedWithProductInDb = allDimensionLinkedWithProduct
-                        .FirstOrDefault(pd =>
-                            pd.IdDimensiune == newDimensionAdded.IdDimensiune && pd.IdProdus == productId);
-
-                    if (isNewDimensionLinkedWithProductInDb == null)
+                    foreach (var dimension in modifiedDimensions!)
                     {
-                        var newUpdatedDimensionLinkedWithProduct = new ProduseCuDimensiuni
+                    
+                        var newDimensionAdded = newDimensions.First(d => d.Lungime == dimension.LungimeDto
+                                                                         && d.Latime == dimension.LatimeDto &&
+                                                                         d.RecomandarePat == dimension.RecomandarePat);
+                        var isNewDimensionLinkedWithProductInDb = allDimensionLinkedWithProduct
+                            .FirstOrDefault(pd =>
+                                pd.IdDimensiune == newDimensionAdded.IdDimensiune && pd.IdProdus == productId);
+
+                        if (isNewDimensionLinkedWithProductInDb == null)
                         {
-                            Pret = dimension.PretDto,
-                            PretRedus = dimension.PretRedusDto,
-                            IdDimensiune = newDimensionAdded.IdDimensiune,
-                            IdProdus = productId
-                        };
-                        newDImensionsLinkedWithProducts.Add(newUpdatedDimensionLinkedWithProduct);
+                            var newUpdatedDimensionLinkedWithProduct = new ProduseCuDimensiuni
+                            {
+                                Pret = dimension.PretDto,
+                                PretRedus = dimension.PretRedusDto,
+                                IdDimensiune = newDimensionAdded.IdDimensiune,
+                                IdProdus = productId
+                            };
+                            newDImensionsLinkedWithProducts.Add(newUpdatedDimensionLinkedWithProduct);
+                        }
+
+                    
                     }
 
-                    
-                }
+                    await dimensionOnProductsRepository.AddRangeAsync(newDImensionsLinkedWithProducts);
 
-                await dimensionOnProductsRepository.AddRangeAsync(newDImensionsLinkedWithProducts);
-               
+                }
             }
             else
             {
@@ -533,14 +580,14 @@ public partial class ProductService : IProductService
             {
                 _logger.LogInformation($"No product found with cod {produseDto.CodProdusDto}");
                 Produse newProduct;
-                if (produseDto.InaltimeMaximaDto == 0 && string.Equals(produseDto.TipProdusDto , "perdea") || string.Equals(produseDto.TipProdusDto , "draperie")  )
+                if (produseDto.InaltimeMaximaDto == 0 && string.Equals(produseDto.TipProdusJsonDto.TipProdusRomana , "perdea") || string.Equals(produseDto.TipProdusJsonDto.TipProdusRomana , "draperie")  )
                 {
                     throw new DbUpdateException(
                         $"Produsul cu codul {produseDto.CodProdusDto} este o perdea/draperie si are inaltimea maxima a materialului la 0. ");
                 } 
                 
-                if (produseDto.InaltimeMaximaDto != 0 && !string.Equals(produseDto.TipProdusDto, "perdea") &&
-                          !string.Equals(produseDto.TipProdusDto, "draperie"))
+                if (produseDto.InaltimeMaximaDto != 0 && !string.Equals(produseDto.TipProdusJsonDto.TipProdusRomana, "perdea") &&
+                          !string.Equals(produseDto.TipProdusJsonDto.TipProdusRomana, "draperie"))
                 {
                     throw new DbUpdateException(
                         $"Produsul cu codul {produseDto.CodProdusDto} nu este o perdea/draperie si are inaltimea maxima o valoare diferita de 0. ");
@@ -563,16 +610,21 @@ public partial class ProductService : IProductService
                     newProduct = new Produse
                     {
                         CodProdus = produseDto.CodProdusDto!,
-                        Descriere = produseDto.DescriereDto,
-                        NumeProdus = produseDto.NumeProdusDto,
-                        Compozitie = produseDto.CompozitieDto,
+                        // Descriere = produseDto.DescriereDto,
+                        DescriereJson = produseDto.DescriereJsonDto,
+                        // NumeProdus = produseDto.NumeProdusDto,
+                        NumeProdusJson = produseDto.NumeProdusJsonDto,
+                        // Compozitie = produseDto.CompozitieDto,
+                        CompozitieJson = produseDto.CompozitieJsonDto,
                         Tva = produseDto.TvaDto,
-                        Ingrijire = produseDto.IngrijireDto,
+                        // Ingrijire = produseDto.IngrijireDto,
+                        IngrijireJson = produseDto.IngrijireJsonDto,
                         FataReversibila = produseDto.FataReversibilaDto,
                         Stoc = produseDto.StocDto,
                         IsDeleted = produseDto.IsDeletedDto,
                         ActivInMagazin = produseDto.ActivInMagazinDto,
-                        TipulProdusului = produseDto.TipProdusDto,
+                        // TipulProdusului = produseDto.TipProdusDto,
+                        TipulProdusuluiJson = produseDto.TipProdusJsonDto,
                         InaltimeMaxima = produseDto.InaltimeMaximaDto,
                         PretDeBaza = produseDto.PretBazaDto,
                         PretDeBazaRedus = produseDto.PretBazaRedusDto,
@@ -592,16 +644,21 @@ public partial class ProductService : IProductService
                     newProduct = new Produse
                     {
                         CodProdus = produseDto.CodProdusDto!,
-                        Descriere = produseDto.DescriereDto,
-                        NumeProdus = produseDto.NumeProdusDto,
-                        Compozitie = produseDto.CompozitieDto,
+                        // Descriere = produseDto.DescriereDto,
+                        DescriereJson = produseDto.DescriereJsonDto,
+                        // NumeProdus = produseDto.NumeProdusDto,
+                        NumeProdusJson = produseDto.NumeProdusJsonDto,
+                        // Compozitie = produseDto.CompozitieDto,
+                        CompozitieJson = produseDto.CompozitieJsonDto,
                         Tva = produseDto.TvaDto,
-                        Ingrijire = produseDto.IngrijireDto,
+                        // Ingrijire = produseDto.IngrijireDto,
+                        IngrijireJson = produseDto.IngrijireJsonDto,
                         FataReversibila = produseDto.FataReversibilaDto,
                         Stoc = produseDto.StocDto,
                         IsDeleted = produseDto.IsDeletedDto,
                         ActivInMagazin = produseDto.ActivInMagazinDto,
-                        TipulProdusului = produseDto.TipProdusDto,
+                        // TipulProdusului = produseDto.TipProdusDto,
+                        TipulProdusuluiJson = produseDto.TipProdusJsonDto,
                         PretDeBaza = produseDto.PretBazaDto,
                         InaltimeMaxima = produseDto.InaltimeMaximaDto,
                         PretDeBazaRedus = produseDto.PretBazaRedusDto,
@@ -759,8 +816,8 @@ public partial class ProductService : IProductService
             else
             {
                 
-                if (string.Equals(produseDto.TipProdusDto, "perdea") ||
-                    string.Equals(produseDto.TipProdusDto, "draperie"))
+                if (string.Equals(produseDto.TipProdusJsonDto.TipProdusRomana, "perdea") ||
+                    string.Equals(produseDto.TipProdusJsonDto.TipProdusRomana, "draperie"))
                 {
                     if (produseDto.InaltimeMaximaDto == 0)
                     {
@@ -818,16 +875,21 @@ public partial class ProductService : IProductService
                     var updatedProduct = new Produse
                     {
                         CodProdus = produseDto.CodProdusDto!,
-                        Descriere = produseDto.DescriereDto,
-                        NumeProdus = produseDto.NumeProdusDto,
-                        Compozitie = produseDto.CompozitieDto,
+                        // Descriere = produseDto.DescriereDto,
+                        DescriereJson = produseDto.DescriereJsonDto,
+                        // NumeProdus = produseDto.NumeProdusDto,
+                        NumeProdusJson = produseDto.NumeProdusJsonDto,
+                        // Compozitie = produseDto.CompozitieDto,
+                        CompozitieJson = produseDto.CompozitieJsonDto,
                         Tva = produseDto.TvaDto,
-                        Ingrijire = produseDto.IngrijireDto,
+                        // Ingrijire = produseDto.IngrijireDto,
+                        IngrijireJson = produseDto.IngrijireJsonDto,
                         FataReversibila = produseDto.FataReversibilaDto,
                         Stoc = produseDto.StocDto,
                         IsDeleted = produseDto.IsDeletedDto,
                         ActivInMagazin = produseDto.ActivInMagazinDto,
-                        TipulProdusului = produseDto.TipProdusDto,
+                        // TipulProdusului = produseDto.TipProdusDto,
+                        TipulProdusuluiJson = produseDto.TipProdusJsonDto,
                         PretDeBaza = produseDto.PretBazaDto,
                         InaltimeMaxima = produseDto.InaltimeMaximaDto,
                         PretDeBazaRedus = produseDto.PretBazaRedusDto,
@@ -847,18 +909,23 @@ public partial class ProductService : IProductService
                     var updatedProduct = new Produse
                     {
                         CodProdus = produseDto.CodProdusDto!,
-                        Descriere = produseDto.DescriereDto,
-                        NumeProdus = produseDto.NumeProdusDto,
-                        Compozitie = produseDto.CompozitieDto,
+                        // Descriere = produseDto.DescriereDto,
+                        DescriereJson = produseDto.DescriereJsonDto,
+                        // NumeProdus = produseDto.NumeProdusDto,
+                        NumeProdusJson = produseDto.NumeProdusJsonDto,
+                        // Compozitie = produseDto.CompozitieDto,
+                        CompozitieJson = produseDto.CompozitieJsonDto,
                         Tva = produseDto.TvaDto,
-                        Ingrijire = produseDto.IngrijireDto,
+                        // Ingrijire = produseDto.IngrijireDto,
+                        IngrijireJson = produseDto.IngrijireJsonDto,
                         FataReversibila = produseDto.FataReversibilaDto,
                         Stoc = produseDto.StocDto,
                         PretDeBaza = produseDto.PretBazaDto,
                         IsDeleted = produseDto.IsDeletedDto,
                         InaltimeMaxima = produseDto.InaltimeMaximaDto,
                         ActivInMagazin = produseDto.ActivInMagazinDto,
-                        TipulProdusului = produseDto.TipProdusDto,
+                        // TipulProdusului = produseDto.TipProdusDto,
+                        TipulProdusuluiJson = produseDto.TipProdusJsonDto,
                         IdProducator = null
                     };
                     
@@ -872,7 +939,7 @@ public partial class ProductService : IProductService
                 
 
                 var dimensionsUpdatedId = idDimensiuni.ToArray();
-                if (findProductAlreadyInDb.TipulProdusului is "draperie" or "perdea")
+                if (findProductAlreadyInDb.TipulProdusuluiJson.TipProdusRomana is "draperie" or "perdea")
                 {
                     if (dimensionsUpdatedId.Length >= 1 )
                     {
@@ -1167,9 +1234,9 @@ public partial class ProductService : IProductService
                         }
                 
                         // Extract color code
-                        var patternCode = @"X(\d{2})";
+                        const string patternCode = @"X(\d{2})";
                         string colorCode;
-                        Match matchColor = Regex.Match(updatedImageName, patternCode);
+                        var matchColor = Regex.Match(updatedImageName, patternCode);
                 
                         if (matchColor.Success)
                         {
@@ -1257,7 +1324,7 @@ public partial class ProductService : IProductService
             _logger.LogInformation("Succesfully found the product to delete the type on it");
 
             var typeToDeleteOnProduct = await typeRepository
-                .FindQueryable(t => t.Categorie == categorieProdus)
+                .FindQueryable(t => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(t.CategorieJson , "$.categorie_ro")) == categorieProdus)
                 .FirstOrDefaultAsync();
 
             if (typeToDeleteOnProduct is null)
@@ -1404,7 +1471,7 @@ public partial class ProductService : IProductService
             }
             
             var colorToDeleteOnProduct = await colorRepository
-                .FindQueryable(c => c.NumeCuloare == numeCuloare && c.IdCodCuloare == colorCodeAssociatedWithColor.IdCodCuloare)
+                .FindQueryable(c =>  EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(c.NumeCuloareJson , "$.culoare_ro")) == numeCuloare && c.IdCodCuloare == colorCodeAssociatedWithColor.IdCodCuloare)
                 .FirstOrDefaultAsync();
 
             if (colorToDeleteOnProduct is null)
@@ -1505,7 +1572,7 @@ public partial class ProductService : IProductService
             }
             
             var colorToDeleteOnProduct = await colorRepository
-                .FindQueryable(c => c.NumeCuloare == numeCuloare && c.IdCodCuloare == colorCodeAssociatedWithColor.IdCodCuloare)
+                .FindQueryable(c => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(c.NumeCuloareJson , "$.culoare_ro")) == numeCuloare && c.IdCodCuloare == colorCodeAssociatedWithColor.IdCodCuloare)
                 .FirstOrDefaultAsync();
 
             if (colorToDeleteOnProduct is null)
@@ -1620,7 +1687,20 @@ public partial class ProductService : IProductService
 
             var productsToDelete = await productRepository
                 .FindQueryable(p => stringCollection.Contains(p.CodProdus))
+                .Include(p => p.ComenziProduse)
                 .ToListAsync();
+
+            var productsToDeleteFromDb = productsToDelete
+                .Select(a => a)
+                .Where(p => p.ComenziProduse.IsNullOrEmpty())
+                .ToList();
+            
+            var productsToSoftDeleteFromDb = productsToDelete
+                .Select(a => a)
+                .Where(p => !p.ComenziProduse.IsNullOrEmpty())
+                .ToList();
+            
+            
 
             var isAnyProductLocked = productsToDelete.Any(p => p.IsLocked);
 
@@ -1629,17 +1709,22 @@ public partial class ProductService : IProductService
                 throw new DbUpdateException($"One of the product is locked . Cannot delete anything");
             }
 
-            if (!productsToDelete.IsNullOrEmpty())
+            if (!productsToDeleteFromDb.IsNullOrEmpty())
             {
-                foreach (var produs in productsToDelete)
+                await productRepository.DeleteRangeAsync(productsToDeleteFromDb);
+            }
+
+            if (!productsToSoftDeleteFromDb.IsNullOrEmpty())
+            {
+                foreach (var product in productsToSoftDeleteFromDb)
                 {
-                    produs.IsDeleted = true;
-                    produs.ActivInMagazin = false;
+                    product.IsDeleted = true;
+                    product.ActivInMagazin = false;
                 }
+                
+                await productRepository.UpdateRangeAsync(productsToSoftDeleteFromDb);
             }
             
-            await productRepository.UpdateRangeAsync(productsToDelete);
-
             // Commit the transaction
             await _unitOfWork.CommitTransactionAsync(deletingTransaction);
             return 1;
@@ -1710,7 +1795,7 @@ public partial class ProductService : IProductService
     }
 
     
-
+    // DE MODIFICAT DE AICI IN JOS 
     public async Task<ProductOptionsForComboBox?> GetProductTypes()
     {
         var manuFacturersDto = await _unitOfWork.Repository<Producatori>()
@@ -1719,15 +1804,29 @@ public partial class ProductService : IProductService
             .Select(prod => prod.Key)
             .ToListAsync();
         
-        var productCategories = await _unitOfWork.Repository<TipuriProduse>()
+        // var productCategories = await _unitOfWork.Repository<TipuriProduse>()
+        //     .GetSimpleQueryable()
+        //     .GroupBy(tip => tip.Categorie)
+        //     .Select(g => g.Key)
+        //     .ToListAsync();
+        
+        // JSON
+        var productCategoriesJson = await _unitOfWork.Repository<TipuriProduse>()
             .GetSimpleQueryable()
-            .GroupBy(tip => tip.Categorie)
+            .GroupBy(tip => tip.CategorieJson)
             .Select(g => g.Key)
             .ToListAsync();
         
-        var colors = await _unitOfWork.Repository<Culori>()
+        // var colors = await _unitOfWork.Repository<Culori>()
+        //     .GetSimpleQueryable()
+        //     .GroupBy(culoare => culoare.NumeCuloare)
+        //     .Select(g => g.Key)
+        //     .ToListAsync();
+        //
+        // JSON
+        var colorsJson = await _unitOfWork.Repository<Culori>()
             .GetSimpleQueryable()
-            .GroupBy(culoare => culoare.NumeCuloare)
+            .GroupBy(culoare => culoare.NumeCuloareJson)
             .Select(g => g.Key)
             .ToListAsync();
     
@@ -1755,9 +1854,16 @@ public partial class ProductService : IProductService
             .Select(g => g.Key)
             .ToListAsync();
 
-        var productTypes = await _unitOfWork.Repository<Produse>()
+        // var productTypes = await _unitOfWork.Repository<Produse>()
+        //     .GetSimpleQueryable()
+        //     .GroupBy(types => types.TipulProdusului)
+        //     .Select(g => g.Key)
+        //     .ToListAsync();
+        //
+        // JSON
+        var productTypesJson = await _unitOfWork.Repository<Produse>()
             .GetSimpleQueryable()
-            .GroupBy(types => types.TipulProdusului)
+            .GroupBy(types => types.TipulProdusuluiJson)
             .Select(g => g.Key)
             .ToListAsync();
 
@@ -1766,15 +1872,18 @@ public partial class ProductService : IProductService
     
         var productOptions = new ProductOptionsForComboBox
         {
-            ProductCategoriesForBox = productCategories,
+            // ProductCategoriesForBox = productCategories,
+            ProductCategoriesForBoxJson = productCategoriesJson,
             LatimiForBox = widths,
             LungimiForBox = heights,
             RecomandariForBox = bedRecommendations,
             CoduriCuloriForBox = colorCodes,
-            CuloriForBox = colors,
+            // CuloriForBox = colors,
+            CuloriForBoxJson = colorsJson,
             DirectoriesInBucket = directoriesInS3Bucket!,
             ManuFacturersDto = manuFacturersDto,
-            ProductTypes = productTypes
+            // ProductTypes = productTypes,
+            ProductTypesJson = productTypesJson
         };
     
         return productOptions;
@@ -1787,8 +1896,9 @@ public partial class ProductService : IProductService
         var namesOfProducts = await productsRepository.GetSimpleQueryable()
             .Select(p => new ProductInfo
             {
-                NumeProdus = p.NumeProdus!,
-                CodProdus = p.CodProdus
+                NumeProdus = p.NumeProdusJson.NumeRomana!,
+                CodProdus = p.CodProdus,
+                NumeProdusJson = p.NumeProdusJson
             })
             .ToListAsync();
          
@@ -1799,42 +1909,68 @@ public partial class ProductService : IProductService
     public async Task<ProductTypesAndSubCategories> GetProductTypesAndSubCategories()
     {
         
-        var productTypes = await _cache.GetOrCreateAsync("productTypes", async entry =>
+        // var productTypes = await _cache.GetOrCreateAsync("productTypes", async entry =>
+        // {
+        //     entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
+        //     var productTypes = await _unitOfWork.Repository<Produse>()
+        //         .GetSimpleQueryable()
+        //         .GroupBy(types => types.TipulProdusului)
+        //         .Select(g => g.Key)
+        //         .ToListAsync();
+        //
+        //     return productTypes;
+        // });
+        
+        // JSON
+        var productTypesJson = await _cache.GetOrCreateAsync("productTypesJson", async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
-            var productTypes = await _unitOfWork.Repository<Produse>()
+            var productTypesJsonLocal = await _unitOfWork.Repository<Produse>()
                 .GetSimpleQueryable()
-                .GroupBy(types => types.TipulProdusului)
+                .GroupBy(types => types.TipulProdusuluiJson)
                 .Select(g => g.Key)
                 .ToListAsync();
 
-            return productTypes;
-
+            return productTypesJsonLocal;
         });
 
-        var productCategories = await _cache.GetOrCreateAsync("productCategories", async entry =>
-        {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
-            var productCategories = await _unitOfWork.Repository<TipuriProduse>()
-                .GetSimpleQueryable()
-                .GroupBy(tip => tip.Categorie)
-                .Select(g => g.Key)
-                .ToListAsync();
-
-            return productCategories;
-        });
+        // var productCategories = await _cache.GetOrCreateAsync("productCategories", async entry =>
+        // {
+        //     entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
+        //     var productCategories = await _unitOfWork.Repository<TipuriProduse>()
+        //         .GetSimpleQueryable()
+        //         .GroupBy(tip => tip.Categorie)
+        //         .Select(g => g.Key)
+        //         .ToListAsync();
+        //
+        //     return productCategories;
+        // });
+        //
+        // var productCategoriesJson = await _cache.GetOrCreateAsync("productCategoriesJson", async entry =>
+        // {
+        //     entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
+        //     var productCategoriesJsonLocal = await _unitOfWork.Repository<TipuriProduse>()
+        //         .GetSimpleQueryable()
+        //         .GroupBy(tip => tip.CategorieJson)
+        //         .Select(g => g.Key)
+        //         .ToListAsync();
+        //
+        //     return productCategoriesJsonLocal;
+        // });
 
         return new ProductTypesAndSubCategories
         {
-            ProductTypes = productTypes!,
-            Categories = productCategories!
+            // ProductTypes = productTypes!,
+            // Categories = productCategories!,
+            // CategoriesJson = productCategoriesJson!,
+            ProductTypesJson = productTypesJson!
         };
 
 
     }
 
     public async Task<IList<ProductsListingForUsers>> GetProductsForUsers(
-        int? pageNumber, List<string>? productTypes, List<string>? productColors,
+        int? pageNumber, List<string>? productTypes,List<string>? productCategories ,List<string>? productColors,
         List<string>? productDimensions, List<decimal>? productPrices, bool? reverseFace,
         string currency = "RON")
     {
@@ -1843,40 +1979,25 @@ public partial class ProductService : IProductService
         if (!productTypes.IsNullOrEmpty())
         {
             productTypes = productTypes!.Where(type => onlyLettersAndSpacesBetween.IsMatch(type)).ToList();
-            foreach (var type in productTypes)
-            {
-                _logger.LogInformation(type);
-            }
+        }
+        if (!productCategories.IsNullOrEmpty())
+        {
+            productCategories = productCategories!.Where(type => onlyLettersAndSpacesBetween.IsMatch(type)).ToList();
         }
         if (!productColors.IsNullOrEmpty())
         {
             productColors = productColors!.Where(color => onlyLettersAndSpacesBetween.IsMatch(color)).ToList();
-            foreach (var type in productColors)
-            {
-                _logger.LogInformation(type);
-            }
         }
         if (!productDimensions.IsNullOrEmpty())
         {
             productDimensions = productDimensions!.Where(dimension => onlyLettersAndSpacesBetween.IsMatch(dimension)).ToList();
-            foreach (var type in productDimensions)
-            {
-                _logger.LogInformation(type);
-            }
         }
         if (!productPrices.IsNullOrEmpty())
         {
-           
-            productPrices = productPrices!.Where(price => onlyNumbers.IsMatch(price.ToString())).ToList();
-            foreach (var type in productPrices)
-            {
-                _logger.LogInformation($"{type}");
-            }
+           productPrices = productPrices!.Where(price => onlyNumbers.IsMatch(price.ToString())).ToList();
         }
         
-        _logger.LogInformation($"REVERSE FACE : {reverseFace}");
-
-
+        
         if (currency == "EUR")
         {
             productPrices![0] = UserHelpers.ConvertCurrency("RON", "EUR", productPrices[0], 0);
@@ -1896,9 +2017,11 @@ public partial class ProductService : IProductService
                 .ThenInclude(p => p.ImagProduseCuCulori)
             .Include(p => p.PProduseCuDimensiuni!)
                 .ThenInclude(p => p.PdDimensiune)
-            .Where(product => productTypes.IsNullOrEmpty() || productTypes!.Contains(product.TipulProdusului.Trim().ToUpper()))
+            .Where(product => productTypes.IsNullOrEmpty() || productTypes!.Contains(EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(product.TipulProdusuluiJson , "$.tip_ro")).Trim()))
             .Where(product => productColors.IsNullOrEmpty() || 
-                              product.PProduseCuCulori!.Any(culoare => productColors!.Contains(culoare.Culoare.NumeCuloare.Trim().ToUpper())))
+                              product.PProduseCuCulori!.Any(culoare => productColors!.Contains(EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(culoare.Culoare.NumeCuloareJson , "$.culoare_ro")).Trim())))
+            .Where(product => productCategories.IsNullOrEmpty() || 
+                              product.PTipuriPeProduse!.Any(tip => productCategories!.Contains(EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(tip.TppTipProdus.CategorieJson , "$.categorie_ro")).Trim())))
             .Where(product =>
                 productDimensions.IsNullOrEmpty() || 
                 product.PProduseCuDimensiuni!.Count == 0 ||
@@ -1915,16 +2038,16 @@ public partial class ProductService : IProductService
                                   ? product.PProduseCuDimensiuni!.Any(dimension =>
                                       currency == "EUR" 
                                           ? dimension.PretRedus != 0 
-                                              ? dimension.PretRedus * (decimal)0.2 >= Convert.ToDecimal(productPrices![0]) && dimension.PretRedus <= Convert.ToDecimal(productPrices[1])
-                                              : dimension.Pret * (decimal)0.2 >= Convert.ToDecimal(productPrices![0]) && dimension.Pret <= Convert.ToDecimal(productPrices[1])
+                                              ? dimension.PretRedus * (decimal)0.2 >= Convert.ToDecimal(productPrices![0]) && dimension.PretRedus  * (decimal)0.2  <= Convert.ToDecimal(productPrices[1])
+                                              : dimension.Pret * (decimal)0.2 >= Convert.ToDecimal(productPrices![0]) && dimension.Pret * (decimal)0.2 <= Convert.ToDecimal(productPrices[1])
                                           : dimension.PretRedus != 0 
                                               ? dimension.PretRedus  >= Convert.ToDecimal(productPrices![0]) && dimension.PretRedus <= Convert.ToDecimal(productPrices[1])
                                               : dimension.Pret  >= Convert.ToDecimal(productPrices![0]) && dimension.Pret <= Convert.ToDecimal(productPrices[1])
                                   )
                                   : currency == "EUR" 
                                       ? product.PretDeBazaRedus > 0 
-                                          ? product.PretDeBazaRedus * (decimal)0.2 >= Convert.ToDecimal(productPrices![0]) && product.PretDeBazaRedus <= Convert.ToDecimal(productPrices[1])
-                                          : product.PretDeBaza * (decimal)0.2 >= Convert.ToDecimal(productPrices![0]) && product.PretDeBaza <= Convert.ToDecimal(productPrices[1]) 
+                                          ? product.PretDeBazaRedus * (decimal)0.2 >= Convert.ToDecimal(productPrices![0]) && product.PretDeBazaRedus  * (decimal)0.2 <= Convert.ToDecimal(productPrices[1])
+                                          : product.PretDeBaza * (decimal)0.2 >= Convert.ToDecimal(productPrices![0]) && product.PretDeBaza * (decimal)0.2 <= Convert.ToDecimal(productPrices[1]) 
                                       : product.PretDeBazaRedus > 0 
                                           ? product.PretDeBazaRedus >= Convert.ToDecimal(productPrices![0]) && product.PretDeBazaRedus <= Convert.ToDecimal(productPrices[1])
                                           : product.PretDeBaza >= Convert.ToDecimal(productPrices![0]) && product.PretDeBaza <= Convert.ToDecimal(productPrices[1]) 
@@ -1936,14 +2059,16 @@ public partial class ProductService : IProductService
         var totalProductsFiltered = await mainQuery.CountAsync();
 
         var takePaginatedProducts = await mainQuery
-        .OrderBy(product => product.TipulProdusului)
+        .OrderBy(product => product.TipulProdusuluiJson)
         .Skip((pageNumber ?? 0) * PageSize)
         .Take(PageSize)
         .Select(product => new ProductsListingForUsers
         {
             CodProdusDto = product.CodProdus,
-            NumeProdusDto = product.NumeProdus!,
-            TipulProdusuluiDto = product.TipulProdusului,
+            NumeProdusDto = currency == "RON" ?  product.NumeProdusJson.NumeRomana : product.NumeProdusJson.NumeEngleza ,
+            // NumeProdusJsonDto = product.NumeProdusJson,
+            TipulProdusuluiDto = currency == "RON" ?  product.TipulProdusuluiJson.TipProdusRomana : product.TipulProdusuluiJson.TipProdusEngleza ,
+            // TipulProdusuluiJsonDto = product.TipulProdusuluiJson,
             PretBazaDto = currency == "EUR" ? UserHelpers.ConvertCurrency("RON" , "EUR" ,product.PretDeBaza , 0 ) : product.PretDeBaza,
             PretBazaRedusDto = currency == "EUR" ? UserHelpers.ConvertCurrency("RON" , "EUR" , product.PretDeBazaRedus , 0 ) : product.PretDeBazaRedus,
             DimensiuniProduseDto = product.PProduseCuDimensiuni!
@@ -1960,7 +2085,7 @@ public partial class ProductService : IProductService
             CuloriProdusDto = product.PProduseCuCulori!
                 .Select( culori => new ColorsWithImages
                 {
-                    NumeCuloareDto = culori.Culoare.NumeCuloare,
+                    NumeCuloareDto = currency == "RON" ?  culori.Culoare.NumeCuloareJson.CuloareRomana :  culori.Culoare.NumeCuloareJson.CuloareEngleza ,
                     ImaginiProdusDto = culori.ImagProduseCuCulori!
                         .Select( image => new ImagesDtoForUsers
                         {
@@ -2003,17 +2128,34 @@ public partial class ProductService : IProductService
     
     public async Task<ProductsFilterOptions> FilterOptions(string currency = "RON")
     {
-        var productTypes = await _unitOfWork.Repository<Produse>()
+        // var productTypes = await _unitOfWork.Repository<Produse>()
+        //     .GetSimpleQueryable()
+        //     .GroupBy(types => types.TipulProdusului)
+        //     .Select(g => g.Key.ToUpper())
+        //     .ToListAsync();
+        
+        var productTypesJson = await _unitOfWork.Repository<Produse>()
             .GetSimpleQueryable()
-            .GroupBy(types => types.TipulProdusului)
-            .Select(g => g.Key.ToUpper())
+            .GroupBy(types => types.TipulProdusuluiJson)
+            .Select(g => g.Key)
             .ToListAsync();
         
+        // var colors = await _unitOfWork.Repository<Culori>()
+        //     .GetSimpleQueryable()
+        //     .GroupBy(culoare => culoare.NumeCuloare)
+        //     .Select(g => g.Key.ToUpper())
+        //     .ToListAsync();
         
-        var colors = await _unitOfWork.Repository<Culori>()
+        var colorsJson = await _unitOfWork.Repository<Culori>()
             .GetSimpleQueryable()
-            .GroupBy(culoare => culoare.NumeCuloare)
-            .Select(g => g.Key.ToUpper())
+            .GroupBy(culoare => culoare.NumeCuloareJson)
+            .Select(g => g.Key)
+            .ToListAsync();
+
+        var categoriesJson = await _unitOfWork.Repository<TipuriProduse>()
+            .GetSimpleQueryable()
+            .GroupBy(category => category.CategorieJson)
+            .Select(g => g.Key)
             .ToListAsync();
         
         
@@ -2033,9 +2175,13 @@ public partial class ProductService : IProductService
 
         return new ProductsFilterOptions
         {
-            FilterColors = colors.ToImmutableHashSet(),
-            FilterProductTypes = productTypes.ToImmutableHashSet(),
-            PricesRange = pricesRange.ToImmutableHashSet()
+            // FilterColors = colors.ToImmutableHashSet(),
+            // FilterProductTypes = productTypes.ToImmutableHashSet(),
+            FilterColorsJson = colorsJson.ToImmutableHashSet(),
+            FilterProductTypesJson = productTypesJson.ToImmutableHashSet(),
+            FilterProductCategoriesJson = categoriesJson.ToImmutableHashSet(),
+            PricesRange = pricesRange.ToImmutableHashSet(),
+
         };
     }
 
@@ -2056,7 +2202,7 @@ public partial class ProductService : IProductService
                     entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
 
                     // If cache does not exist, run the retrieval and mapping logic
-                    var rings = await ringTypesRepository.FindQueryable(ring => ring.CuloareInel != "STAN" && ring.IsDeleted == false).ToListAsync();
+                    var rings = await ringTypesRepository.FindQueryable(ring => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(ring.CuloareInelJson , "$.culoare_ro")) != "STAN" && ring.IsDeleted == false).ToListAsync();
                     var mappedRings = rings.IsNullOrEmpty() ? new List<TipIneleDto>() : _mapper.Map<IList<TipIneleDto>>(rings);
 
                     // Generate presigned URLs for each ring type
@@ -2076,7 +2222,7 @@ public partial class ProductService : IProductService
                 {
                     entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
                     var rejansaRepository = _unitOfWork.Repository<TipuriGalerie>();
-                    var rejanse = await rejansaRepository.FindQueryable(gallery => gallery.NumeTipGalerie != "STAN" && gallery.IsDeleted == false).ToListAsync();
+                    var rejanse = await rejansaRepository.FindQueryable(gallery => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(gallery.NumeTipGalerieJson , "$.nume_ro")) != "STAN" && gallery.IsDeleted == false).ToListAsync();
                     var mappedRejanse = rejanse.IsNullOrEmpty() ? new List<TipRejansaDto>() : _mapper.Map<IList<TipRejansaDto>>(rejanse);
 
                     var rejansaTasks = mappedRejanse.Select(async rejansa =>
@@ -2098,7 +2244,7 @@ public partial class ProductService : IProductService
                 {
                     entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
                     var liningTypesRepository = _unitOfWork.Repository<TipuriLinie>();
-                    var linings = await liningTypesRepository.FindQueryable(lineType => lineType.NumeTipLinie != "STAN" && lineType.IsDeleted == false).ToListAsync();;
+                    var linings = await liningTypesRepository.FindQueryable(lineType => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(lineType.NumeTipLinieJson , "$.nume_ro")) != "STAN" && lineType.IsDeleted == false).ToListAsync();;
                     var mappedLinings = linings.IsNullOrEmpty() ? new List<TipLinieDto>() : _mapper.Map<IList<TipLinieDto>>(linings);
 
                     var liningTasks = mappedLinings.Select(async lineType =>
@@ -2126,20 +2272,21 @@ public partial class ProductService : IProductService
                     .Include(p => p.PTipuriPeProduse)
                     .Include(p => p.ProductReviews)
                     .Where(product => product.CodProdus == codProdus.ToUpper() 
-                                      && product.TipulProdusului == tipProdus.ToLower()
+                                      && EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(product.TipulProdusuluiJson , "$.tip_ro")) == tipProdus.ToLower()
                                       && !product.IsDeleted
                                       && product.ActivInMagazin)
                     .Select(product => new ProductPageForUser
                     {
                         IdProdus = product.IdProdus,
                         CodProdusDto = product.CodProdus,
-                        DescriereDto = product.Descriere,
-                        NumeProdusDto = product.NumeProdus,
-                        CompozitieDto = product.Compozitie,
+                        DescriereDto = currency == "RON" ?  product.DescriereJson!.DescriereRomana : product.DescriereJson!.DescriereEngleza,
+                        NumeProdusDto = currency == "RON" ?  product.NumeProdusJson.NumeRomana : product.NumeProdusJson.NumeEngleza,
+                        CompozitieDto = currency == "RON" ?  product.CompozitieJson!.CompozitieRomana : product.CompozitieJson!.CompozitieEngleza,
                         TvaDto = product.Tva,
-                        IngrijireDto = product.Ingrijire,
+                        IngrijireDto = currency == "RON" ?  product.IngrijireJson!.IngrijireRomana: product.IngrijireJson!.IngrijireEngleza,
                         FataReversibilaDto = product.FataReversibila,
-                        TipulProdusuluiDto = product.TipulProdusului,
+                        TipulProdusuluiDto =  currency == "RON" ?  product.TipulProdusuluiJson.TipProdusRomana : product.TipulProdusuluiJson.TipProdusEngleza ,
+                        TipulProdusuluiJsonDto =  product.TipulProdusuluiJson ,
                         NumeProducatorDto = product.Producator == null ? null : product.Producator.NumeProducator,
                         PretBazaDto = currency == "EUR" ? UserHelpers.ConvertCurrency("RON" , "EUR" ,product.PretDeBaza , 0 ) : product.PretDeBaza,
                         PretBazaRedusDto = currency == "EUR" ? UserHelpers.ConvertCurrency("RON" , "EUR" , product.PretDeBazaRedus , 0 ) : product.PretDeBazaRedus,
@@ -2151,7 +2298,8 @@ public partial class ProductService : IProductService
                             .Select(pc => new CuloriDto
                             {
                                 IdCuloare = pc.IdCuloare,
-                                NumeCuloareDto = pc.Culoare.NumeCuloare,
+                                NumeCuloareDto = currency == "RON" ?  pc.Culoare.NumeCuloareJson.CuloareRomana :  pc.Culoare.NumeCuloareJson.CuloareEngleza,
+                                NumeCuloareJsonDto = pc.Culoare.NumeCuloareJson,
                                 CodCuloareDto = pc.Culoare.CodCuloare.CodCuloare!,
                                 JustAdded = false,
                                 ImaginiProdusDto = pc.ImagProduseCuCulori != null 
@@ -2173,9 +2321,13 @@ public partial class ProductService : IProductService
                                 PrenumeClient = reviews.Cont.Prenume,
                                 UsernameContClient = reviews.Cont.Username!,
                             }).ToList(),
-                        CategoriiProdus = product.PTipuriPeProduse!
-                            .Select(type => type.TppTipProdus.Categorie)
-                            .ToList(),
+                        CategoriiProdus = currency == "RON"
+                            ? product.PTipuriPeProduse!
+                                .Select(type => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(type.TppTipProdus.CategorieJson , "$.categorie_ro")))
+                                .ToList()
+                            : product.PTipuriPeProduse!
+                                .Select(type => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(type.TppTipProdus.CategorieJson , "$.categorie_en")))
+                                .ToList(),
                         ReviewsGeneral = new ReviewsInfo
                         {
                             TotalReviews = product.ProductReviews!.Count,
@@ -2220,7 +2372,7 @@ public partial class ProductService : IProductService
                     .Include(p => p.PTipuriPeProduse)
                     .Include(p => p.ProductReviews)
                     .Where(product => product.CodProdus == codProdus.ToUpper() 
-                                                  && product.TipulProdusului == tipProdus.ToLower() 
+                                                  && EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(product.TipulProdusuluiJson , "$.tip_ro")) == tipProdus.ToLower()
                                                   && !product.IsDeleted
                                                   && product.ActivInMagazin
                                       )
@@ -2228,13 +2380,14 @@ public partial class ProductService : IProductService
                     {
                         IdProdus = product.IdProdus,
                         CodProdusDto = product.CodProdus,
-                        DescriereDto = product.Descriere,
-                        NumeProdusDto = product.NumeProdus,
-                        CompozitieDto = product.Compozitie,
+                        DescriereDto = currency == "RON" ?  product.DescriereJson!.DescriereRomana : product.DescriereJson!.DescriereEngleza,
+                        NumeProdusDto = currency == "RON" ?  product.NumeProdusJson.NumeRomana : product.NumeProdusJson.NumeEngleza,
+                        CompozitieDto = currency == "RON" ?  product.CompozitieJson!.CompozitieRomana : product.CompozitieJson!.CompozitieEngleza,
                         TvaDto = product.Tva,
-                        IngrijireDto = product.Ingrijire,
+                        IngrijireDto = currency == "RON" ?  product.IngrijireJson!.IngrijireRomana: product.IngrijireJson!.IngrijireEngleza,
                         FataReversibilaDto = product.FataReversibila,
-                        TipulProdusuluiDto = product.TipulProdusului,
+                        TipulProdusuluiDto =  currency == "RON" ?  product.TipulProdusuluiJson.TipProdusRomana : product.TipulProdusuluiJson.TipProdusEngleza ,
+                        TipulProdusuluiJsonDto =  product.TipulProdusuluiJson ,
                         InaltimeMaximaDto = product.InaltimeMaxima,
                         NumeProducatorDto = product.Producator == null ? null : product.Producator.NumeProducator,
                         PretBazaDto = currency == "EUR" ? UserHelpers.ConvertCurrency("RON" , "EUR" ,product.PretDeBaza , 0 ) : product.PretDeBaza,
@@ -2255,7 +2408,8 @@ public partial class ProductService : IProductService
                             .Select(pc => new CuloriDto
                             {
                                 IdCuloare = pc.IdCuloare,
-                                NumeCuloareDto = pc.Culoare.NumeCuloare,
+                                NumeCuloareDto = currency == "RON" ?  pc.Culoare.NumeCuloareJson.CuloareRomana :  pc.Culoare.NumeCuloareJson.CuloareEngleza,    
+                                NumeCuloareJsonDto = pc.Culoare.NumeCuloareJson,
                                 CodCuloareDto = pc.Culoare.CodCuloare.CodCuloare!,
                                 JustAdded = false,
                                 ImaginiProdusDto = pc.ImagProduseCuCulori != null 
@@ -2279,9 +2433,13 @@ public partial class ProductService : IProductService
                                 PrenumeClient = reviews.Cont.Prenume,
                                 UsernameContClient = reviews.Cont.Username!,
                             }).ToList(),
-                        CategoriiProdus = product.PTipuriPeProduse!
-                        .Select(type => type.TppTipProdus.Categorie)
-                        .ToList(),
+                        CategoriiProdus = currency == "RON"
+                            ? product.PTipuriPeProduse!
+                                .Select(type => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(type.TppTipProdus.CategorieJson , "$.categorie_ro")))
+                                .ToList()
+                            : product.PTipuriPeProduse!
+                                .Select(type => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(type.TppTipProdus.CategorieJson , "$.categorie_en")))
+                                .ToList(),
                         ReviewsGeneral = new ReviewsInfo
                         {
                             TotalReviews = product.ProductReviews!.Count,
@@ -2428,8 +2586,10 @@ public partial class ProductService : IProductService
                 .Select(p => new MostViewedProduct
                 {
                     CodProdusDto = p.CodProdus,
-                    NumeProdusDto = p.NumeProdus!,
-                    TipulProdusuluiDto = p.TipulProdusului,
+                    NumeProdusDto = currency == "RON" ?  p.NumeProdusJson.NumeRomana : p.NumeProdusJson.NumeEngleza,
+                    // NumeProdusJsonDto = p.NumeProdusJson,
+                    TipulProdusuluiDto = currency == "RON" ?  p.TipulProdusuluiJson.TipProdusRomana : p.TipulProdusuluiJson.TipProdusEngleza,
+                    TipulProdusuluiJsonDto = p.TipulProdusuluiJson,
                     PretBazaDto = currency == "RON"
                         ? p.PProduseCuDimensiuni!.Count == 0
                             ? p.PretDeBaza
@@ -2449,7 +2609,24 @@ public partial class ProductService : IProductService
                         .Take(1)
                         .Select(culori => new ColorsWithImages
                         {
-                            NumeCuloareDto = culori.Culoare.NumeCuloare,
+                            NumeCuloareDto = currency == "RON" ?  culori.Culoare.NumeCuloareJson.CuloareRomana :  culori.Culoare.NumeCuloareJson.CuloareEngleza,
+                            ImaginiProdusDto = culori.ImagProduseCuCulori!
+                                .OrderBy(image => image.CaleImagine) 
+                                .Take(1)
+                                .Select(image => new ImagesDtoForUsers
+                                {
+                                    CaleImagineDto = image.CaleImagine ?? "",
+                                    FisierInBucketDto = image.FisierInBucket,
+                                    PresignedUrl = null
+                                }).ToList()
+                        }).ToList(),
+                    CuloriProdusJsonDto = p.PProduseCuCulori!
+                        .Where(pc => pc.ImagProduseCuCulori!.Count > 0)
+                        .Take(1)
+                        .Select(culori => new ColorsWithImages
+                        {
+                            NumeCuloareJsonDto = culori.Culoare.NumeCuloareJson,
+                            // NumeCuloareDto = culori.Culoare.NumeCuloare,
                             ImaginiProdusDto = culori.ImagProduseCuCulori!
                                 .OrderBy(image => image.CaleImagine) 
                                 .Take(1)
@@ -2487,7 +2664,7 @@ public partial class ProductService : IProductService
 
     public async Task<IList<MostViewedProduct>> GetProductsThatAreNew(string currency = "RON")
     {
-        
+       
         var getNewProducts = await _cache.GetOrCreateAsync($"newProducts_{currency}", async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30);
@@ -2499,8 +2676,10 @@ public partial class ProductService : IProductService
                 .Select(p => new MostViewedProduct
                 {
                     CodProdusDto = p.CodProdus,
-                    NumeProdusDto = p.NumeProdus!,
-                    TipulProdusuluiDto = p.TipulProdusului,
+                    NumeProdusDto = currency == "RON" ?  p.NumeProdusJson.NumeRomana : p.NumeProdusJson.NumeEngleza,
+                    // NumeProdusJsonDto = p.NumeProdusJson,
+                    TipulProdusuluiDto = currency == "RON" ?  p.TipulProdusuluiJson.TipProdusRomana : p.TipulProdusuluiJson.TipProdusEngleza,
+                    // TipulProdusuluiJsonDto = p.TipulProdusuluiJson,
                     PretBazaDto = currency == "RON"
                         ? p.PProduseCuDimensiuni!.Count == 0
                             ? p.PretDeBaza
@@ -2520,7 +2699,7 @@ public partial class ProductService : IProductService
                         .Take(1)
                         .Select(culori => new ColorsWithImages
                         {
-                            NumeCuloareDto = culori.Culoare.NumeCuloare,
+                            NumeCuloareDto = currency == "RON" ?  culori.Culoare.NumeCuloareJson.CuloareRomana :  culori.Culoare.NumeCuloareJson.CuloareEngleza,
                             ImaginiProdusDto = culori.ImagProduseCuCulori!
                                 .OrderBy(image => image.CaleImagine)
                                 .Take(1)
@@ -2530,7 +2709,24 @@ public partial class ProductService : IProductService
                                     FisierInBucketDto = image.FisierInBucket,
                                     PresignedUrl = null
                                 }).ToList()
-                        }).ToList()
+                        }).ToList(),
+                    // CuloriProdusJsonDto = p.PProduseCuCulori!
+                    //     .Where(pc => pc.ImagProduseCuCulori!.Count > 0)
+                    //     .Take(1)
+                    //     .Select(culori => new ColorsWithImages
+                    //     {
+                    //         NumeCuloareJsonDto = culori.Culoare.NumeCuloareJson,
+                    //         NumeCuloareDto = culori.Culoare.NumeCuloare,
+                    //         ImaginiProdusDto = culori.ImagProduseCuCulori!
+                    //             .OrderBy(image => image.CaleImagine) 
+                    //             .Take(1)
+                    //             .Select(image => new ImagesDtoForUsers
+                    //             {
+                    //                 CaleImagineDto = image.CaleImagine ?? "",
+                    //                 FisierInBucketDto = image.FisierInBucket,
+                    //                 PresignedUrl = null
+                    //             }).ToList()
+                    //     }).ToList()
                 })
                 .AsSplitQuery()
                 .ToListAsync();
@@ -2571,8 +2767,10 @@ public partial class ProductService : IProductService
                 .Select(p => new MostViewedProduct
                 {
                     CodProdusDto = p.CodProdus,
-                    NumeProdusDto = p.NumeProdus!,
-                    TipulProdusuluiDto = p.TipulProdusului,
+                    NumeProdusDto = currency == "RON" ?  p.NumeProdusJson.NumeRomana : p.NumeProdusJson.NumeEngleza,
+                    // NumeProdusJsonDto = p.NumeProdusJson,
+                    TipulProdusuluiDto = currency == "RON" ?  p.TipulProdusuluiJson.TipProdusRomana : p.TipulProdusuluiJson.TipProdusEngleza,
+                    // TipulProdusuluiJsonDto = p.TipulProdusuluiJson,
                     PretBazaDto = currency == "RON"
                         ? p.PProduseCuDimensiuni!.Count == 0
                             ? p.PretDeBaza 
@@ -2592,7 +2790,7 @@ public partial class ProductService : IProductService
                         .Take(1)
                         .Select(culori => new ColorsWithImages
                         {
-                            NumeCuloareDto = culori.Culoare.NumeCuloare,
+                            NumeCuloareDto = currency == "RON" ?  culori.Culoare.NumeCuloareJson.CuloareRomana :  culori.Culoare.NumeCuloareJson.CuloareEngleza,
                             ImaginiProdusDto = culori.ImagProduseCuCulori!
                                 .OrderBy(image => image.CaleImagine)
                                 .Take(1)
@@ -2602,7 +2800,24 @@ public partial class ProductService : IProductService
                                     FisierInBucketDto = image.FisierInBucket,
                                     PresignedUrl = null
                                 }).ToList()
-                        }).ToList()
+                        }).ToList(),
+                    // CuloriProdusJsonDto = p.PProduseCuCulori!
+                    //     .Where(pc => pc.ImagProduseCuCulori!.Count > 0)
+                    //     .Take(1)
+                    //     .Select(culori => new ColorsWithImages
+                    //     {
+                    //         NumeCuloareJsonDto = culori.Culoare.NumeCuloareJson,
+                    //         NumeCuloareDto = culori.Culoare.NumeCuloare,
+                    //         ImaginiProdusDto = culori.ImagProduseCuCulori!
+                    //             .OrderBy(image => image.CaleImagine) 
+                    //             .Take(1)
+                    //             .Select(image => new ImagesDtoForUsers
+                    //             {
+                    //                 CaleImagineDto = image.CaleImagine ?? "",
+                    //                 FisierInBucketDto = image.FisierInBucket,
+                    //                 PresignedUrl = null
+                    //             }).ToList()
+                    //     }).ToList()
                 })
                 .AsSplitQuery()
                 .ToListAsync();
