@@ -176,9 +176,9 @@ public partial class AdminService : IAdminService
             TipulProdusuluiJsonDto = product.TipulProdusuluiJson,
             TipuriProduseDto = product.PTipuriPeProduse!.Select(tp => new TipuriProdusDto
             {
-                // CategorieDto = tp.TppTipProdus.Categorie,
                 CategorieJsonDto = tp.TppTipProdus.CategorieJson,
-                JustAdded = false
+                JustAdded = false,
+                CanDelete = true,
             }).ToList(),
             DimensiuniProduseDto = product.PProduseCuDimensiuni!.Select(pd => new DimensiuniDto
             {
@@ -188,11 +188,11 @@ public partial class AdminService : IAdminService
                 PretDto = pd.Pret,
                 PretRedusDto = pd.PretRedus,
                 PerdeaEstePerecheDto = pd.PdDimensiune!.PerdeaEstePereche,
-                JustAdded = false
+                JustAdded = false,
+                CanDelete = true,
             }).ToList(),
             CuloriProdusDto = product.PProduseCuCulori!.Select(pc => new CuloriDto
             {
-                // NumeCuloareDto = pc.Culoare.NumeCuloare,
                 NumeCuloareJsonDto = pc.Culoare.NumeCuloareJson,
                 CodCuloareDto = pc.Culoare.CodCuloare.CodCuloare!,
                 JustAdded = false,
@@ -203,8 +203,10 @@ public partial class AdminService : IAdminService
                         FisierInBucketDto = imag.FisierInBucket,
                         PresignedUrl = GetPresignedUrlFromBucket(imag.CaleImagine!,imag.FisierInBucket).Result,
                         IdProdusCuCuloareDto = pc.IdProdusCuCuloare,
+                        CanDelete = true,
                         JustAdded = false
-                    }).ToList()
+                    }).ToList(),
+                CanDelete = true,
             }).ToList()
         };
        

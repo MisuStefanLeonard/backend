@@ -161,14 +161,11 @@ public partial class ProductService : IProductService
                 var newProduct = new Produse
                 {
                     CodProdus = modifiedProduct.CodProdusDto!.ToUpper(),
-                    // Descriere = modifiedProduct.DescriereDto, 
-                    // NumeProdus = modifiedProduct.NumeProdusDto, 
                     NumeProdusJson = new Nume
                     {
                         NumeRomana = modifiedProduct.NumeProdusJsonDto.NumeRomana,
                         NumeEngleza = modifiedProduct.NumeProdusJsonDto.NumeEngleza,
                     },
-                    // Compozitie = modifiedProduct.CompozitieDto, // aici
                     CompozitieJson = new Compozitie
                     {
                         CompozitieRomana = modifiedProduct.CompozitieJsonDto!.CompozitieRomana,
@@ -180,7 +177,6 @@ public partial class ProductService : IProductService
                         DescriereEngleza =  modifiedProduct.DescriereJsonDto.DescriereEngleza
                     } : null,
                     Tva = modifiedProduct.TvaDto,
-                    // Ingrijire = modifiedProduct.IngrijireDto,
                     IngrijireJson = modifiedProduct.IngrijireJsonDto != null ? new Ingrijire()
                     {
                         IngrijireRomana = modifiedProduct.IngrijireJsonDto.IngrijireRomana,
@@ -188,7 +184,6 @@ public partial class ProductService : IProductService
                     } : null,
                     FataReversibila = modifiedProduct.FataReversibilaDto,
                     Stoc = modifiedProduct.StocDto,
-                    // TipulProdusului = modifiedProduct.TipulProdusuluiDto, // aici
                     TipulProdusuluiJson = new TipProdus
                     {
                         TipProdusRomana = modifiedProduct.TipulProdusuluiJsonDto!.TipProdusRomana,
@@ -221,19 +216,15 @@ public partial class ProductService : IProductService
                 successCodes[0] = 1;
             }
             
-            var productId = productToBeModified!.IdProdus;
+            var productId = productToBeModified.IdProdus;
 
     
     
             // Handle product types
             var typesOnProductsRepository = _unitOfWork.Repository<TipuriPeProduse>();
             var productTypesRepository = _unitOfWork.Repository<TipuriProduse>();
+            // copii , matlasate , bucatarie
             var modifiedProductTypes = modifiedProduct.TipuriProduseDto;
-
-            foreach (var item in modifiedProductTypes)
-            {
-                _logger.LogInformation($"{item.CategorieJsonDto.CategorieEngleza} / {item.CategorieJsonDto.CategorieRomana}");
-            }
             
             var allProductTypes = await productTypesRepository.GetSimpleQueryable().ToListAsync();
             var allTypesOnProducts = await typesOnProductsRepository
@@ -246,17 +237,14 @@ public partial class ProductService : IProductService
             // Step 1: Add new product types to the database if they don't exist
             foreach (var newType in modifiedProductTypes)
             {
-                _logger.LogInformation($"{newType.CategorieJsonDto.CategorieEngleza} / { newType.CategorieJsonDto.CategorieRomana}");
                 newType.CategorieJsonDto.CategorieEngleza = newType.CategorieJsonDto.CategorieEngleza.ToUpper();
                 newType.CategorieJsonDto.CategorieRomana = newType.CategorieJsonDto.CategorieRomana.ToUpper();
                 var existingType = allProductTypes.FirstOrDefault(t => 
                   t.CategorieJson.CategorieRomana == newType.CategorieJsonDto.CategorieRomana &&  
                  t.CategorieJson.CategorieEngleza == newType.CategorieJsonDto.CategorieEngleza);
-                // var existingType = allProductTypes.FirstOrDefault(t => t.Categorie == newType.CategorieDto.ToUpper());
                 if (existingType != null) continue;
                 existingType = new TipuriProduse
                 {
-                    // Categorie = newType.CategorieDto.ToUpper(),
                     CategorieJson = newType.CategorieJsonDto,
                 };
                 newProductTypes.Add(existingType);
@@ -272,8 +260,10 @@ public partial class ProductService : IProductService
             }
 
             // Step 2: Prepare the new types-on-products entries
+            
             foreach (var newType in modifiedProductTypes)
             {
+                
                 var associatedType = allProductTypes.First(t => t.CategorieJson.CategorieRomana == newType.CategorieJsonDto.CategorieRomana.ToUpper());
     
                 // Check if the type-on-product already exists
@@ -289,11 +279,22 @@ public partial class ProductService : IProductService
                     });
                 }
             }
+            
+            var oldTypesToDeleteOnProducts = (from typeOnProduct in allTypesOnProducts 
+                let existsInModified = modifiedProductTypes
+                    .Any(modType => modType.CategorieJsonDto.CategorieRomana 
+                                    == typeOnProduct.TppTipProdus.CategorieJson.CategorieRomana) 
+                where !existsInModified select typeOnProduct).ToList();
+
 
             // Step 3: Add the new types-on-products entries to the database
             if (newTypesOnProducts.Count > 0)
             {
                 await typesOnProductsRepository.AddRangeAsync(newTypesOnProducts);
+            }
+            if (oldTypesToDeleteOnProducts.Count > 0)
+            {
+                await typesOnProductsRepository.DeleteRangeAsync(oldTypesToDeleteOnProducts);
             }
 
             successCodes[1] = 1;
@@ -305,11 +306,21 @@ public partial class ProductService : IProductService
             var colorCodesRepository = _unitOfWork.Repository<CodCulori>();
             var imagesRepository = _unitOfWork.Repository<Imagini>();
             var modifiedProductColors = modifiedProduct.CuloriProdusDto;
+            var newColorsLinkedWithProductsIds = new List<int>();
+            // old entrys
+            var existingColorsOnProducts = await colorsOnProductsRepository
+                .FindQueryable(pc => pc.IdProdus == productId)
+                .Include(color => color.Culoare)
+                .ThenInclude(colorCode => colorCode.CodCuloare)
+                .Include(colorImages => colorImages.ImagProduseCuCulori)
+                .ToListAsync();
+            var oldColorLinkedWithProductEntries = new List<ProduseCuCulori>();
             
             if (!modifiedProductColors.IsNullOrEmpty())
             {
                 foreach (var color in modifiedProductColors)
                 {
+                    
                     var isCurrentUpdatedColorCodeInDb = await colorCodesRepository
                         .FindQueryable(cc => cc.CodCuloare == color.CodCuloareDto)
                         .FirstOrDefaultAsync();
@@ -321,12 +332,8 @@ public partial class ProductService : IProductService
                         await _unitOfWork.CommitAsync();
                         isCurrentUpdatedColorCodeInDb = newUpdatedColorCode;
                     }
-    
-                    // var isCurrentUpdatedColorInDb = await colorRepository
-                    //     .FindQueryable(c => c.NumeCuloare == color.NumeCuloareDto
-                    //                         && c.IdCodCuloare == isCurrentUpdatedColorCodeInDb.IdCodCuloare)
-                    //     .FirstOrDefaultAsync();
-                    
+                   
+
                     color.NumeCuloareJsonDto.CuloareRomana = color.NumeCuloareJsonDto.CuloareRomana.ToLower();
                     color.NumeCuloareJsonDto.CuloareEngleza = color.NumeCuloareJsonDto.CuloareEngleza.ToLower();
                     
@@ -340,7 +347,6 @@ public partial class ProductService : IProductService
                     {
                         var newUpdatedColor = new Culori
                         {
-                            // NumeCuloare = "empty",
                             NumeCuloareJson = color.NumeCuloareJsonDto,
                             IdCodCuloare = isCurrentUpdatedColorCodeInDb.IdCodCuloare
                         };
@@ -349,6 +355,7 @@ public partial class ProductService : IProductService
                         await _unitOfWork.CommitAsync();
                         isCurrentUpdatedColorInDb = newUpdatedColor;
                     }
+                   
     
                     var isCurrentColorOnProduct = await colorsOnProductsRepository
                         .FindQueryable(pc => pc.IdProdus == productId
@@ -366,29 +373,47 @@ public partial class ProductService : IProductService
                         await _unitOfWork.CommitAsync();
                         isCurrentColorOnProduct = newProduseCuCulori;
                     }
-    
+                  
+
                     var currentIdProdusCuCuloare = isCurrentColorOnProduct.IdProdusCuCuloare;
-    
+                    newColorsLinkedWithProductsIds.Add(currentIdProdusCuCuloare); // (1,4,5)
+                   
                     // Handle images
                     if (!color.ImaginiProdusDto.IsNullOrEmpty())
                     {
+                       
                         foreach (var imageDto in color.ImaginiProdusDto!)
                         {
+                            
                             var existingImage = await imagesRepository
                                 .FindQueryable(i => i.CaleImagine == imageDto.CaleImagineDto 
                                                     && i.FisierInBucket == imageDto.FisierInBucketDto 
                                                     && i.IdProdusCuCuloare == currentIdProdusCuCuloare)
                                 .FirstOrDefaultAsync();
-    
+                            _logger.LogInformation($"cale : {imageDto.CaleImagineDto}");
                             if (existingImage == null)
                             {
                                 // New image to add
-                                var imageFile = images.FirstOrDefault(img => img.FileName == imageDto.CaleImagineDto);
+                               
+                                var imageFile = images.FirstOrDefault(img =>
+                                    img.FileName == imageDto.CaleImagineDto.Split("_")[0] + $"{Path.GetExtension(imageDto.CaleImagineDto)}");
                                 if (imageFile != null)
                                 {
+                                   
+                                    if (!MyRegex().IsMatch(imageDto.CaleImagineDto))
+                                    { 
+                                        var fileNameWithoutExt = Path.GetFileNameWithoutExtension(imageDto.CaleImagineDto);
+                                        var extension = Path.GetExtension(imageDto.CaleImagineDto);
+                                        
+                                        fileNameWithoutExt = fileNameWithoutExt.Replace('_', '-');
+
+                                        // Append your custom string and then add back the extension.
+                                        imageDto.CaleImagineDto = $"{fileNameWithoutExt}_X{color.CodCuloareDto}_{modifiedProduct.TipulProdusuluiJsonDto!.TipProdusRomana.ToUpper()}{extension}";
+                                    }
+                                    
                                     var newImage = new Imagini
                                     {
-                                        CaleImagine = imageDto.CaleImagineDto,
+                                        CaleImagine =   imageDto.CaleImagineDto,
                                         FisierInBucket = imageDto.FisierInBucketDto,
                                         IdProdusCuCuloare = currentIdProdusCuCuloare
                                     };
@@ -418,6 +443,70 @@ public partial class ProductService : IProductService
                         successCodes[3] = 1;
                     }
                 }
+
+                var index = 0;
+               
+                foreach (var oldEntry in existingColorsOnProducts)
+                {
+                    var shouldDeleteOldEntry = modifiedProductColors
+                        .Any(modifiedColor =>
+                            modifiedColor.CodCuloareDto == oldEntry.Culoare.CodCuloare.CodCuloare
+                            && modifiedColor.NumeCuloareJsonDto.CuloareRomana ==
+                            oldEntry.Culoare.NumeCuloareJson.CuloareRomana);
+
+                    if (!shouldDeleteOldEntry)
+                    {
+                        oldColorLinkedWithProductEntries.Add(oldEntry);
+                        if (!oldEntry.ImagProduseCuCulori.IsNullOrEmpty())
+                        {
+                            var transferOldImagesToNewColor = new List<Imagini>();
+                            foreach (var imageToDelete in oldEntry.ImagProduseCuCulori!)
+                            {
+                                var newImage = new Imagini
+                                {
+                                    CaleImagine =   imageToDelete.CaleImagine,
+                                    FisierInBucket = imageToDelete.FisierInBucket,
+                                    IdProdusCuCuloare = newColorsLinkedWithProductsIds[index]
+                                };
+                                transferOldImagesToNewColor.Add(newImage);
+                                // retrieve old image
+                                var retrieveImage = await _bucketAcces.DownloadFile(
+                                    $"images/{imageToDelete.FisierInBucket}/{imageToDelete.CaleImagine}");
+                                // delete old image
+                                await _bucketAcces.DeleteFromBucket(
+                                    $"images/{imageToDelete.FisierInBucket}/{imageToDelete.CaleImagine}");
+                                // Transfer image
+                                if (retrieveImage != null)
+                                {
+                                    using var currentImageStream = new MemoryStream();
+                                    await retrieveImage.CopyToAsync(currentImageStream);
+                                    currentImageStream.Position = 0;
+
+                                    var bucketResponse = await _bucketAcces.AddOrUpdateToBucket(
+                                        currentImageStream,
+                                        newImage.FisierInBucket,
+                                        newImage.CaleImagine!);
+
+                                    _logger.LogInformation(bucketResponse == 1
+                                        ? "Successfully transfered image to new color"
+                                        : "An error occurred while adding the image to the bucket");
+                                }
+                               
+                            }
+
+                            await imagesRepository.AddRangeAsync(transferOldImagesToNewColor);
+                        }
+                       
+                    }
+
+                    index++;
+                }
+                
+                if (oldColorLinkedWithProductEntries.Count > 0)
+                {
+                    await colorsOnProductsRepository.DeleteRangeAsync(oldColorLinkedWithProductEntries);
+                }
+                
     
                 successCodes[2] = 1;
             }
@@ -435,7 +524,10 @@ public partial class ProductService : IProductService
             var allDimensionLinkedWithProduct = await dimensionOnProductsRepository
                 .FindQueryable(d => d.IdProdus == productId)
                 .ToListAsync();
-    
+
+            var oldDimensionsLinkedWithProductToDelete = new List<ProduseCuDimensiuni>();
+            // initial : dim1 , dim2 , dim 3
+            // modified : dim4 , dim 2 , dim 3
             if (!modifiedDimensions.IsNullOrEmpty())
             {
                 foreach (var updatedDimension in modifiedDimensions!)
@@ -467,7 +559,7 @@ public partial class ProductService : IProductService
                     newDimensions = await dimensionsRepository.GetSimpleQueryable()
                         .ToListAsync();
                     
-                    foreach (var dimension in modifiedDimensions!)
+                    foreach (var dimension in modifiedDimensions)
                     {
                     
                         var newDimensionAdded = newDimensions.First(d => d.Lungime == dimension.LungimeDto
@@ -495,6 +587,18 @@ public partial class ProductService : IProductService
                     await dimensionOnProductsRepository.AddRangeAsync(newDImensionsLinkedWithProducts);
 
                 }
+                
+                // remove old dimensions entry
+                oldDimensionsLinkedWithProductToDelete.AddRange(from oldDimensionEntry in allDimensionLinkedWithProduct 
+                    let shouldDeleteOldEntry = modifiedDimensions.Any(d => d.LungimeDto == oldDimensionEntry.PdDimensiune!.Lungime 
+                                                                           && d.LatimeDto == oldDimensionEntry.PdDimensiune!.Latime 
+                                                                           && d.RecomandarePat == oldDimensionEntry.PdDimensiune!.RecomandarePat) 
+                    where !shouldDeleteOldEntry select oldDimensionEntry);
+
+                if (oldDimensionsLinkedWithProductToDelete.Count > 0)
+                {
+                    await dimensionOnProductsRepository.DeleteRangeAsync(oldDimensionsLinkedWithProductToDelete);
+                }
             }
             else
             {
@@ -511,6 +615,8 @@ public partial class ProductService : IProductService
                 }
                
             }
+
+            
     
             successCodes[4] = 1;
     
@@ -551,12 +657,12 @@ public partial class ProductService : IProductService
     /// <param name="preturiPerDimensiuni">The prices per dimensions</param>
     /// <param name="idProducator">The id of the manufacturer</param>
     /// <param name="tipProdus">Product type (blanket/curtain/etc)</param>
-    /// <param name="folderName">directory name in S3 bucket </param>
+    /// <param name="folderNames">directory name in S3 bucket </param>
     /// <returns>A success for value 1 and error for value 0 (Int)</returns>
     public async Task<int> AddOrEditProductFromExcel(ProduseDto produseDto, IList<int> idDimensiuni, 
         string[] filePath, IList<int> idTipProduse, IList<int> culori,
         string[] preturiPerDimensiuni, int idProducator,string tipProdus,
-        string folderName)
+        string[] folderNames)
     {
       
         try
@@ -723,24 +829,13 @@ public partial class ProductService : IProductService
                     productWithColorsJustAdded.Add(temp);
                 }
 
-                var dirNameInS3 = folderName;
+                // var dirNameInS3 = folderName;
                 if (!filePath.IsNullOrEmpty())
                 {
                     var imagesDirPath = $"{Environment.GetFolderPath(Environment.SpecialFolder.Desktop)}/imagini_import";
-                    
+                    var index = 0;
                     foreach (var imageName in filePath)
                     {
-                       
-                        var machineFullImagePath = Path.Join(imagesDirPath,imageName); // image path for the PC
-                       
-                        var responseFromBucketAdd = await _bucketAcces.AddOrUpdateToBucket(machineFullImagePath,dirNameInS3, imageName);
-
-                        if (responseFromBucketAdd == -1)
-                        {
-                            throw new DbUpdateException("Problem when uploading file to S3 Bucket");
-                        }
-                      
-                        _logger.LogInformation($"Response from AddToBucket: {responseFromBucketAdd} (SUCCESS)");
                         
                         // AYLIN_X03_CUVERTURA
                         // ProductWithColorsObjects that were added ( id_produs, id_culoare)
@@ -769,7 +864,7 @@ public partial class ProductService : IProductService
 
                         if (currentColorCode is null)
                         {
-                            throw new DbUpdateException("Color code not found");
+                            throw new DbUpdateException($"Codul de culoare {colorCode} nu a fost gasit");
                         }
                         
                         // id of the color linked with the currentColorCode
@@ -779,7 +874,7 @@ public partial class ProductService : IProductService
                         
                         if (colorRelatedToTheCurrentColorCode is null)
                         {
-                            throw new DbUpdateException($"Color  with code {currentColorCode} not found");
+                            throw new DbUpdateException($"Culoarea cu codul {currentColorCode.CodCuloare} nu a fost gasita");
                         }
 
                         var productWithColorIdToBeLinkedToImage = productWithColorsJustAdded
@@ -796,14 +891,23 @@ public partial class ProductService : IProductService
                         {
                             CaleImagine = imageName,
                             IdProdusCuCuloare = productWithColorIdToBeLinkedToImage.IdProdusCuCuloare,
-                            FisierInBucket = dirNameInS3
+                            FisierInBucket = folderNames[index]
                         };
 
                         await imagesRepository.AddAsync(newImage);
                         await _unitOfWork.CommitAsync();
+                        
+                        var machineFullImagePath = Path.Join(imagesDirPath,imageName); // image path for the PC
+                       
+                        var responseFromBucketAdd = await _bucketAcces.AddOrUpdateToBucket(machineFullImagePath,folderNames[index], imageName);
 
+                        if (responseFromBucketAdd == -1)
+                        {
+                            throw new DbUpdateException("Problem when uploading file to S3 Bucket");
+                        }
+                        
                         _logger.LogInformation("Succesfully saved relative image path to database");
-                        return 1;
+                        index++;
                     }
                 }
                 else
@@ -811,7 +915,8 @@ public partial class ProductService : IProductService
                     _logger.LogInformation($"No images added for the product  : {findProductAlreadyInDb.CodProdus} ");
                     return 1;
                 }
-                
+
+                return 1;
             }
             else
             {
@@ -1148,10 +1253,23 @@ public partial class ProductService : IProductService
                     !filePath.Contains(oldImage.Key)).ToList();
 
                 // Populate imagesToAdd
-                var imagesToAdd = (from newImage in filePath
-                                             let isNewImageAnOldImage = oldImageNames.FirstOrDefault(pair => pair.Key == newImage && pair.Value == folderName) 
-                                             where isNewImageAnOldImage.Key == null 
-                                             select newImage).ToList();
+                var index = 0;
+                var imagesToAdd = new List<KeyValuePair<string,string>>();
+                // image_name , bucket_dir
+                foreach (var newImage in filePath)
+                {
+                    var isNewImageAnOldImage = oldImageNames.FirstOrDefault(pair =>
+                        pair.Key == newImage && pair.Value == folderNames[index]);
+                    if (isNewImageAnOldImage.Key == null)
+                    {
+                        imagesToAdd.Add(new KeyValuePair<string, string>(newImage , folderNames[index]));
+                    }
+                    index++;
+                }
+                // var imagesToAdd = (from newImage in filePath
+                //                              let isNewImageAnOldImage = oldImageNames.FirstOrDefault(pair => pair.Key == newImage && pair.Value == folderName) 
+                //                              where isNewImageAnOldImage.Key == null 
+                //                              select newImage).ToList();
 
                 if (imagesToRemove.IsNullOrEmpty() && imagesToAdd.IsNullOrEmpty())
                 {
@@ -1159,18 +1277,6 @@ public partial class ProductService : IProductService
                     return 2;
                 }
                 
-                if (imagesToRemove.Count > 0)
-                {
-                    foreach (var name in imagesToRemove)
-                    {
-                        _logger.LogInformation($"Image to remove anme -> {name.Key}");
-                    }
-                }
-                else
-                {
-                    _logger.LogInformation($"No images to remove");
-
-                }
 
                 // Case 2: Remove old images no longer present in new set
                 if (imagesToRemove.Count > 0)
@@ -1206,37 +1312,23 @@ public partial class ProductService : IProductService
 
                 if (imagesToAdd.Count > 0)
                 {
-                    foreach (var name in imagesToAdd)
-                    {
-                        _logger.LogInformation($"Image to add anme -> {name}");
-                    }
-                }
-                else
-                {
-                    _logger.LogInformation($"No images to add");
-
-                }
-
-                if (imagesToAdd.Count > 0)
-                {
+                    // key:image_name , value:bucket_dir
                     var imageDirPath = $"{Environment.GetFolderPath(Environment.SpecialFolder.Desktop)}/imagini_import/imagini_update";
-                    var dirNameInS3 = folderName;
-                
-                    foreach (var updatedImageName in imagesToAdd)
+                    foreach (var (key,value) in imagesToAdd)
                     {
-                        var fullImagePath = Path.Join(imageDirPath, updatedImageName);
+                        var fullImagePath = Path.Join(imageDirPath, key);
                 
-                        var responseFromBucketAdd = await _bucketAcces.AddOrUpdateToBucket(fullImagePath, dirNameInS3, updatedImageName);
+                        var responseFromBucketAdd = await _bucketAcces.AddOrUpdateToBucket(fullImagePath, value, key);
                 
                         if (responseFromBucketAdd == -1)
                         {
-                            throw new DbUpdateException($"An error happened when uploading the new photo with name: {updatedImageName} ");
+                            throw new DbUpdateException($"An error happened when uploading the new photo with name: {key} ");
                         }
                 
                         // Extract color code
                         const string patternCode = @"X(\d{2})";
                         string colorCode;
-                        var matchColor = Regex.Match(updatedImageName, patternCode);
+                        var matchColor = Regex.Match(key, patternCode);
                 
                         if (matchColor.Success)
                         {
@@ -1273,9 +1365,9 @@ public partial class ProductService : IProductService
                         
                         var newUpdatedImage = new Imagini
                         {
-                            CaleImagine = updatedImageName,
+                            CaleImagine = key,
                             IdProdusCuCuloare = productWithColorIdToBeLinkedToImage!.IdProdusCuCuloare,
-                            FisierInBucket = dirNameInS3
+                            FisierInBucket = value
                         };
                 
                         await imagesRepository.AddAsync(newUpdatedImage);
@@ -1287,7 +1379,6 @@ public partial class ProductService : IProductService
                 }
                 return 2;
             }
-            return 0;
         }
         catch (DbUpdateException e)
         {
@@ -1803,13 +1894,6 @@ public partial class ProductService : IProductService
             .GroupBy(prod => prod.NumeProducator)
             .Select(prod => prod.Key)
             .ToListAsync();
-        
-        // var productCategories = await _unitOfWork.Repository<TipuriProduse>()
-        //     .GetSimpleQueryable()
-        //     .GroupBy(tip => tip.Categorie)
-        //     .Select(g => g.Key)
-        //     .ToListAsync();
-        
         // JSON
         var productCategoriesJson = await _unitOfWork.Repository<TipuriProduse>()
             .GetSimpleQueryable()
@@ -1817,12 +1901,6 @@ public partial class ProductService : IProductService
             .Select(g => g.Key)
             .ToListAsync();
         
-        // var colors = await _unitOfWork.Repository<Culori>()
-        //     .GetSimpleQueryable()
-        //     .GroupBy(culoare => culoare.NumeCuloare)
-        //     .Select(g => g.Key)
-        //     .ToListAsync();
-        //
         // JSON
         var colorsJson = await _unitOfWork.Repository<Culori>()
             .GetSimpleQueryable()
@@ -1853,13 +1931,7 @@ public partial class ProductService : IProductService
             .GroupBy(dimensions => dimensions.RecomandarePat)
             .Select(g => g.Key)
             .ToListAsync();
-
-        // var productTypes = await _unitOfWork.Repository<Produse>()
-        //     .GetSimpleQueryable()
-        //     .GroupBy(types => types.TipulProdusului)
-        //     .Select(g => g.Key)
-        //     .ToListAsync();
-        //
+        
         // JSON
         var productTypesJson = await _unitOfWork.Repository<Produse>()
             .GetSimpleQueryable()
@@ -1872,17 +1944,14 @@ public partial class ProductService : IProductService
     
         var productOptions = new ProductOptionsForComboBox
         {
-            // ProductCategoriesForBox = productCategories,
             ProductCategoriesForBoxJson = productCategoriesJson,
             LatimiForBox = widths,
             LungimiForBox = heights,
             RecomandariForBox = bedRecommendations,
             CoduriCuloriForBox = colorCodes,
-            // CuloriForBox = colors,
             CuloriForBoxJson = colorsJson,
             DirectoriesInBucket = directoriesInS3Bucket!,
             ManuFacturersDto = manuFacturersDto,
-            // ProductTypes = productTypes,
             ProductTypesJson = productTypesJson
         };
     
@@ -1896,7 +1965,7 @@ public partial class ProductService : IProductService
         var namesOfProducts = await productsRepository.GetSimpleQueryable()
             .Select(p => new ProductInfo
             {
-                NumeProdus = p.NumeProdusJson.NumeRomana!,
+                NumeProdus = p.NumeProdusJson.NumeRomana,
                 CodProdus = p.CodProdus,
                 NumeProdusJson = p.NumeProdusJson
             })
@@ -1908,18 +1977,6 @@ public partial class ProductService : IProductService
 
     public async Task<ProductTypesAndSubCategories> GetProductTypesAndSubCategories()
     {
-        
-        // var productTypes = await _cache.GetOrCreateAsync("productTypes", async entry =>
-        // {
-        //     entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
-        //     var productTypes = await _unitOfWork.Repository<Produse>()
-        //         .GetSimpleQueryable()
-        //         .GroupBy(types => types.TipulProdusului)
-        //         .Select(g => g.Key)
-        //         .ToListAsync();
-        //
-        //     return productTypes;
-        // });
         
         // JSON
         var productTypesJson = await _cache.GetOrCreateAsync("productTypesJson", async entry =>
@@ -1933,36 +1990,10 @@ public partial class ProductService : IProductService
 
             return productTypesJsonLocal;
         });
-
-        // var productCategories = await _cache.GetOrCreateAsync("productCategories", async entry =>
-        // {
-        //     entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
-        //     var productCategories = await _unitOfWork.Repository<TipuriProduse>()
-        //         .GetSimpleQueryable()
-        //         .GroupBy(tip => tip.Categorie)
-        //         .Select(g => g.Key)
-        //         .ToListAsync();
-        //
-        //     return productCategories;
-        // });
-        //
-        // var productCategoriesJson = await _cache.GetOrCreateAsync("productCategoriesJson", async entry =>
-        // {
-        //     entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
-        //     var productCategoriesJsonLocal = await _unitOfWork.Repository<TipuriProduse>()
-        //         .GetSimpleQueryable()
-        //         .GroupBy(tip => tip.CategorieJson)
-        //         .Select(g => g.Key)
-        //         .ToListAsync();
-        //
-        //     return productCategoriesJsonLocal;
-        // });
+        
 
         return new ProductTypesAndSubCategories
         {
-            // ProductTypes = productTypes!,
-            // Categories = productCategories!,
-            // CategoriesJson = productCategoriesJson!,
             ProductTypesJson = productTypesJson!
         };
 
@@ -2008,31 +2039,37 @@ public partial class ProductService : IProductService
         var timer = new Stopwatch();
         timer.Start();
         var productsRepository = _unitOfWork.Repository<Produse>();
-        
+       
         var mainQuery = productsRepository
             .GetSimpleQueryable()
             .Include(p => p.PProduseCuCulori!)
-                .ThenInclude(p => p.Culoare)
+            .ThenInclude(p => p.Culoare)
             .Include(p => p.PProduseCuCulori!)
-                .ThenInclude(p => p.ImagProduseCuCulori)
+            .ThenInclude(p => p.ImagProduseCuCulori)
             .Include(p => p.PProduseCuDimensiuni!)
-                .ThenInclude(p => p.PdDimensiune)
-            .Where(product => productTypes.IsNullOrEmpty() || productTypes!.Contains(EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(product.TipulProdusuluiJson , "$.tip_ro")).Trim()))
-            .Where(product => productColors.IsNullOrEmpty() || 
-                              product.PProduseCuCulori!.Any(culoare => productColors!.Contains(EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(culoare.Culoare.NumeCuloareJson , "$.culoare_ro")).Trim())))
-            .Where(product => productCategories.IsNullOrEmpty() || 
-                              product.PTipuriPeProduse!.Any(tip => productCategories!.Contains(EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(tip.TppTipProdus.CategorieJson , "$.categorie_ro")).Trim())))
+            .ThenInclude(p => p.PdDimensiune)
+            .Where(product => productTypes.IsNullOrEmpty() || productTypes!.Contains(EF.Functions
+                .JsonUnquote(EF.Functions.JsonExtract<string>(product.TipulProdusuluiJson, "$.tip_ro")).Trim()))
+            .Where(product => productColors.IsNullOrEmpty() ||
+                              product.PProduseCuCulori!.Any(culoare =>
+                                  productColors!.Contains(EF.Functions
+                                      .JsonUnquote(EF.Functions.JsonExtract<string>(culoare.Culoare.NumeCuloareJson,
+                                          "$.culoare_ro")).Trim())))
+            .Where(product => productCategories.IsNullOrEmpty() ||
+                              product.PTipuriPeProduse!.Any(tip =>
+                                  productCategories!.Contains(EF.Functions
+                                      .JsonUnquote(EF.Functions.JsonExtract<string>(tip.TppTipProdus.CategorieJson,
+                                          "$.categorie_ro")).Trim())))
             .Where(product =>
-                productDimensions.IsNullOrEmpty() || 
+                productDimensions.IsNullOrEmpty() ||
                 product.PProduseCuDimensiuni!.Count == 0 ||
                 product.PProduseCuDimensiuni!.Any(dimensiune =>
-                    Convert.ToInt16(dimensiune.PdDimensiune!.Lungime) >= Convert.ToInt16(productDimensions![0]) && 
-                    Convert.ToInt16(dimensiune.PdDimensiune!.Lungime) <= Convert.ToInt16(productDimensions[1]) && 
+                    Convert.ToInt16(dimensiune.PdDimensiune!.Lungime) >= Convert.ToInt16(productDimensions![0]) &&
+                    Convert.ToInt16(dimensiune.PdDimensiune!.Lungime) <= Convert.ToInt16(productDimensions[1]) &&
                     Convert.ToInt16(dimensiune.PdDimensiune!.Latime) >= Convert.ToInt16(productDimensions[2]) &&
                     Convert.ToInt16(dimensiune.PdDimensiune!.Latime) <= Convert.ToInt16(productDimensions[3])
                 )
             )
-
             .Where(product => productPrices.IsNullOrEmpty() || 
                               (product.PProduseCuDimensiuni != null && product.PProduseCuDimensiuni.Count > 0
                                   ? product.PProduseCuDimensiuni!.Any(dimension =>
@@ -2244,7 +2281,7 @@ public partial class ProductService : IProductService
                 {
                     entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
                     var liningTypesRepository = _unitOfWork.Repository<TipuriLinie>();
-                    var linings = await liningTypesRepository.FindQueryable(lineType => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(lineType.NumeTipLinieJson , "$.nume_ro")) != "STAN" && lineType.IsDeleted == false).ToListAsync();;
+                    var linings = await liningTypesRepository.FindQueryable(lineType => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(lineType.NumeTipLinieJson , "$.nume_ro")) != "STAN" && lineType.IsDeleted == false).ToListAsync();
                     var mappedLinings = linings.IsNullOrEmpty() ? new List<TipLinieDto>() : _mapper.Map<IList<TipLinieDto>>(linings);
 
                     var liningTasks = mappedLinings.Select(async lineType =>
@@ -2710,23 +2747,6 @@ public partial class ProductService : IProductService
                                     PresignedUrl = null
                                 }).ToList()
                         }).ToList(),
-                    // CuloriProdusJsonDto = p.PProduseCuCulori!
-                    //     .Where(pc => pc.ImagProduseCuCulori!.Count > 0)
-                    //     .Take(1)
-                    //     .Select(culori => new ColorsWithImages
-                    //     {
-                    //         NumeCuloareJsonDto = culori.Culoare.NumeCuloareJson,
-                    //         NumeCuloareDto = culori.Culoare.NumeCuloare,
-                    //         ImaginiProdusDto = culori.ImagProduseCuCulori!
-                    //             .OrderBy(image => image.CaleImagine) 
-                    //             .Take(1)
-                    //             .Select(image => new ImagesDtoForUsers
-                    //             {
-                    //                 CaleImagineDto = image.CaleImagine ?? "",
-                    //                 FisierInBucketDto = image.FisierInBucket,
-                    //                 PresignedUrl = null
-                    //             }).ToList()
-                    //     }).ToList()
                 })
                 .AsSplitQuery()
                 .ToListAsync();
@@ -2801,23 +2821,6 @@ public partial class ProductService : IProductService
                                     PresignedUrl = null
                                 }).ToList()
                         }).ToList(),
-                    // CuloriProdusJsonDto = p.PProduseCuCulori!
-                    //     .Where(pc => pc.ImagProduseCuCulori!.Count > 0)
-                    //     .Take(1)
-                    //     .Select(culori => new ColorsWithImages
-                    //     {
-                    //         NumeCuloareJsonDto = culori.Culoare.NumeCuloareJson,
-                    //         NumeCuloareDto = culori.Culoare.NumeCuloare,
-                    //         ImaginiProdusDto = culori.ImagProduseCuCulori!
-                    //             .OrderBy(image => image.CaleImagine) 
-                    //             .Take(1)
-                    //             .Select(image => new ImagesDtoForUsers
-                    //             {
-                    //                 CaleImagineDto = image.CaleImagine ?? "",
-                    //                 FisierInBucketDto = image.FisierInBucket,
-                    //                 PresignedUrl = null
-                    //             }).ToList()
-                    //     }).ToList()
                 })
                 .AsSplitQuery()
                 .ToListAsync();
@@ -2844,4 +2847,6 @@ public partial class ProductService : IProductService
         return getLimitedEditionProducts ?? [];
 
     }
+    [GeneratedRegex(".*_X\\d{2}_.*$")]
+    private static partial Regex MyRegex();
 }

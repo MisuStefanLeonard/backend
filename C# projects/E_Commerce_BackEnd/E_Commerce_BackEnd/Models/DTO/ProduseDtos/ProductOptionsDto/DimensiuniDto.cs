@@ -10,5 +10,6 @@ public class DimensiuniDto
     public decimal PretRedusDto { get; set; } 
     public bool JustAdded { get; set; }
     public bool? PerdeaEstePerecheDto { get; set; }
+    public bool? CanDelete { get; set; }
 
 }

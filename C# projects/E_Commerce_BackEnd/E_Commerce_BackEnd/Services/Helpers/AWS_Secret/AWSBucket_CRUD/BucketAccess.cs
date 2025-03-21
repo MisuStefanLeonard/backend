@@ -265,7 +265,6 @@ public class BucketAccess : IBucketAcces
             var response = await AmazonS3Client.GetObjectAsync(getFile);
             var memoryStream = new MemoryStream();
             await response.ResponseStream.CopyToAsync(memoryStream);
-            _logger.LogInformation(memoryStream.Length.ToString());
             memoryStream.Position = 0;
             return memoryStream;
 

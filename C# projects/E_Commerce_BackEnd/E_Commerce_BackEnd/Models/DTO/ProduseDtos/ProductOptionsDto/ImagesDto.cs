@@ -6,5 +6,6 @@ public class ImagesDto
     public string FisierInBucketDto { get; set; } = null!;
     public string? PresignedUrl { get; set; }
     public bool JustAdded { get; set; } = false;
+    public bool CanDelete { get; set; }
     public int IdProdusCuCuloareDto { get; set; }
 }

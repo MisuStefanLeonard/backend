@@ -360,21 +360,6 @@ namespace E_Commerce_BackEnd.Controllers
                 // Deserialize the product DTO
                 // vezi de ce cand deserializezi obiectul nu intra pe coloanele json si sunt null!!!!
                 var modifiedProduct = JsonConvert.DeserializeObject<ProduseDtoForAdminModification>(productDto);
-                
-                Console.WriteLine($"----------------");
-                Console.WriteLine($"----------------");
-                Console.WriteLine($"{modifiedProduct!.TipuriProduseDto.IsNullOrEmpty()}");
-                Console.WriteLine($"{modifiedProduct!.OldCodProdusDto}");
-                Console.WriteLine($"----------------");
-                Console.WriteLine($"----------------");
-
-                foreach (var item in modifiedProduct!.TipuriProduseDto)
-                {
-                    Console.WriteLine("--------------------");
-                    Console.WriteLine($"{item.CategorieJsonDto} / {item.CategorieJsonDto.CategorieRomana}");
-                    Console.WriteLine("--------------------");
-
-                }
                
                 if (modifiedProduct is null)
                 {
@@ -1294,8 +1279,21 @@ namespace E_Commerce_BackEnd.Controllers
             }
            
             return File(fileStream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-
+        }
+        
+        [HttpGet("exportProductsExcel")]
+        [Authorize]
+        public async Task<IActionResult> ExportProductsExcel()
+        {
+            var excelStream = await _documentProcessing.ExportProductsExcel();
             
+            return excelStream.Key switch
+            {
+                0 => NoContent(), // no products in db
+                1 => File(excelStream.Value!, 
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+                _ => BadRequest("Eroare generala a avut loc. Contactati administratorul")
+            };
         }
 
         [HttpPut("customer/data/update")]

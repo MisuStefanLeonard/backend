@@ -9,5 +9,7 @@ public class CuloriDto
     public Culoare NumeCuloareJsonDto { get; set; } = null!;
     public string CodCuloareDto { get; set; } = null!;
     public bool JustAdded { get; set; } = false;
+    public bool CanDelete { get; set; }
+
     public IList<ImagesDto>? ImaginiProdusDto { get; set; } = [];
 }

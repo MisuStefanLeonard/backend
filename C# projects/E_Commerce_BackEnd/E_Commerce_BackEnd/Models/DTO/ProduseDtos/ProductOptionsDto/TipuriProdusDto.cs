@@ -7,4 +7,6 @@ public class TipuriProdusDto
     public string? CategorieDto { get; set; }
     public Categorie CategorieJsonDto { get; set; } = null!;
     public bool JustAdded { get; set; }
+    public bool CanDelete { get; set; }
+
 }

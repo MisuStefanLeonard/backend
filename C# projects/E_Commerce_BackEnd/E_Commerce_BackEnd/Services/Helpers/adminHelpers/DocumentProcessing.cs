@@ -20,6 +20,35 @@ public class DocumentProcessing
     private readonly IUnitOfWork _unitOfWork;
     private readonly IProductService _productService;
 
+    private static readonly IDictionary<string, string> CellsMapping = new Dictionary<string, string>
+    {
+        { "A1", "CodProdus" },
+        { "B1" , "Descriere (Romana)"},
+        { "C1" , "Nume Produs"},
+        { "D1" , "Compozitie (Romana)"},
+        { "E1" , "Pret"},
+        { "F1" , "Tva"},
+        { "G1" , "Ingrijire (Romana)"},
+        { "H1" , "Fata reversibila"},
+        { "I1" , "Stoc"},
+        { "J1" , "Nume producator"},
+        { "K1" , "Dimensiuni"},
+        { "L1" , "Recomandare pat"},
+        { "M1" , "Cod Culori"},
+        { "N1" , "Categorii"},
+        { "O1" , "Tip produs (Romana-Engleza)"},
+        { "P1" , "Imagini"},
+        { "Q1" , "Numele folderului de stocare"},
+        { "R1" , "Pret baza produs"},
+        { "S1" , "Pret baza produs redus"},
+        { "T1" , "Inaltime maxima material (metri)"},
+        { "U1" , "Descriere (Engleza)"},
+        { "V1" , "Compozitie (Engleza)"},
+        { "W1" , "Ingrijire (Engleza)"},
+        { "X1" , "Activ in magazin"},
+
+    };
+
     public DocumentProcessing(ILogger<DocumentProcessing> docsLogger, IUnitOfWork unitOfWork, IProductService productService)
     {
         _docsLogger = docsLogger;
@@ -167,7 +196,12 @@ public class DocumentProcessing
                     //--
                     var ingrijireProdus = row.Cells[6].StringValue.Trim();
                     var ingrijireProdusEn = row.Cells[22].StringValue.Trim();
-
+                    var isActiveInShop = row.Cells[23].StringValue.Trim();
+                    var isActiveInShopBool = false;
+                    if (!string.IsNullOrEmpty(isActiveInShop))
+                    {
+                        isActiveInShopBool = isActiveInShop == "1";
+                    }
                     
                     // fata reversibila
                     var fataReversibila = row.Cells[7].StringValue.ToUpper().Trim() == "TRUE";
@@ -417,6 +451,7 @@ public class DocumentProcessing
                     }
                     
                     var folderName = row.Cells[16].StringValue.ToLower().Trim();
+                    var folderNamesArray = folderName.Split(",");
                     // images processing
                     var relativePathOfImagesString = row.Cells[15].StringValue;
                     string[] relativePathOfImagesArray = [];
@@ -426,6 +461,12 @@ public class DocumentProcessing
                     if(relativePathOfImagesArray.Length != 0 && checkEqualWithOrEmpty)
                     {
                         throw new Exception($"Nu ati selectat niciun fisier in care sa puneti imaginea " +
+                                            $"Va rog, selectati un fisier .Vezi randul {row.Name} in excel ");
+                    }
+
+                    if (relativePathOfImagesArray.Length != folderNamesArray.Length)
+                    {
+                        throw new Exception($"Acelasi numar de imagini trebuie sa fie egal cu numarul de fisiere " +
                                             $"Va rog, selectati un fisier .Vezi randul {row.Name} in excel ");
                     }
                     
@@ -494,7 +535,7 @@ public class DocumentProcessing
                         FataReversibilaDto = fataReversibila,
                         StocDto = stocProdus,
                         IsDeletedDto = false,
-                        ActivInMagazinDto = false,
+                        ActivInMagazinDto = isActiveInShopBool,
                         TipProdusDto = tipProdus,
                         TipProdusJsonDto = new TipProdus
                         {
@@ -508,7 +549,7 @@ public class DocumentProcessing
                     
                     var responseAddProduct = await _productService.AddOrEditProductFromExcel(newProdusDto, dimensionsIdList,
                         relativePathOfImagesArray, tipuriProduseIdList, colorIdList,
-                        pretProdusArray, idProducator, tipProdus, folderName);
+                        pretProdusArray, idProducator, tipProdus, folderNamesArray);
 
                     switch (responseAddProduct)
                     {
@@ -532,5 +573,250 @@ public class DocumentProcessing
             return ExcelProcessingResult.ErrorResult($"Error: {e.Message}");
         }
     }
+
+    public async Task<KeyValuePair<int , Stream?>> ExportProductsExcel()
+    {
+        IDbContextTransaction? exportExcelTransaction = null;
+        try
+        {
+            SpreadsheetInfo.SetLicense("FREE-LIMITED-KEY");
+            var workbook = new ExcelFile();
+            const int maxRows = 150;
+            var cellIndex = 2;
+            var worksheetCount = 1;
+            exportExcelTransaction = await _unitOfWork.BeginTransactionAsync();
+            var getAllProductsInShop = await _unitOfWork.Repository<Produse>()
+                .GetSimpleQueryable()
+                .Include(manufacturers => manufacturers.Producator)
+                .Include(productWithColors => productWithColors.PProduseCuCulori!)
+                    .ThenInclude(colors => colors.Culoare)
+                        .ThenInclude(colorsCodes => colorsCodes.CodCuloare)
+                .Include(productWithColors => productWithColors.PProduseCuCulori!)
+                    .ThenInclude(images => images.ImagProduseCuCulori)
+                .Include(productDimensions => productDimensions.PProduseCuDimensiuni!)
+                    .ThenInclude(dimensions => dimensions.PdDimensiune)
+                .Include(productCategories => productCategories.PTipuriPeProduse!)
+                    .ThenInclude(categories => categories.TppTipProdus)
+                .ToListAsync();
+            
+            var currentWorksheet = workbook.Worksheets.Add($"Sheet{worksheetCount}");
+            foreach (var cell in CellsMapping)
+            {
+                var excelCell = currentWorksheet.Cells[cell.Key];
+                excelCell.Value = cell.Value;
+            }
+
+            if (getAllProductsInShop.Count == 0)
+            {
+                return new KeyValuePair<int, Stream?>(0, null); // no products in db
+            }
+
+            foreach (var product in getAllProductsInShop)
+            {
+                if (cellIndex <= maxRows-1)
+                {
+                    //
+                    var productCodeCell = currentWorksheet.Cells[$"A{cellIndex}"];
+                    productCodeCell.Value = product.CodProdus;
+                   
+                    // ro description , cell B
+                    var productDescrptionCell = currentWorksheet.Cells[$"B{cellIndex}"];
+                    productDescrptionCell.Value = product.DescriereJson!.DescriereRomana;
+                    // product name , cell C
+                    var productNameCell = currentWorksheet.Cells[$"C{cellIndex}"];
+                    productNameCell.Value = $"{product.NumeProdusJson.NumeRomana}-{product.NumeProdusJson.NumeEngleza}";
+                    // product compozition , cell D
+                    var productCompozition = currentWorksheet.Cells[$"D{cellIndex}"];
+                    productCompozition.Value = product.CompozitieJson!.CompozitieRomana;
+                    
+                    // product price , cell E
+                    var productPrices = currentWorksheet.Cells[$"E{cellIndex}"];
+                    if (product.TipulProdusuluiJson.TipProdusRomana is "perdea" or "draperie")
+                    {
+                        productPrices.Value = "-";
+                    }
+                    if (product.PProduseCuDimensiuni!.Count > 0)
+                    {
+                        productPrices.Value = string.Join(",",
+                            product.PProduseCuDimensiuni.Select(d => d.Pret.ToString("F2", CultureInfo.InvariantCulture)));
+                    }
+                    
+                    // product TVA , cell F
+                    var productTvaCell = currentWorksheet.Cells[$"F{cellIndex}"];
+                    productTvaCell.Value = product.Tva;
+                    // product RO caring , cell G
+                    var productCaringCell = currentWorksheet.Cells[$"G{cellIndex}"];
+                    productCaringCell.Value = product.IngrijireJson!.IngrijireRomana;
+                    // product reverse face , cell H
+                    var productReverseFaceCell =  currentWorksheet.Cells[$"H{cellIndex}"];
+                    productReverseFaceCell.Value = product.FataReversibila!.Value;
+                    // product stock , cell I
+                    var productStockCell = currentWorksheet.Cells[$"I{cellIndex}"];
+                    productStockCell.Value = product.Stoc == 0 ? "-" : product.Stoc;
+                    // product manufacturer , cell J
+                    var productManufacturerCell = currentWorksheet.Cells[$"J{cellIndex}"];
+                    productManufacturerCell.Value =
+                        product.Producator != null ? product.Producator.NumeProducator : "-";
+                    
+                    // product dimensions , cell K
+                    var productDimensionsCell = currentWorksheet.Cells[$"K{cellIndex}"];
+
+                    if (product.PProduseCuDimensiuni.Count > 0)
+                    {
+                        productDimensionsCell.Value = string.Join(",",
+                            product.PProduseCuDimensiuni.Select(d => $"{d.PdDimensiune!.Lungime}x{d.PdDimensiune.Latime}"));
+                    }
+
+                    if (product.TipulProdusuluiJson.TipProdusRomana is "perdea" or "draperie")
+                    {
+                        productDimensionsCell.Value = "-";
+                    }
+                    
+                    // product bed recommendation , cell L
+                    var productBedRecommendations = currentWorksheet.Cells[$"L{cellIndex}"];
+
+                    if (product.PProduseCuDimensiuni.Count > 0)
+                    {
+                        productBedRecommendations.Value = string.Join(",",
+                            product.PProduseCuDimensiuni.Select(d => d.PdDimensiune!.RecomandarePat));
+                    }
+
+                    if (product.TipulProdusuluiJson.TipProdusRomana is "perdea" or "draperie")
+                    {
+                        productBedRecommendations.Value = "-";
+                    }
+                    
+                    // product color codes , cell M
+                    var productColorCodesRecommendations = currentWorksheet.Cells[$"M{cellIndex}"];
+                    productColorCodesRecommendations.Value = string.Join(",",
+                        product.PProduseCuCulori!.Select(c => $"{c.Culoare.NumeCuloareJson.CuloareRomana}" +
+                                                              $"-{c.Culoare.CodCuloare.CodCuloare}-{c.Culoare.NumeCuloareJson.CuloareEngleza}"));
+                    
+                    // product categories , cell N 
+                    var productCategories = currentWorksheet.Cells[$"N{cellIndex}"];
+                    productCategories.Value = string.Join(",",
+                        product.PTipuriPeProduse!.Select(c => $"{c.TppTipProdus.CategorieJson.CategorieRomana}-{c.TppTipProdus.CategorieJson.CategorieEngleza}"));
+                    
+                    // product type . cell O
+                    var productType = currentWorksheet.Cells[$"O{cellIndex}"];
+                    productType.Value =
+                        $"{product.TipulProdusuluiJson.TipProdusRomana}-{product.TipulProdusuluiJson.TipProdusEngleza}";
+                    
+                    // product images , cell P
+                    
+                    var productImages = currentWorksheet.Cells[$"P{cellIndex}"];
+                    
+                    var images = product.PProduseCuCulori?
+                        .SelectMany(p => p.ImagProduseCuCulori!)
+                        .Select(img => img.CaleImagine)
+                        .ToList();
+
+                    productImages.Value = images == null || images.Count == 0
+                        ? "-"
+                        : string.Join(",", images);
+                    
+                    // product images directories associated with each image , CELL Q
+                    var productImagesDirectories = currentWorksheet.Cells[$"Q{cellIndex}"];
+
+                    
+                    var directories = product.PProduseCuCulori?
+                        .SelectMany(p => p.ImagProduseCuCulori!)
+                        .Select(img => img.FisierInBucket)
+                        .ToList();
+
+                    productImagesDirectories.Value = (directories == null || directories.Count == 0)
+                        ? "-"
+                        : string.Join(",", directories);
+                    
+                    // product base price , CELL R
+                    var productBasePrice = currentWorksheet.Cells[$"R{cellIndex}"];
+
+                    if (product.PProduseCuDimensiuni.Count > 0)
+                    {
+                        productBasePrice.Value = "-";
+                    }
+                    else
+                    {
+                        productBasePrice.Value = product.PretDeBaza.ToString("F2",CultureInfo.InvariantCulture);
+                    }
+                    
+                    // product base price discounted , CELL S
+                    var productBasePriceDiscounted = currentWorksheet.Cells[$"S{cellIndex}"];
+
+                    if (product.PProduseCuDimensiuni.Count > 0)
+                    {
+                        productBasePriceDiscounted.Value = "-";
+                    }
+                    else
+                    {
+                        productBasePriceDiscounted.Value = product.PretDeBazaRedus != 0 ? product.PretDeBazaRedus.ToString("F2",CultureInfo.InvariantCulture) : "-";
+                    }
+                    
+                    // product max material height , CELL T
+                    var productMaxMaterialHeight = currentWorksheet.Cells[$"T{cellIndex}"];
+                    productMaxMaterialHeight.Value =
+                        product.TipulProdusuluiJson.TipProdusRomana is "perdea" or "draperie"
+                            ? product.InaltimeMaxima.ToString("F2",CultureInfo.InvariantCulture)
+                            : "-";
+                    
+                    // product EN description , cell U
+                    var productDescriptionEnCell = currentWorksheet.Cells[$"U{cellIndex}"];
+                    productDescriptionEnCell.Value = product.DescriereJson!.DescriereEngleza;
+                    // product EN composition , cell V
+                    var productCompositionEnCell = currentWorksheet.Cells[$"V{cellIndex}"];
+                    productCompositionEnCell.Value = product.CompozitieJson!.CompozitieEngleza;
+                    // product EN caring , cell W
+                    var productCaringEnCell = currentWorksheet.Cells[$"W{cellIndex}"];
+                    productCaringEnCell.Value = product.IngrijireJson!.IngrijireEngleza;
+                    // product activation in shop , cell X
+                    var productActivationInShop =  currentWorksheet.Cells[$"X{cellIndex}"];
+                    productActivationInShop.Value = product.ActivInMagazin ? "1" : "0";
+                    
+                    cellIndex++;
+                }
+                else
+                {
+                    worksheetCount++;
+                    if (worksheetCount == 6)
+                    {
+                        // free limit exceeded.
+                        break;
+                    }
+                    cellIndex = 2;
+                    currentWorksheet = workbook.Worksheets.Add($"Sheet{worksheetCount}");
+                    foreach (var cell in CellsMapping)
+                    {
+                        var excelCell = currentWorksheet.Cells[cell.Key];
+                        excelCell.Style.Font.Name = "Helvetica Neue";
+                        excelCell.Style.Font.Size = 10;
+                        excelCell.Value = cell.Value;
+                    }
+                }
+            }
+            
+            workbook.Save($"Produse_{DateTime.Now.Date}.xlsx");
+            var memoryStream = new MemoryStream();
+            memoryStream.Position = 0;
+            workbook.Save(memoryStream, new XlsxSaveOptions
+            {
+                ImageDpi = 330
+            });
+            return new KeyValuePair<int, Stream?>(1 , memoryStream);
+
+        }
+        catch (Exception e)
+        {
+            if (exportExcelTransaction != null)
+            {
+                await _unitOfWork.RollBackTransactionAsync(exportExcelTransaction);
+            }
+            _docsLogger.LogError(e.Message);
+            _docsLogger.LogError(e.StackTrace);
+            
+            return new KeyValuePair<int, Stream?>(-1 , null);
+
+        }
+    }
+    
 }
     

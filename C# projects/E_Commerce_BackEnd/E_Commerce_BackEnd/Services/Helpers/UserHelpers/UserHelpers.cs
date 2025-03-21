@@ -8,20 +8,9 @@ namespace E_Commerce_BackEnd.Services.Helpers.UserHelpers
 {
     public class UserHelpers
     {
-        private const decimal RONtoEUR = (decimal)0.2;
-        private const decimal EURtoRON = 5;
+        private const decimal RoNtoEur = (decimal)0.2;
+        private const decimal EuRtoRon = 5;
         private const string Chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        // private UserHelpers()
-        // {
-        //     
-        // }
-        //
-        // static UserHelpers()
-        // {
-        //     
-        // }
-        //
-        // public static UserHelpers Instance { get; } = new ();
 
         public static string Token(int size, int size2, string userEmail)
         {
@@ -110,8 +99,8 @@ namespace E_Commerce_BackEnd.Services.Helpers.UserHelpers
         {
             return currency1 switch
             {
-                "RON" when currency2 == "EUR" => value1 * RONtoEUR,
-                "EUR" when currency2 == "RON" => value2 * EURtoRON,
+                "RON" when currency2 == "EUR" => value1 * RoNtoEur,
+                "EUR" when currency2 == "RON" => value2 * EuRtoRon,
                 _ => 0
             };
         }

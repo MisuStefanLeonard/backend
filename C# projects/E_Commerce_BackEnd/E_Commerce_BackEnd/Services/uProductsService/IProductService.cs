@@ -17,7 +17,7 @@ public interface IProductService
     public Task<int> AddOrEditProductFromExcel(ProduseDto produseDto, IList<int> idDimensiuni,
         string[] filePath , IList<int> idTipProduse,  IList<int> culoriId , 
         string[] preturiPerDimensiuni , int idProducator , string tipProdus,
-            string folderName);
+            string[] folderNames);
     
     
     #endregion
