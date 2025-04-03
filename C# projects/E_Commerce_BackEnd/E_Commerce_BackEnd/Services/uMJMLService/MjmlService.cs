@@ -24,7 +24,6 @@ public class MjmlService : IMjmlService
         {
             Method = Method.Post,
         };
-        _logger.LogInformation(mjml);
         request.AddHeader("Authorization", "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes($"{MjmlUsernameKey}:{MjmlBackEndApiKey}")));
         request.AddHeader("Content-Type", "application/json");
         request.AddJsonBody(new {mjml});
@@ -35,7 +34,7 @@ public class MjmlService : IMjmlService
         if (response.IsSuccessful)
         {
             _logger.LogInformation("Succefully converted");
-            var result = JsonConvert.DeserializeObject<MjmlApiResponse>(response.Content);
+            var result = JsonConvert.DeserializeObject<MjmlApiResponse>(response.Content!);
             return result?.Html;
         }
         

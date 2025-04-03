@@ -1,3 +1,5 @@
+using System.Text;
+using E_Commerce_BackEnd.Models.ConfigurationModels;
 using E_Commerce_BackEnd.Models.DTO;
 using E_Commerce_BackEnd.Models.DTO.AdminRelatedDtos.OrdersDto;
 using E_Commerce_BackEnd.Models.DTO.ClientOrdersDto;
@@ -9,6 +11,7 @@ using E_Commerce_BackEnd.Models.DTO.ProduseDtos.VouchereDtos;
 using E_Commerce_BackEnd.Models.Enums;
 using E_Commerce_BackEnd.Models.OrderRelatedModels;
 using E_Commerce_BackEnd.Models.ProductRelatedModels;
+using E_Commerce_BackEnd.Models.ProductRelatedModels.JSON_Models;
 using E_Commerce_BackEnd.Models.ProductVouchersModels;
 using E_Commerce_BackEnd.Models.UserRelatedModels;
 using E_Commerce_BackEnd.Services.emailService;
@@ -19,6 +22,9 @@ using E_Commerce_BackEnd.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.IdentityModel.Tokens;
+using Newtonsoft.Json;
+using RestSharp;
+using RestSharp.Authenticators;
 
 namespace E_Commerce_BackEnd.Services.uOrdersService;
 
@@ -29,6 +35,8 @@ public class OrderService : IOrderService
     private readonly ILogger<OrderService> _logger;
     private readonly IEmailService _emailService;
     private readonly IMjmlService _mjmlService;
+    private static readonly List<string> InvoiceCredentials = ["smart_bill_username", "smart_bill_password" , "cif"];
+    private const string SeriesNumber = "THD2015";
     
 
     public OrderService(IUnitOfWork unitOfWork, IBucketAcces bucketAcces, ILogger<OrderService> logger, IEmailService emailService, IMjmlService mjmlService)
@@ -179,6 +187,7 @@ public class OrderService : IOrderService
                     },
                     OrderDate = order.DataEmitereComanda,
                     OrderId = order.IdComanda,
+                    OrderBillNumber = order.BillNumberJson,
                     OrderStatus = order.StatusComanda,
                     OrderPayment = order.TipPlata,
                     OrderTrackingString = order.AwbComanda,
@@ -517,7 +526,12 @@ public class OrderService : IOrderService
                 IsCancelable = true,
                 IdAdresaLivrare = getDeliveryAddress.IdAdresa,
                 IdAdresaFacturare = billingAddress?.IdAdresa ?? getDeliveryAddress.IdAdresa,
-                IdVoucher = null
+                IdVoucher = null,
+                BillNumberJson = new NumarFactura
+                {
+                    NumarEngleza = null,
+                    NumarRomana = null
+                }
             };
 
             await orderRepository.AddAsync(newOrder);
@@ -641,6 +655,165 @@ public class OrderService : IOrderService
         }
     }
 
+    public async Task<KeyValuePair<int , Stream?>> ReturnPdfBill(int orderId, string currency = "RON")
+    {
+        const string invoiceApiEndpoint = "https://ws.smartbill.ro/SBORO/api/invoice/pdf";
+
+        var getOrderWithId = await _unitOfWork.Repository<Comenzi>()
+            .FindQueryable(order => order.IdComanda == orderId)
+            .FirstOrDefaultAsync();
+
+        if (getOrderWithId is null)
+        {
+            return new KeyValuePair<int, Stream?>(-1,null);
+        }
+
+        if (currency == "RON")
+        {
+            if (getOrderWithId.BillNumberJson.NumarRomana == null)
+            {
+                return new KeyValuePair<int, Stream?>(-4, null);
+            }
+        }
+        else
+        {
+            if (getOrderWithId.BillNumberJson.NumarEngleza == null)
+            {
+                return new KeyValuePair<int, Stream?>(-4, null);
+            }
+        }
+
+       
+        
+        var getInvoiceCredentials = await _unitOfWork.Repository<GlobalConfigs>()
+            .FindQueryable(setting => InvoiceCredentials.Contains(setting.NumeAtributGlobal))
+            .ToListAsync();
+
+        var username = getInvoiceCredentials.Find(p => p.NumeAtributGlobal == "smart_bill_username");
+        var password = getInvoiceCredentials.Find(p => p.NumeAtributGlobal == "smart_bill_password");
+        var cif = getInvoiceCredentials.Find(p => p.NumeAtributGlobal == "cif");
+        
+        if (username == null || password == null || cif == null ||
+            username.NumeAtributGlobal.IsNullOrEmpty() ||
+            password.NumeAtributGlobal.IsNullOrEmpty() ||
+            cif.NumeAtributGlobal.IsNullOrEmpty())
+        {
+            return new KeyValuePair<int, Stream?>(-2,null); // credentials missing
+
+        }
+        
+        var invoiceApiEndpointOptions = new RestClientOptions(invoiceApiEndpoint)
+        {
+            Authenticator = new HttpBasicAuthenticator(username.ValoareAtributGlobal , password.ValoareAtributGlobal),
+        };
+        var client = new RestClient(invoiceApiEndpointOptions);
+        var request = new RestRequest
+        {
+            Method = Method.Get,
+        };
+        _logger.LogInformation($"{(currency == "RON" ? $"Downloadare factura in moneda RON , limba RO cu nr {getOrderWithId.BillNumberJson.NumarRomana}" :
+            $"Downloadare factura in moneda EUR , limba EN cu nr {getOrderWithId.BillNumberJson.NumarEngleza}")}");
+        request.AddHeader("Accept", "application/octet-stream");
+        
+        request.AddQueryParameter("cif", $"{cif.ValoareAtributGlobal}");
+        request.AddQueryParameter("seriesname", SeriesNumber);
+        request.AddQueryParameter("number", $"{(currency == "RON" ? getOrderWithId.BillNumberJson.NumarRomana : getOrderWithId.BillNumberJson.NumarEngleza)}");
+        
+        var response = await client.ExecuteAsync(request);
+
+        if (response.IsSuccessful)
+        {
+            var rawPdfBytes = response.RawBytes;
+            var memoryStream = new MemoryStream(rawPdfBytes!);
+            _logger.LogInformation($"Succefully visualized bill for order {orderId}");
+            return new KeyValuePair<int, Stream?>(1 , memoryStream);
+        }
+        else
+        {
+            _logger.LogError(response.ErrorMessage);
+            _logger.LogInformation($"Error occured when trying to visualize bill with id {orderId}");
+            return new KeyValuePair<int, Stream?>(-3 , null);
+        }
+
+    }
+
+    public async Task<int> SendBillOnMail(int orderId, string email, string currency = "RON")
+    {
+        _logger.LogInformation($"order id {orderId}"); const string sendBillOnEmailEndpoint = "https://ws.smartbill.ro/SBORO/api/document/send";
+        var getOrderWithId = await _unitOfWork.Repository<Comenzi>()
+            .FindQueryable(order => order.IdComanda == orderId)
+            .FirstOrDefaultAsync();
+        if (getOrderWithId is null)
+        {
+            return -1;
+        }
+
+        var getInvoiceCredentials = await _unitOfWork.Repository<GlobalConfigs>()
+            .FindQueryable(setting => InvoiceCredentials.Contains(setting.NumeAtributGlobal))
+            .ToListAsync();
+
+        var username = getInvoiceCredentials.Find(p => p.NumeAtributGlobal == "smart_bill_username");
+        var password = getInvoiceCredentials.Find(p => p.NumeAtributGlobal == "smart_bill_password");
+        var cif = getInvoiceCredentials.Find(p => p.NumeAtributGlobal == "cif");
+
+        if (username == null || password == null || cif == null ||
+            username.NumeAtributGlobal.IsNullOrEmpty() ||
+            password.NumeAtributGlobal.IsNullOrEmpty() ||
+            cif.NumeAtributGlobal.IsNullOrEmpty())
+        {
+            return -2; // credentials not yet configured by admin.
+        }
+        
+        
+        var toBase64Subject =
+            Convert.ToBase64String(
+                Encoding.UTF8.GetBytes(
+                    $"{(currency == "RON" ? "Buna ziua. Factura dvs" : "Good afternoon. Your bill")}"));
+
+        var toBase64BodyText = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{(currency == "RON" ? $"Aveti atasata factura comenzii cu numarul {orderId}\nVa dorim o zi buna in continuare\n\n Cu stima,\n Echipa takDecor" 
+            : $"In the attachement section, you can find the bill with number {orderId}\nWe wish you a good day\n\n With pleasure,\ntakDecor team")}"));
+
+        var jsonBody = new
+        {
+            type = "factura",
+            companyVatCode = cif.ValoareAtributGlobal,
+            seriesName = SeriesNumber,
+            number = currency == "RON" ? getOrderWithId.BillNumberJson!.NumarRomana : getOrderWithId.BillNumberJson!.NumarEngleza,
+            to = email,
+            subject = toBase64Subject,
+            bodyText = toBase64BodyText
+        };
+
+        var invoiceApiEndpointOptions = new RestClientOptions(sendBillOnEmailEndpoint)
+        {
+            Authenticator = new HttpBasicAuthenticator(username.ValoareAtributGlobal, password.ValoareAtributGlobal),
+        };
+        var client = new RestClient(invoiceApiEndpointOptions);
+        var request = new RestRequest
+        {
+            Method = Method.Post,
+        };
+        request.AddJsonBody(JsonConvert.SerializeObject(jsonBody, Formatting.Indented));
+        request.AddHeader("Content-Type", "application/json");
+        // request.AddHeader("Accept", "application/xml");
+        request.AddHeader("Accept", "application/json");
+
+        var response = await client.ExecuteAsync(request);
+        _logger.LogInformation(response.Content);
+        if (response.IsSuccessful)
+        {
+            _logger.LogInformation($"Succesfully sent bill on email for order with number {orderId}");
+            return 1;
+        }
+        else
+        {
+            _logger.LogError($"An error occured when sending bill on email for order with number {orderId}");
+            _logger.LogError(response.ErrorMessage);
+            return -1;
+        }
+        
+    }
+
     private async Task<int> LockProductsThatAreBeingBought(IList<IGrouping<string, CosCumparaturi>> getCartItemsThatWillBePurchased)
     {
         try
@@ -652,11 +825,6 @@ public class OrderService : IOrderService
             var ringTypesRepository = _unitOfWork.Repository<InelePrindere>();
             var galleryTypesRepository = _unitOfWork.Repository<TipuriGalerie>();
             var lineTypesRepository = _unitOfWork.Repository<TipuriLinie>();
-
-            // var getCartItemsThatWillBePurchased = await _unitOfWork.Repository<CosCumparaturi>()
-            //     .FindQueryable(cart => cart.IdCont == accountId && cart.SessionId == sessionId)
-            //     .GroupBy(group => group.IdentificatorSet != "21" ? group.IdentificatorSet : group.IdProdusInCos.ToString())
-            //         .ToListAsync();
 
             var lockedProducts = new List<Produse>();
             var lockedSets = new List<Seturi>();

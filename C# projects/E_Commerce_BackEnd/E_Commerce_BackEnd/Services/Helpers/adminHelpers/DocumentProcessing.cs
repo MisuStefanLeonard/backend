@@ -1,5 +1,14 @@
 using System.Globalization;
+using E_Commerce_BackEnd.Models.ConfigurationModels;
+using E_Commerce_BackEnd.Models.DTO;
+using E_Commerce_BackEnd.Models.DTO.AdminRelatedDtos.ProductBillingDto;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos;
+using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ManopereDto.ManoperaForSet;
+using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductOptionsDto;
+using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ProductsListingForUsers.ProductPage.OptionsForCurtain;
+using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ShoppingCartDtos;
+using E_Commerce_BackEnd.Models.Enums;
+using E_Commerce_BackEnd.Models.OrderRelatedModels;
 using E_Commerce_BackEnd.Models.ProductRelatedModels;
 using E_Commerce_BackEnd.Models.ProductRelatedModels.JSON_Models;
 using E_Commerce_BackEnd.Services.uProductsService;
@@ -7,15 +16,19 @@ using E_Commerce_BackEnd.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.IdentityModel.Tokens;
-
+using GemBox.Spreadsheet;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using RestSharp;
+using RestSharp.Authenticators;
 
 namespace E_Commerce_BackEnd.Services.Helpers.adminHelpers;
-using GemBox.Spreadsheet;
 
 
 public class DocumentProcessing
 {
-    private readonly string _freeKey = "FREE-LIMITED-KEY";
+    private const string FreeKey = "FREE-LIMITED-KEY";
+    private static readonly List<string> InvoiceCredentials = ["smart_bill_username", "smart_bill_password" , "cif"];
     private readonly ILogger<DocumentProcessing> _docsLogger;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IProductService _productService;
@@ -104,14 +117,14 @@ public class DocumentProcessing
     
     public async Task<ExcelProcessingResult> ReadProductsExcel(Stream stream)
     {
-        SpreadsheetInfo.SetLicense(_freeKey);
+        SpreadsheetInfo.SetLicense(FreeKey);
         var producatoriRepository = _unitOfWork.Repository<Producatori>();
         var culoriRepository = _unitOfWork.Repository<Culori>();
         var codCuloriRepository = _unitOfWork.Repository<CodCulori>();
         var tipuriProduseRepository = _unitOfWork.Repository<TipuriProduse>();
         
         var workbook = ExcelFile.Load(stream);
-        IDbContextTransaction? dbContextTransaction = null;
+        IDbContextTransaction? dbContextTransaction;
         dbContextTransaction  = await _unitOfWork.BeginTransactionAsync();
         try
         {
@@ -127,7 +140,7 @@ public class DocumentProcessing
                     IList<int> tipuriProduseIdList = [];
                     IList<int> colorIdList = [];
 
-                    var idProducator = 0;
+                    int idProducator;
                     var row = worksheet.Rows[i];
                     _docsLogger.LogInformation($"Row : {row}");
                     
@@ -731,14 +744,7 @@ public class DocumentProcessing
                     // product base price , CELL R
                     var productBasePrice = currentWorksheet.Cells[$"R{cellIndex}"];
 
-                    if (product.PProduseCuDimensiuni.Count > 0)
-                    {
-                        productBasePrice.Value = "-";
-                    }
-                    else
-                    {
-                        productBasePrice.Value = product.PretDeBaza.ToString("F2",CultureInfo.InvariantCulture);
-                    }
+                    productBasePrice.Value = product.PProduseCuDimensiuni.Count > 0 ? "-" : product.PretDeBaza.ToString("F2",CultureInfo.InvariantCulture);
                     
                     // product base price discounted , CELL S
                     var productBasePriceDiscounted = currentWorksheet.Cells[$"S{cellIndex}"];
@@ -814,6 +820,458 @@ public class DocumentProcessing
             _docsLogger.LogError(e.StackTrace);
             
             return new KeyValuePair<int, Stream?>(-1 , null);
+
+        }
+    }
+
+    public async Task<KeyValuePair<int,string>> GenerateBill(int orderId, string currency = "RON" )
+    {
+        try
+        {
+            _docsLogger.LogInformation("Generating bill...");
+            const string invoiceApiEndpoint = "https://ws.smartbill.ro/SBORO/api/invoice";
+            var getInvoiceCredentials = await _unitOfWork.Repository<GlobalConfigs>()
+                .FindQueryable(setting => InvoiceCredentials.Contains(setting.NumeAtributGlobal))
+                .ToListAsync();
+
+            var username = getInvoiceCredentials.Find(p => p.NumeAtributGlobal == "smart_bill_username");
+            var password = getInvoiceCredentials.Find(p => p.NumeAtributGlobal == "smart_bill_password");
+            var cif = getInvoiceCredentials.Find(p => p.NumeAtributGlobal == "cif");
+
+            if (username == null || password == null || cif == null ||
+                username.NumeAtributGlobal.IsNullOrEmpty() ||
+                password.NumeAtributGlobal.IsNullOrEmpty() ||
+                cif.NumeAtributGlobal.IsNullOrEmpty())
+            {
+                return new KeyValuePair<int, string>(-2, "");
+            }
+
+            var getOrderDetails = await _unitOfWork.Repository<Comenzi>()
+                .FindQueryable(order => order.IdComanda == orderId)
+                .Select(group => new OrderDetailsForBillingDto
+                {
+                    OrderId = group.IdComanda,
+                    OrderDate = group.DataEmitereComanda,
+                    OrderName = group.NumePeComanda,
+                    OrderPrename = group.PrenumePeComanda,
+                    OrderPhoneNumber = group.NrTelefonPeComanda,
+                    OrderBillNumber = group.BillNumberJson,
+                    OrderEmail = group.EmailPeComanda,
+                    Items = group.PcComenzi!
+                        .GroupBy(groupItems => groupItems.IdentificatorSet != "21" ? groupItems.IdentificatorSet : groupItems.IdProduseCuComenzi.ToString())
+                        .Select(item => new GroupedCartItems
+                        {
+                            Key = item.Key,
+                            CartItems = item.Select(product => new CartItems
+                            {
+                                IdProdus = product.Produs.IdProdus,
+                                IdSet = product.Set!.IdSet,
+                                NumeSet =  currency == "RON" ? product.Set!.NumeSetJson.NumeRomana :  product.Set!.NumeSetJson.NumeEngleza,
+                                CodProdus = product.Produs.CodProdus,
+                                NumeProdus = currency == "RON" ?  product.Produs.NumeProdusJson.NumeRomana : product.Produs.NumeProdusJson.NumeEngleza ,
+                                TipProdus = currency == "RON" ?  product.Produs.TipulProdusuluiJson.TipProdusRomana :  product.Produs.TipulProdusuluiJson.TipProdusEngleza,
+                                TipProdusJson = product.Produs.TipulProdusuluiJson,
+                                CuloareSelectata = new CuloriDto
+                                {
+                                    NumeCuloareDto = currency == "RON" ?  product.PcCuloare.NumeCuloareJson.CuloareRomana : product.PcCuloare.NumeCuloareJson.CuloareEngleza,
+                                    CodCuloareDto = product.PcCuloare.CodCuloare.CodCuloare!,
+                                    
+                                },
+                                DimensiuneSelectata = new DimensiuniDto
+                                {
+                                    LungimeDto = product.PcManopera!.NumeManoperaJson!.NumeRomana != "STAN" ?  product.PcDimensiune!.Lungime : ((int)(product.PcManopera.MaterialFolosit * 100)).ToString(),
+                                    LatimeDto = product.PcDimensiune!.Lungime,
+                                    RecomandarePat = product.PcDimensiune.RecomandarePat,
+                                    PerdeaEstePerecheDto = product.PcManopera!.NumeManoperaJson.NumeRomana == "STAN" ? null : product.PcDimensiune.PerdeaEstePereche 
+                                        
+                                },
+                                SelectedManopera = product.Produs.TipulProdusuluiJson.TipProdusRomana == "perdea" || product.Produs.TipulProdusuluiJson.TipProdusRomana == "draperie" ? new StandardManopereOnSet
+                                {
+                                    IdManopera = product.PcManopera!.IdManopera,
+                                    NumeManopera = currency == "RON" ?  product.PcManopera.NumeManoperaJson!.NumeRomana : product.PcManopera.NumeManoperaJson!.NumeEngleza ,
+                                    MetruTotalFolosit = product.PcManopera.MaterialFolosit,
+                                    InaltimeMaxima = product.PcManopera.InaltimeMaxima,
+                                    TipInel = product.PcManopera.InelPrindereLaManopera != null ? new TipIneleDto
+                                    {
+                                        IdInelPrindere = product.PcManopera.InelPrindereLaManopera.IdInel,
+                                        NumeTipInel =  currency == "RON" ?  product.PcManopera.InelPrindereLaManopera.CuloareInelJson.CuloareRomana
+                                            : product.PcManopera.InelPrindereLaManopera.CuloareInelJson.CuloareEngleza,
+                                    } : null,
+                                    TipGalerie = new TipRejansaDto
+                                    {
+                                        IdRejansa = product.PcManopera.TipGalerieLaManopera.IdTipGalerie,
+                                        NumeTipRejansa =  currency == "RON" ?  product.PcManopera.TipGalerieLaManopera.NumeTipGalerieJson.NumeRomana
+                                            :  product.PcManopera.TipGalerieLaManopera.NumeTipGalerieJson.NumeEngleza,
+                                        IncretireRejansa = product.PcManopera.TipGalerieLaManopera.IncretireRejansa,
+                                        SePrindeCuInele = product.PcManopera.TipGalerieLaManopera.SePrindeCuInele
+                                    },
+                                    TipLinie = new TipLinieDto
+                                    {
+                                        IdTipLinie = product.PcManopera.TipLinieLaManopera.IdTipLinie,
+                                        NumeTipCusaturaColt =  currency == "RON" ?  product.PcManopera.TipLinieLaManopera.NumeTipLinieJson.NumeRomana
+                                            : product.PcManopera.TipLinieLaManopera.NumeTipLinieJson.NumeEngleza,
+                                    }
+                                } : null,
+                                LungimeCeruta = product.PcManopera != null ?
+                                    product.PcManopera.NumeManoperaJson.NumeRomana == "STAN" ? product.PcManopera.MaterialFolosit.ToString() : "empty"
+                                : "not_perdea",
+                                InaltimeCeruta = product.IdSet != null ? product.InaltimeAleasaPentruSet : "not_set",
+                                PretCurent = currency == "RON" ? product.PretCumparat : product.PretCumparat / 5 ,
+                                Cantitate = product.NrBucati,
+                                IdentificatorSet = item.Key  
+                            }).ToList()
+                        }).ToList(),
+                    ClientDeliveryAddress = new AdreseDto
+                    {
+                        IdAdresa = group.CAdresaLivrare.IdAdresa,
+                        AliasDto = group.CAdresaLivrare.Alias,
+                        TipAdresaDto = TipAdrese.Livrare,
+                        BlocDto = group.CAdresaLivrare.Bloc,
+                        NrBlocDto = group.CAdresaLivrare.NrBloc,
+                        StradaDto = group.CAdresaLivrare.Strada,
+                        NrStradaDto = group.CAdresaLivrare.NrStrada,
+                        OrasDto = group.CAdresaLivrare.Locatie.Oras!,
+                        JudetDto = group.CAdresaLivrare.Locatie.Judet!,
+                        CodPostalDto = group.CAdresaLivrare.Locatie.CodPostal!,
+                        IsDeletedDto = group.CAdresaLivrare.IsDeleted,
+                        CifDto = null,
+                        NumeFirmaDto = null
+                    },
+                    ClientBillingAddress = new AdreseDto
+                    {
+                        IdAdresa = group.CAdresaFacturare.IdAdresa,
+                        AliasDto = group.CAdresaFacturare.Alias,
+                        TipAdresaDto = TipAdrese.Facturare,
+                        BlocDto = group.CAdresaFacturare.Bloc,
+                        NrBlocDto = group.CAdresaFacturare.NrBloc,
+                        StradaDto = group.CAdresaFacturare.Strada,
+                        NrStradaDto = group.CAdresaFacturare.NrStrada,
+                        OrasDto = group.CAdresaFacturare.Locatie.Oras!,
+                        JudetDto = group.CAdresaFacturare.Locatie.Judet!,
+                        CodPostalDto = group.CAdresaFacturare.Locatie.CodPostal!,
+                        CifDto = group.CAdresaFacturare.DetaliuFactura!.Cif,
+                        NumeFirmaDto = group.CAdresaFacturare.DetaliuFactura!.Cif,
+                    },
+                })
+                .AsSplitQuery()
+                .FirstOrDefaultAsync();
+
+            if (getOrderDetails == null )
+            {
+                return new KeyValuePair<int, string>(-3 , "Order not found");
+            }
+            
+
+            if (currency == "RON")
+            {
+                if (getOrderDetails.OrderBillNumber is { NumarRomana: not null })
+                {
+                    return new KeyValuePair<int, string>(-4 , "Bill already generated on RON"); // bill on RON already generated
+                }
+            }
+            else
+            {
+                if (getOrderDetails.OrderBillNumber is { NumarEngleza: not null })
+                {
+                    return new KeyValuePair<int, string>(-4 , "Bill already generated on EUR");
+                }
+            }
+            
+
+            var productsBillingList = new List<ProductBilling>();
+            foreach (var product in getOrderDetails.Items)
+            {
+                var isNotSet = int.TryParse(product.Key, out _);
+                _docsLogger.LogInformation($"is set: {isNotSet}");
+                foreach (var item in product.CartItems)
+                {
+                    var descriptionCharacteristics = "";
+                    switch (isNotSet)
+                    {
+                        // if we found the product!
+                        case true:
+
+                            if (item.TipProdusJson.TipProdusRomana is "perdea" or "draperie")
+                            {
+                                if (item.SelectedManopera!.NumeManopera is "STAN")
+                                {
+                                    descriptionCharacteristics += $"Material: {item.SelectedManopera.MetruTotalFolosit} m\n" +
+                                                                  $"{(currency == "RON" ? "Stare material: neprocesat" : "Material state: unprocessed")}\n" +
+                                                                  $"{(currency == "RON" ? $"Culoare: {item.CuloareSelectata.NumeCuloareDto}" : $"Color: {item.CuloareSelectata.NumeCuloareDto}")}";
+                                }
+                                else
+                                {
+
+                                    var ringTypeDescription = item.SelectedManopera.TipGalerie.SePrindeCuInele
+                                        ? currency == "RON"
+                                            ? $"Culoare inel: {item.SelectedManopera.TipInel!.NumeTipInel}"
+                                            : $"Ring color: {item.SelectedManopera.TipInel!.NumeTipInel}"
+                                        : "";
+
+
+                                    descriptionCharacteristics +=
+                                        $"{(currency == "RON" ? "Stare material: procesat" : "Material state: processed")}\n" +
+                                        $"{(currency == "RON" ? $"Culoare: {item.CuloareSelectata.NumeCuloareDto}" : $"Color: {item.CuloareSelectata.NumeCuloareDto}")}\n" +
+                                        $"Material: {item.SelectedManopera.MetruTotalFolosit} m\n" +
+                                        $"{(currency == "RON" ? $"Dimensiuni: Lungime sina:{item.DimensiuneSelectata!.LungimeDto} cm , Inaltime sina:{item.DimensiuneSelectata.LatimeDto} cm"
+                                            : $"Dimension: Rail width:{item.DimensiuneSelectata!.LungimeDto} cm , Rail height:{item.DimensiuneSelectata!.LatimeDto} cm")} \n" +
+                                        $"{(currency == "RON" ? $"Rejansa: {item.SelectedManopera.TipGalerie.NumeTipRejansa}, Incretire: {item.SelectedManopera.TipGalerie.NumeTipRejansa} mm"
+                                            : $"Rejuvenation type: {item.SelectedManopera.TipGalerie.NumeTipRejansa}, Pleat: {item.SelectedManopera.TipGalerie.NumeTipRejansa} mm")}\n" +
+                                        $"{ringTypeDescription}\n" +
+                                        $"{(currency == "RON" ? $"Tip cusatura colt: {item.SelectedManopera.TipLinie.NumeTipCusaturaColt}"
+                                            : $"Cornet stitch type: {item.SelectedManopera.TipLinie.NumeTipCusaturaColt}")}\n";
+                                }
+                            }
+                            else
+                            {
+                                var dimensionCharacteristic = item.DimensiuneSelectata != null
+                                    ? $"{(currency == "RON" ? $"Dimensiuni: Lungime:{item.DimensiuneSelectata!.LungimeDto} cm , Latime:{item.DimensiuneSelectata.LatimeDto} cm " +
+                                                              $", Recomandare pat: {item.DimensiuneSelectata.RecomandarePat ?? "-"}"
+                                        : $"Dimension: Width:{item.DimensiuneSelectata!.LungimeDto} cm , Height:{item.DimensiuneSelectata.LatimeDto} cm" +
+                                          $", Bed recommendation {item.DimensiuneSelectata.RecomandarePat ?? "-"}")} \n"
+                                    : "";
+
+                                descriptionCharacteristics +=
+                                    $"{(currency == "RON" ? $"Culoare: {item.CuloareSelectata.NumeCuloareDto}" : $"Color: {item.CuloareSelectata.NumeCuloareDto}")}\n" +
+                                    $"{dimensionCharacteristic}\n";
+                            }
+
+
+                            var newProductBilled = new ProductBilling
+                            {
+                                name = item.NumeProdus,
+                                code = item.CodProdus,
+                                productDescription = descriptionCharacteristics,
+                                translatedName = currency == "EUR" ?  item.NumeProdus : "",
+                                translatedMeasuringUnit = currency == "EUR" ? "piece" : "",
+                                isDiscount = false,
+                                measuringUnitName = currency == "RON" ? "buc" : "piece",
+                                currency = currency,
+                                quantity = item.Cantitate,
+                                price = double.Parse(item.PretCurent.ToString()),
+                                isTaxIncluded = true,
+                                taxName = "Normala",
+                                taxPercentage = 19,
+                                isService = false,
+                            };
+                            productsBillingList.Add(newProductBilled);
+                            break;
+                        // else we found a set 
+                        case false:
+                            var descriptionCharacteristicsSet = $"{item.CodProdus}\n" +
+                                                                $"{(currency == "RON" ? item.TipProdusJson.TipProdusRomana
+                                                                    : item.TipProdusJson.TipProdusEngleza)}\n";
+                            if (item.TipProdusJson.TipProdusRomana is "perdea" or "draperie")
+                            {
+                                if (item.SelectedManopera!.NumeManopera is "STAN")
+                                {
+                                    descriptionCharacteristicsSet += $"Material: {item.SelectedManopera.MetruTotalFolosit} m\n" +
+                                                                     $"{(currency == "RON" ? "Stare material: neprocesat" : "Material state: unprocessed")}\n" +
+                                                                     $"{(currency == "RON" ? $"Culoare: {item.CuloareSelectata.NumeCuloareDto}" : $"Color: {item.CuloareSelectata.NumeCuloareDto}")}";
+                                }
+                                else
+                                {
+
+                                    var ringTypeDescription = item.SelectedManopera.TipGalerie.SePrindeCuInele
+                                        ? currency == "RON"
+                                            ? $"Culoare inel: {item.SelectedManopera.TipInel!.NumeTipInel}"
+                                            : $"Ring color: {item.SelectedManopera.TipInel!.NumeTipInel}"
+                                        : "";
+
+
+                                    descriptionCharacteristicsSet +=
+                                        $"{(currency == "RON" ? "Stare material: procesat" : "Material state: processed")}\n" +
+                                        $"{(currency == "RON" ? $"Culoare: {item.CuloareSelectata.NumeCuloareDto}" : $"Color: {item.CuloareSelectata.NumeCuloareDto}")}\n" +
+                                        $"Material: {item.SelectedManopera.MetruTotalFolosit} m\n" +
+                                        $"{(currency == "RON" ? $"Dimensiuni: Lungime sina:{item.DimensiuneSelectata!.LungimeDto} cm , Inaltime sina:{item.DimensiuneSelectata.LatimeDto} cm"
+                                            : $"Dimension: Rail width:{item.DimensiuneSelectata!.LungimeDto} cm , Rail height:{item.DimensiuneSelectata!.LatimeDto} cm")} \n" +
+                                        $"{(currency == "RON" ? $"Rejansa: {item.SelectedManopera.TipGalerie.NumeTipRejansa}, Incretire: {item.SelectedManopera.TipGalerie.NumeTipRejansa} mm"
+                                            : $"Rejuvenation type: {item.SelectedManopera.TipGalerie.NumeTipRejansa}, Pleat: {item.SelectedManopera.TipGalerie.NumeTipRejansa} mm")}\n" +
+                                        $"{ringTypeDescription}\n" +
+                                        $"{(currency == "RON" ? $"Tip cusatura colt: {item.SelectedManopera.TipLinie.NumeTipCusaturaColt}"
+                                            : $"Cornet stitch type: {item.SelectedManopera.TipLinie.NumeTipCusaturaColt}")}\n";
+                                }
+                            }
+                            else
+                            {
+                                var dimensionCharacteristic = item.DimensiuneSelectata != null
+                                    ? $"{(currency == "RON" ? $"Dimensiuni: Lungime:{item.DimensiuneSelectata!.LungimeDto} cm , Latime:{item.DimensiuneSelectata.LatimeDto} cm " +
+                                                              $", Recomandare pat: {item.DimensiuneSelectata.RecomandarePat ?? "-"}"
+                                        : $"Dimension: Width:{item.DimensiuneSelectata!.LungimeDto} cm , Height:{item.DimensiuneSelectata.LatimeDto} cm" +
+                                          $", Bed recommendation {item.DimensiuneSelectata.RecomandarePat ?? "-"}")} \n"
+                                    : "";
+
+                                descriptionCharacteristicsSet +=
+                                    $"{(currency == "RON" ? $"Culoare: {item.CuloareSelectata.NumeCuloareDto}" : $"Color: {item.CuloareSelectata.NumeCuloareDto}")}\n" +
+                                    $"{dimensionCharacteristic}\n";
+                            }
+
+
+                            var findSetAlreadyInProductsToBeBilled = productsBillingList
+                                .FirstOrDefault(p =>
+                                    p.name == item.NumeSet);
+
+                            if (findSetAlreadyInProductsToBeBilled == null)
+                            {
+                                var newSetBilled = new ProductBilling
+                                {
+                                    name = item.NumeSet!,
+                                    code =item.NumeSet!,
+                                    productDescription = descriptionCharacteristicsSet,
+                                    translatedName = currency == "EUR" ? item.NumeSet! : "",
+                                    translatedMeasuringUnit = currency == "EUR" ? "piece" : "",
+                                    isDiscount = false,
+                                    measuringUnitName = currency == "RON" ? "buc" : "piece",
+                                    currency = currency,
+                                    quantity = item.Cantitate,
+                                    price = double.Parse(item.PretCurent.ToString()),
+                                    isTaxIncluded = true,
+                                    taxName = "Normala",
+                                    taxPercentage = 19,
+                                    isService = false,
+                                };
+                                productsBillingList.Add(newSetBilled);
+                            }
+                            else
+                            {
+                                findSetAlreadyInProductsToBeBilled.productDescription +=
+                                    "\n" + descriptionCharacteristicsSet;
+                            }
+
+                            break;
+                    }
+                }
+            }
+
+
+
+
+            var jsonBody = new
+            {
+                companyVatCode = cif.ValoareAtributGlobal,
+                client = new
+                {
+                    name = getOrderDetails.ClientBillingAddress!.IdAdresa != getOrderDetails.ClientDeliveryAddress!.IdAdresa ?
+                        $"{getOrderDetails.ClientBillingAddress.NumeFirmaDto}" 
+                        : $"{getOrderDetails.OrderName} {getOrderDetails.OrderPrename}",
+                    vatCode =  getOrderDetails.ClientBillingAddress!.IdAdresa != getOrderDetails.ClientDeliveryAddress!.IdAdresa ?
+                        $"{getOrderDetails.ClientBillingAddress.CifDto}"
+                        : "",
+                    address =  getOrderDetails.ClientBillingAddress!.IdAdresa != getOrderDetails.ClientDeliveryAddress!.IdAdresa ?
+                        $"Str. {getOrderDetails.ClientBillingAddress.StradaDto}, nr. {getOrderDetails.ClientBillingAddress.NrStradaDto}" +
+                        $", bl. {(getOrderDetails.ClientBillingAddress.BlocDto.IsNullOrEmpty() ? "-" : getOrderDetails.ClientBillingAddress.BlocDto)}," +
+                        $" nr. {(getOrderDetails.ClientBillingAddress.NrBlocDto.IsNullOrEmpty() ? "-" : getOrderDetails.ClientBillingAddress.NrBlocDto)}" 
+                        :     
+                        $"Str. {getOrderDetails.ClientDeliveryAddress.StradaDto}, nr. {getOrderDetails.ClientDeliveryAddress.NrStradaDto}" +
+                        $", bl. {(getOrderDetails.ClientDeliveryAddress.BlocDto.IsNullOrEmpty() ? "-" : getOrderDetails.ClientDeliveryAddress.BlocDto)}," +
+                        $" nr. {(getOrderDetails.ClientDeliveryAddress.NrBlocDto.IsNullOrEmpty() ? "-" : getOrderDetails.ClientDeliveryAddress.NrBlocDto)}" ,
+                    isTaxPayer = true,
+                    // aici daca e Bucuresti , sectorul aferent adresei
+                    city = getOrderDetails.ClientBillingAddress!.IdAdresa != getOrderDetails.ClientDeliveryAddress!.IdAdresa ?
+                        getOrderDetails.ClientBillingAddress.OrasDto
+                        : getOrderDetails.ClientDeliveryAddress.OrasDto,
+                    // aici daca e Bucuresti , judetul Bucuresti
+                    county =getOrderDetails.ClientBillingAddress!.IdAdresa != getOrderDetails.ClientDeliveryAddress!.IdAdresa ?
+                        getOrderDetails.ClientBillingAddress.JudetDto 
+                        : getOrderDetails.ClientDeliveryAddress.JudetDto,
+                    country = "Romania",
+                    phone = getOrderDetails.OrderPhoneNumber,
+                    email = getOrderDetails.OrderEmail,
+                    // saveToDb = true true to prod
+                    saveToDb = false
+                    
+                },
+                seriesName = "THD2015",
+                isDraft = false,
+                issueDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                currency = currency == "RON" ? "RON" : "EUR",
+                exchangeRate = currency == "RON" ? double.Parse("1") : double.Parse("5") , 
+                language = currency == "RON" ? "RO" : "EN",
+                precision = 2,
+                dueDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                deliveryDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                useEstimateDetails = false,
+                products = productsBillingList
+            };
+            
+            var serializedJson = JsonConvert.SerializeObject(jsonBody, Formatting.Indented);
+            _docsLogger.LogInformation($"Content for bill generation \n{serializedJson}");
+            var invoiceApiEndpointOptions = new RestClientOptions(invoiceApiEndpoint)
+            {
+                Authenticator = new HttpBasicAuthenticator(username.ValoareAtributGlobal , password.ValoareAtributGlobal)
+            };
+            var client = new RestClient(invoiceApiEndpointOptions);
+            var request = new RestRequest
+            {
+                Method = Method.Post,
+            };
+            
+            request.AddHeader("Accept", "application/json");
+            request.AddHeader("Content-Type", "application/json");
+            request.AddJsonBody(serializedJson);
+          
+            var response = await client.ExecuteAsync(request);
+            _docsLogger.LogInformation(response.Content);
+            if (response.IsSuccessful)
+            {
+                _docsLogger.LogInformation($"Succefully generated bill for order with ID: {orderId}");
+                JObject jsonResponse = JObject.Parse(response.Content!);
+                var invoiceNumber = jsonResponse["number"]!.ToString();
+                IDbContextTransaction? updateTransaction = null;
+                try
+                {
+                    updateTransaction = await _unitOfWork.BeginTransactionAsync();
+                    var getOrderToModify = await _unitOfWork.Repository<Comenzi>()
+                        .FindQueryable(order => order.IdComanda == orderId)
+                        .FirstAsync();
+
+                    if (getOrderToModify.BillNumberJson is null)
+                    {
+                        getOrderToModify.BillNumberJson = new NumarFactura
+                        {
+                            NumarEngleza = null,
+                            NumarRomana = null
+                        };
+                    }
+
+                    if (currency == "RON")
+                    {
+                        getOrderToModify.BillNumberJson.NumarRomana = invoiceNumber;
+                    }
+                    else
+                    {
+                        getOrderToModify.BillNumberJson.NumarEngleza = invoiceNumber;
+
+                    }
+                    await _unitOfWork.Repository<Comenzi>().UpdateAsync(getOrderToModify);
+                    await _unitOfWork.CommitTransactionAsync(updateTransaction);
+                    return new KeyValuePair<int, string>(1 , $"{invoiceNumber}");
+                }
+                catch (Exception e)
+                {
+                    if (updateTransaction != null)
+                    {
+                        await _unitOfWork.RollBackTransactionAsync(updateTransaction);
+                    }
+                    _docsLogger.LogError("Tried to save the bill number, but did not succed. Error occured");
+                    _docsLogger.LogError(e.Message);
+                    return new KeyValuePair<int, string>(-1 , "");
+                }
+            }
+            else
+            {
+                _docsLogger.LogInformation($"Unsuccefully generated bill for order with ID: {orderId}");
+                _docsLogger.LogError(response.ErrorMessage);
+                return new KeyValuePair<int, string>(-1 , "");
+
+            }
+        }
+        catch (Exception e)
+        {
+            _docsLogger.LogError("Error when generating bill.");
+            _docsLogger.LogError("Error message : {0}" , e.Message );
+            _docsLogger.LogError(e.StackTrace);
+            return new KeyValuePair<int, string>(-1 , "");
 
         }
     }

@@ -1077,7 +1077,7 @@ public class SeturiService : ISeturiService
         var totalSetsFiltered = await mainQuery.CountAsync();
 
         var takePaginatedSets = await mainQuery
-            .OrderBy(set => set.NumeSetJson.NumeRomana)
+            .OrderBy(set =>  EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(set.NumeSetJson, "$.nume_ro")))
             .Skip((pageNumber ?? 0) * PageSize)
             .Take(PageSize)
             .Select(set => new SetsListingForUsers
@@ -1090,7 +1090,7 @@ public class SeturiService : ISeturiService
                     ? UserHelpers.ConvertCurrency("RON", "EUR", set.PretRedusSet, 0)
                     : set.PretRedusSet,
                 SetProductsDto = set.SAsociereSeturi!
-                    .GroupBy(asoc => asoc.Produs.NumeProdusJson.NumeRomana)
+                    .GroupBy(asoc => EF.Functions.JsonUnquote(EF.Functions.JsonExtract<string>(asoc.Produs.NumeProdusJson, "$.nume_ro")))
                     .Select(asoc => new ProductsInSet
                     {
                         NumeProdusDto = currency == "RON" ?  asoc.First().Produs.NumeProdusJson.NumeRomana : asoc.First().Produs.NumeProdusJson.NumeEngleza,

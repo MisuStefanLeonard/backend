@@ -90,7 +90,7 @@ public class TokenService : ITokenService
 
         if (string.IsNullOrEmpty(secretValue))
         {
-            throw new ArgumentNullException("secret value not correct");
+            throw new ArgumentNullException(secretValue);
         }
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretValue));
@@ -158,11 +158,11 @@ public class TokenService : ITokenService
             var validationParameters = await GetValidationParameters();
 
             var claimsPrincipal = tokenHandler.ValidateToken(token, validationParameters,
-                out var validatedToken);
+                out  _);
 
             return new Tuple<ClaimsPrincipal?, Conturi?>(claimsPrincipal , null); // succesfull
         }
-        catch (SecurityTokenExpiredException ex)
+        catch (SecurityTokenExpiredException)
         {
             _logger.LogInformation("Issuing new acces token..");
             var checkRefreshToken = await _unitOfWork.Repository<RememberUser>()

@@ -240,7 +240,6 @@ public class BucketAccess : IBucketAcces
             // Construct the CloudFront URL directly
             await Task.Delay(1);
             var cloudFrontUrl = bucketDir == null ? $"{_cloudFontDomain}/images/{imagePath}" : $"{_cloudFontDomain}/images/{bucketDir}/{imagePath}";
-            _logger.LogInformation(cloudFrontUrl);
             return cloudFrontUrl;
         }
         catch (AmazonS3Exception e)

@@ -21,74 +21,97 @@ public class GeneralSettingsService : IGeneralSettingsService
         _cache = cache;
     }
 
-    public async Task<int> SaveGeneralSettings(IDictionary<string, string> generalSettingsDict)
-{
-    IDbContextTransaction? updateGeneralSettingsTransaction = null;
-    try
+   public async Task<int> SaveGeneralSettings(IDictionary<string, string> generalSettingsDict)
     {
-        // Retrieve current settings from cache
-        var cachedSettings = await _cache.GetOrCreateAsync("app_settings", async entry => await GetGeneralSettingsData());
-
-        updateGeneralSettingsTransaction = await _unitOfWork.BeginTransactionAsync();
-        var generalSettingsRepository = _unitOfWork.Repository<GlobalConfigs>();
-
-        // Get database records that need to be updated
-        var findSettingsToModify = await generalSettingsRepository
-            .GetSimpleQueryable()
-            .Where(g => generalSettingsDict.Keys.Contains(g.NumeAtributGlobal))
-            .ToListAsync();
-
-        if (findSettingsToModify.Count == 0)
+        IDbContextTransaction? updateGeneralSettingsTransaction = null;
+        try
         {
-            throw new Exception("No matching attributes found in the database.");
-        }
+            // Retrieve current settings from cache or from the database.
+            var cachedSettings = await _cache.GetOrCreateAsync("app_settings", async entry => await GetGeneralSettingsData());
 
-        var configsToModify = new List<GlobalConfigs>();
-        foreach (var setting in findSettingsToModify)
-        {
-            if (generalSettingsDict.TryGetValue(setting.NumeAtributGlobal, out var newValue) &&
-                setting.ValoareAtributGlobal != newValue)
+            updateGeneralSettingsTransaction = await _unitOfWork.BeginTransactionAsync();
+            var generalSettingsRepository = _unitOfWork.Repository<GlobalConfigs>();
+
+            // Get database records that match the keys in the incoming dictionary.
+            var existingSettings = await generalSettingsRepository
+                .GetSimpleQueryable()
+                .Where(g => generalSettingsDict.Keys.Contains(g.NumeAtributGlobal))
+                .ToListAsync();
+
+            var configsToUpdate = new List<GlobalConfigs>();
+            // Update existing settings.
+            foreach (var setting in existingSettings)
             {
-                setting.ValoareAtributGlobal = newValue;
-                configsToModify.Add(setting);
-
-                // **Update cache value**
-                if (cachedSettings != null)
+                if (generalSettingsDict.TryGetValue(setting.NumeAtributGlobal, out var newValue) &&
+                    setting.ValoareAtributGlobal.Trim() != newValue.Trim())
                 {
-                    cachedSettings[setting.NumeAtributGlobal] = newValue;
+                    setting.ValoareAtributGlobal = newValue.Trim();
+                    configsToUpdate.Add(setting);
+
+                    // Update cache value.
+                    if (cachedSettings != null)
+                    {
+                        cachedSettings[setting.NumeAtributGlobal] = newValue.Trim();
+                    }
                 }
             }
-        }
 
-        // Update database if necessary
-        if (configsToModify.Count > 0)
+            // Identify unsaved keys (i.e. settings not in the DB).
+            var unsavedKeys = generalSettingsDict.Keys.Except(existingSettings.Select(s => s.NumeAtributGlobal)).ToList();
+            var configsToAdd = new List<GlobalConfigs>();
+            foreach (var key in unsavedKeys)
+            {
+                var newSetting = new GlobalConfigs
+                {
+                    NumeAtributGlobal = key,
+                    ValoareAtributGlobal = generalSettingsDict[key].Trim()
+                };
+
+                configsToAdd.Add(newSetting);
+
+                // Update cache with new setting.
+                if (cachedSettings != null)
+                {
+                    cachedSettings[key] = generalSettingsDict[key];
+                }
+            }
+
+            // Update the existing settings.
+            if (configsToUpdate.Count > 0)
+            {
+                await generalSettingsRepository.UpdateRangeAsync(configsToUpdate);
+            }
+
+            // Add the new settings.
+            if (configsToAdd.Count > 0)
+            {
+                await generalSettingsRepository.AddRangeAsync(configsToAdd);
+            }
+
+            await _unitOfWork.CommitTransactionAsync(updateGeneralSettingsTransaction);
+
+            // Update the cache.
+            if (cachedSettings != null)
+            {
+                _cache.Set("app_settings", cachedSettings, TimeSpan.FromMinutes(30));
+            }
+
+            return 1;
+        }
+        catch (Exception e)
         {
-            await generalSettingsRepository.UpdateRangeAsync(configsToModify);
+            if (updateGeneralSettingsTransaction != null)
+            {
+                await _unitOfWork.RollBackTransactionAsync(updateGeneralSettingsTransaction);
+                _logger.LogError("Error occurred. Rolling back transaction");
+            }
+            _logger.LogError(e.StackTrace);
+            _logger.LogError(e.Message);
+
+            return -2;
         }
-
-        await _unitOfWork.CommitTransactionAsync(updateGeneralSettingsTransaction);
-
-        // **Update the cache with modified settings**
-        if (cachedSettings != null)
-        {
-            _cache.Set("app_settings", cachedSettings, TimeSpan.FromMinutes(30));
-        }
-
-        return 1;
     }
-    catch (Exception e)
-    {
-        if (updateGeneralSettingsTransaction != null)
-        {
-            await _unitOfWork.RollBackTransactionAsync(updateGeneralSettingsTransaction);
-            _logger.LogError("Error occurred. Rolling back transaction");
-        }
-        _logger.LogError(e.StackTrace);
-        _logger.LogError(e.Message);
 
-        return -2;
-    }
-}
 
 
     public async Task<IDictionary<string, string>> GetGeneralSettingsData()
@@ -107,11 +130,6 @@ public class GeneralSettingsService : IGeneralSettingsService
                 return getGeneralSettings;
             });
 
-            // foreach (var item in settings)
-            // {
-            //     _logger.LogInformation($"key : {item.Key} , value : {item.Value}");
-            // }
-
             if (settings.IsNullOrEmpty())
             {
                 _logger.LogWarning("EMPTY CACHE");
@@ -126,5 +144,26 @@ public class GeneralSettingsService : IGeneralSettingsService
             return new Dictionary<string, string>();
         }
        
+    }
+
+    public async Task<KeyValuePair<string, string>> GetSpecifiedSetting(string setting)
+    {
+        var settings = await _cache.GetOrCreateAsync("app_settings", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30);
+            var generalSettingsRepository = _unitOfWork.Repository<GlobalConfigs>();
+
+            var getGeneralSettings = await generalSettingsRepository
+                .GetSimpleQueryable()
+                .ToDictionaryAsync(group => group.NumeAtributGlobal, group => group.ValoareAtributGlobal);
+
+            return getGeneralSettings;
+        });
+
+        var kvPairToReturn = settings!
+            .FirstOrDefault(kv => kv.Key == setting);
+
+        return kvPairToReturn.Key == null ? new KeyValuePair<string, string>("", "")
+            : new KeyValuePair<string, string>(kvPairToReturn.Key, kvPairToReturn.Value);
     }
 }

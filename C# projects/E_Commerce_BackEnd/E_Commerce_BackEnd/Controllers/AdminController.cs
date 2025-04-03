@@ -17,6 +17,7 @@ using E_Commerce_BackEnd.Services.uAdminService;
 using E_Commerce_BackEnd.Services.uGeneralService;
 using E_Commerce_BackEnd.Services.uInelePrindereService;
 using E_Commerce_BackEnd.Services.uManopereService;
+using E_Commerce_BackEnd.Services.uOrdersService;
 using E_Commerce_BackEnd.Services.uProductsService;
 using E_Commerce_BackEnd.Services.uService;
 using E_Commerce_BackEnd.Services.uSeturiService;
@@ -26,7 +27,6 @@ using E_Commerce_BackEnd.Services.uVoucherService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
 using Sqids;
 
@@ -50,6 +50,8 @@ namespace E_Commerce_BackEnd.Controllers
         private readonly IBucketAcces _bucketAcces;
         private readonly IManopereService _manopereService;
         private readonly IGeneralSettingsService _generalSettingsService;
+        private readonly IOrderService _orderService;
+
         private readonly SqidsEncoder<int> _sqidsEncoder;
 
         public AdminController(IAdminService adminService
@@ -57,7 +59,7 @@ namespace E_Commerce_BackEnd.Controllers
              SqidsEncoder<int> sqidsEncoder, 
             IInelePrindereService inelePrindereService, ITipuriGalerieService tipuriGalerieService, 
             ITipuriLinieService tipuriLinieService, IUserService userService, IVoucherService voucherService, IManopereService manopereService, IGeneralSettingsService generalSettingsService
-            , IBucketAcces bucketAcces)
+            , IBucketAcces bucketAcces, IOrderService orderService)
         {
             _adminService = adminService;
             _documentProcessing = documentProcessing;
@@ -72,6 +74,7 @@ namespace E_Commerce_BackEnd.Controllers
             _manopereService = manopereService;
             _generalSettingsService = generalSettingsService;
             _bucketAcces = bucketAcces;
+            _orderService = orderService;
         }
 
        
@@ -118,7 +121,7 @@ namespace E_Commerce_BackEnd.Controllers
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddDays(7)
+                Expires = DateTime.UtcNow.AddDays(30)
             };
             
             var getSecretHeader = await TokenService.GetSecret("prod/texx.ro/admin-header");
@@ -1473,6 +1476,60 @@ namespace E_Commerce_BackEnd.Controllers
         {
             var response = await _generalSettingsService.GetGeneralSettingsData();
             return Ok(response);
+        }
+
+
+        [HttpGet("generateBill/{orderId:int}/{currency:required}")]
+        [Authorize]
+        public async Task<IActionResult> GenerateOrderBill([FromRoute] int orderId , [FromRoute] string currency = "RON")
+        {
+            
+            var response = await _documentProcessing.GenerateBill(orderId, currency);
+            return response.Key switch
+            {
+                1 =>  Ok($"{response.Value}"), // 200
+                -2 => NotFound("Credentialele pentru SmartBill nu au fost gasite" +
+                               ". Intrati la sectiunea de setari generale pentru a le completa"), // 404
+                -3 => BadRequest("Comanda pentru care vreti sa vizualizati factura nu a fost gasita"), // 400
+                -4 => NoContent(), // BILL NOT GENERATED YET // 202
+                _ => StatusCode(500, "Internal server error")
+            };
+            
+        }
+        
+        [HttpGet("bill/{orderId:int:required}/{currency:required}")]
+        [Authorize]
+        public async Task<IActionResult> VisualizeBill([FromRoute] int orderId,[FromRoute] string currency = "RON")
+        {
+            var response = await _orderService.ReturnPdfBill(orderId,currency);
+            return response.Key switch
+            {
+                1 =>  File(response.Value!, "application/pdf", $"factura_{orderId}.pdf"),
+                -2 => NotFound("Credentialele pentru SmartBill nu au fost gasite" +
+                               ". Intrati la sectiunea de setari generale pentru a le completa"),
+                -1 => BadRequest("Comanda pentru care vreti sa vizualizati factura nu a fost gasita"),
+                -4 => NoContent(), // BILL NOT GENERATED YET
+                _ => StatusCode(500, "Internal server error")
+            };
+
+        }
+        
+        [HttpPut("bill/cancel/{orderId:int:required}/{currency:required}")]
+        [Authorize]
+        public async Task<IActionResult> CancelBill([FromRoute] int orderId , [FromRoute] string currency)
+        {
+            var response = await _adminService.CancelBill(orderId , currency);
+            return response switch
+            {
+                1 =>  Ok("Bill canceled succesfully"),
+                2 => StatusCode(515 , "Bill already canceled"),
+                -2 => NotFound("Credentialele pentru SmartBill nu au fost gasite" +
+                               ". Intrati la sectiunea de setari generale pentru a le completa"),
+                -1 => BadRequest("Comanda pentru care vreti sa anulati factura nu a fost gasita"),
+                -4 => NoContent(), // BILL NOT GENERATED YET
+                _ => StatusCode(500, "Internal server error")
+            };
+
         }
 
        

@@ -24,10 +24,9 @@ public sealed class SessionTokenCleanUp : IJob
         try
         {
             _logger.LogInformation("Starting session tokens clean up job!");
-            // 15.05.2024 - item expires , 16.05.2024 current.
             cleanUpSessionTokenTransaction = await _unitOfWork.BeginTransactionAsync();
             var findSessionTokensThatExpired = await _unitOfWork.Repository<RememberUser>()
-                .FindQueryable(item => item.ExpiresAt <= DateTime.UtcNow)
+                .FindQueryable(userSession => userSession.ExpiresAt <= DateTime.UtcNow)
                 .ToListAsync();
 
             await _unitOfWork.Repository<RememberUser>().DeleteRangeAsync(findSessionTokensThatExpired);

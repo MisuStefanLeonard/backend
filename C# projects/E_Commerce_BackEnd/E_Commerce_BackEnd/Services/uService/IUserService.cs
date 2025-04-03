@@ -12,7 +12,7 @@ public interface IUserService
     public Task<LoginDto?> LoginAccountAsync(LoginDto loginDto); // 
     public Task AddAccountAsync(Conturi newAccount); //
     public Task<int> LogoutAsync(string refreshToken); // 
-    public Task<string> GenerateRefreshToken(); // 
+    public Task<int> LogoutAsync(int userId);
     #endregion
     
     #region CRUD
@@ -24,10 +24,8 @@ public interface IUserService
 
     public Task<ConturiDto> GetProfileDataAsync(int userId); //
     public Task<int> EmailChangingOrUpdatingUserDataAsync(int userId,ConturiDto updatedDto); //
-
     public Task<int> ModifyUserDataIfEmailHasChangedAsync (string token,ConturiDto updatedDto); //
-    
-
+    public Task<KeyValuePair<int, Stream?>> VisualizeAndDownloadUserBillAsync(int orderId , string currency = "RON");
     #endregion
     
     #region userHelperMethods

@@ -19,4 +19,5 @@ public interface IAdminService
     public Task<IList<MainOrdersDisplayDto>> GetAllOrders();
     public Task<DashboardGeneralData> GetMainDashboardData(DateTime? lowerInterval , DateTime? upperInterval);
     public Task<GaDashboardDto> GetGoogleAnalyticsData(string? lowerInterval , string? upperInterval);
+    public Task<int> CancelBill(int orderId, string currency = "RON");
 }

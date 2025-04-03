@@ -1,6 +1,7 @@
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ShoppingCartDtos;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.VouchereDtos;
 using E_Commerce_BackEnd.Models.Enums;
+using E_Commerce_BackEnd.Models.ProductRelatedModels.JSON_Models;
 using Sqids;
 
 namespace E_Commerce_BackEnd.Models.DTO.ClientOrdersDto;
@@ -18,6 +19,7 @@ public class ClientOrder
     public StatusComanda OrderStatus { get; init; }
     public TipPlata OrderPayment { get; init; }
     public string OrderTrackingString { get; init; } = null!;
+    public NumarFactura OrderBillNumber { get; init; } 
     public bool IsCancelableDto { get; set; }
     public VouchereDto? OrderVoucher { get; init; }
     public decimal PretTotal { get; set; }

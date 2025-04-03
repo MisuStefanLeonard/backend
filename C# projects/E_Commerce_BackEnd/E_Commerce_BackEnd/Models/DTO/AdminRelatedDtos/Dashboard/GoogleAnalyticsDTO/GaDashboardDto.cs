@@ -8,11 +8,13 @@ public class GaDashboardDto
     public int Total28DayActiveUsers { get; set; }
     public int TotalScreenPageViews { get; set; }
     public Dictionary<string, TrafficPerPage> UseriActiviPerPagina { get; set; } = new();
-    
     // Real traffic data
-    
     public int TotalActiveUsersReal { get; set; }
     public int TotalScreenPageViewsReal { get; set; }
     public Dictionary<string, TrafficPerPage> UseriActiviPerPaginaReal { get; set; } = new();
+    public double EngagementRate { get; set; }
+    public int EngagementSessions {get; set;}
+    public int AverageSessionDuration { get; set; }
+    public double BounceRate { get; set; }
 
 }

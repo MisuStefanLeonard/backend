@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using E_Commerce_BackEnd.Models.Enums;
 using E_Commerce_BackEnd.Models.ProductRelatedModels;
+using E_Commerce_BackEnd.Models.ProductRelatedModels.JSON_Models;
 using E_Commerce_BackEnd.Models.ProductVouchersModels;
 using E_Commerce_BackEnd.Models.UserRelatedModels;
 
@@ -25,6 +26,7 @@ public class Comenzi
     public string EmailPeComanda { get; init; } = null!;
     public string UniqueConfirmationToken { get; init; } = null!;
     public bool UniqueConfirmationTokenUsed { get; set; }
+    public NumarFactura? BillNumberJson { get; set; } 
     public bool IsOrderPayed { get; set; }
     public bool IsCancelable { get; set; }
     

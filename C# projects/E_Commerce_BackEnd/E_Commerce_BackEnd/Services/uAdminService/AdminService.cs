@@ -1,7 +1,9 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using AutoMapper;
 using E_Commerce_BackEnd.CustomExceptions;
+using E_Commerce_BackEnd.Models.ConfigurationModels;
 using E_Commerce_BackEnd.Models.DTO.AdminRelatedDtos.Accounts;
 using E_Commerce_BackEnd.Models.DTO.AdminRelatedDtos.Dashboard;
 using E_Commerce_BackEnd.Models.DTO.AdminRelatedDtos.Dashboard.GoogleAnalyticsDTO;
@@ -25,6 +27,9 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using RestSharp;
+using RestSharp.Authenticators;
 
 
 namespace E_Commerce_BackEnd.Services.uAdminService;
@@ -38,6 +43,8 @@ public partial class AdminService : IAdminService
     private readonly IMjmlService _mjmlService;
     private readonly IMapper _mapper;
     private readonly IMemoryCache _cache;
+    private static readonly List<string> InvoiceCredentials = ["smart_bill_username", "smart_bill_password" , "cif"];
+
 
     public AdminService(ILogger<AdminService> logger, IUnitOfWork unitOfWork, IMapper mapper, IEmailService emailService, IMemoryCache cache, IBucketAcces bucketAcces1, IMjmlService mjmlService)
     {
@@ -617,11 +624,121 @@ public async Task<DashboardGeneralData> GetMainDashboardData(DateTime? lowerInte
     var productWithOrdersRepository = _unitOfWork.Repository<ProduseCuComenzi>();
     var productsRepository = _unitOfWork.Repository<Produse>();
     var ordersRepository = _unitOfWork.Repository<Comenzi>();
-    var clientsRepository = _unitOfWork.Repository<Conturi>();
 
     var stopwatch = Stopwatch.StartNew();
+
+    var today = DateTime.Today;
+    var tomorrow = today.AddDays(1);
     
-    // total incasari
+    var revenueToday = await productWithOrdersRepository
+        .GetSimpleQueryable()
+        .Select(order => new
+        {
+            order.IdComanda,
+            order.Set,
+            order.Comanda.StatusComanda,
+            order.PretCumparat,
+            order.Comanda.DataEmitereComanda,
+            IsSet = order.Set != null,
+            ProductPrice = order.Set == null ? order.PretCumparat * order.NrBucati : 0,
+            SetPrice = order.Set != null ? order.PretCumparat * order.NrBucati : 0 
+        })
+        .Where(order => order.StatusComanda != StatusComanda.Anulata 
+                        && order.StatusComanda != StatusComanda.Rambursata &&
+                        order.DataEmitereComanda >= today  &&
+                        order.DataEmitereComanda < tomorrow)
+        .GroupBy(order => order.IdComanda)
+        .Select(group => new  
+        {
+            Revenue = group.Where(x => !x.IsSet).Sum(x => x.ProductPrice) 
+                               + group.Where(x => x.IsSet).Select(x => x.SetPrice).FirstOrDefault(),
+            OrderTime = group.First().DataEmitereComanda.Hour, 
+        })
+        .GroupBy(x => x.OrderTime)
+        .Select(g => new OneDayRevenueDto
+        {
+            Revenue = g.Sum(x => x.Revenue),
+            OrdersCount = g.Count(),
+            OrderHourTime = g.First().OrderTime
+        }).AsSplitQuery()
+        .ToListAsync();
+
+    var oneMonthAgo = today.AddDays(-29);
+    // eg lower interval 30.02.2025 -  31.02.2025
+    
+    
+    
+    var revenuePastMonth = await productWithOrdersRepository
+        .GetSimpleQueryable()
+        .Select(order => new
+        {
+            order.IdProduseCuComenzi,
+            order.IdComanda,
+            order.Set,
+            order.Comanda.StatusComanda,
+            order.PretCumparat,
+            order.Comanda.DataEmitereComanda,
+            IsSet = order.Set != null,
+            ProductPrice = order.Set == null ? order.PretCumparat * order.NrBucati : 0,
+            SetPrice = order.Set != null ? order.PretCumparat * order.NrBucati : 0 
+        })
+        .Where(order => order.StatusComanda != StatusComanda.Anulata 
+                        && order.StatusComanda != StatusComanda.Rambursata &&
+                        order.DataEmitereComanda >= oneMonthAgo &&
+                        order.DataEmitereComanda < tomorrow)
+        .GroupBy(order => order.IdComanda)
+        .Select(order => new 
+        {
+            Day = order.First().DataEmitereComanda.Date,
+            Revenue = order.Where(x => !x.IsSet).Sum(x => x.ProductPrice) 
+                      + order.Where(x => x.IsSet).Select(x => x.SetPrice).FirstOrDefault(),
+        })
+        .GroupBy(x => x.Day)
+        .Select(g => new  OneMonthRevenueDto
+        {
+            Day = g.Key,
+            Revenue = g.Sum(x => x.Revenue),
+            OrdersCount = g.Count() 
+        }).ToListAsync();
+    
+    var yearAgo = today.AddYears(-1);
+    var revenuePastYear = await productWithOrdersRepository
+        .GetSimpleQueryable()
+        .Select(order => new
+        {
+            order.IdComanda,
+            order.Set,
+            order.Comanda.StatusComanda,
+            order.PretCumparat,
+            order.Comanda.DataEmitereComanda,
+            IsSet = order.Set != null,
+            ProductPrice = order.Set == null ? order.PretCumparat * order.NrBucati : 0,
+            SetPrice = order.Set != null ? order.PretCumparat * order.NrBucati : 0 
+        })
+        .Where(order => order.StatusComanda != StatusComanda.Anulata 
+                         && order.StatusComanda != StatusComanda.Rambursata
+                         && order.DataEmitereComanda >= yearAgo
+                         &&  order.DataEmitereComanda < tomorrow)
+        .GroupBy(order => order.IdComanda)
+        .Select(order => new 
+        {
+            order.First().DataEmitereComanda.Year, 
+            order.First().DataEmitereComanda.Month,
+            Revenue = order.Where(x => !x.IsSet).Sum(x => x.ProductPrice) 
+                      + order.Where(x => x.IsSet).Select(x => x.SetPrice).FirstOrDefault()
+        })
+        .GroupBy(x => new { x.Year, x.Month })
+        .Select(g => new OneYearRevenueDto
+        {
+            Month = $"{g.Key.Year}-{g.Key.Month:D2}",
+            Revenue = g.Sum(x => x.Revenue),
+            OrdersCount = g.Count()
+        })
+        .ToListAsync();
+   
+    
+    
+    // total incasari pe toata perioada
     var totalRevenue = await productWithOrdersRepository
         .GetSimpleQueryable()
         .Select(order => new
@@ -632,18 +749,11 @@ public async Task<DashboardGeneralData> GetMainDashboardData(DateTime? lowerInte
             order.PretCumparat,
             order.Comanda.DataEmitereComanda,
             IsSet = order.Set != null,
-            ProductPrice = order.Set == null 
-                ? order.PcManopera == null 
-                    ? order.PretCumparat * order.NrBucati 
-                    : (order.PretCumparat * ((Convert.ToDecimal(order.PcDimensiune!.Lungime) / 100) * order.PcManopera.MaterialFolosit) 
-                       + order.PcManopera.PretCurentTipGalerie * ((Convert.ToDecimal(order.PcDimensiune!.Lungime) / 100) * order.PcManopera.MaterialFolosit)
-                       + order.PcManopera.PretCurentTipLinie * ((Convert.ToDecimal(order.PcDimensiune!.Lungime) / 100) * order.PcManopera.MaterialFolosit))
-                      * order.NrBucati
-                : 0, 
+            ProductPrice = order.Set == null ? order.PretCumparat * order.NrBucati : 0,
             SetPrice = order.Set != null ? order.PretCumparat * order.NrBucati : 0 
-        }).Where(order => order.StatusComanda == StatusComanda.Finalizata
-                          && (lowerInterval == null || order.DataEmitereComanda >= lowerInterval)
-                          && (upperInterval == null || order.DataEmitereComanda <= upperInterval))
+        }).Where(order => order.StatusComanda != StatusComanda.Anulata && order.StatusComanda != StatusComanda.Rambursata)
+        .Where(order => (lowerInterval == null || order.DataEmitereComanda >= lowerInterval)
+                        && (upperInterval == null || order.DataEmitereComanda <= upperInterval))
         .GroupBy(order => order.IdComanda)
         .Select(group => new 
         {
@@ -699,21 +809,6 @@ public async Task<DashboardGeneralData> GetMainDashboardData(DateTime? lowerInte
                 category => category.StatusCount.ToDictionary(
                     status => status.Status,
                     status => status.Count)));
-
-    // status clienti
-    var clientTypes = await clientsRepository
-        .GetSimpleQueryable()
-        .Select(client => new
-        {
-            client.IsGuest,
-            client.Username
-        }).GroupBy(clientGroup => clientGroup.IsGuest)
-        .Select(item => new
-        {
-            StareCont = item.Key ? "Neinregistrat" : "Inregistrat",
-            Total = item.Count()
-        })
-        .ToDictionaryAsync(clientDict => clientDict.StareCont, clientDict => clientDict.Total);
     
     // status comenzi
     
@@ -740,19 +835,20 @@ public async Task<DashboardGeneralData> GetMainDashboardData(DateTime? lowerInte
         .GetSimpleQueryable()
         .Select(product => new
         {
+            orderObj = product.Comanda,
             product.Produs.CodProdus,
             product.IdSet,
             product.PcManopera ,
-            PretAdus = product.PcManopera == null ? product.PretCumparat * product.NrBucati
-                : (product.PretCumparat * ((Convert.ToDecimal(product.PcDimensiune!.Lungime) / 100) * product.PcManopera.MaterialFolosit) 
-                   + product.PcManopera.PretCurentTipGalerie * ((Convert.ToDecimal(product.PcDimensiune!.Lungime) / 100) * product.PcManopera.MaterialFolosit) 
-                   + product.PcManopera.PretCurentTipLinie * ((Convert.ToDecimal(product.PcDimensiune!.Lungime) / 100) * product.PcManopera.MaterialFolosit)) * product.NrBucati
-        }).Where(product => product.IdSet == null)
+            PretAdus = product.PretCumparat * product.NrBucati,
+        }).Where(order => order.orderObj.StatusComanda == StatusComanda.Finalizata
+                         && (lowerInterval == null || order.orderObj.DataEmitereComanda >= lowerInterval)
+                         && (upperInterval == null || order.orderObj.DataEmitereComanda <= upperInterval))
+        .Where(product => product.IdSet == null)
         .GroupBy(item => item.CodProdus)
         .Select(group => new
         {
-            CodProdus = group.Key,
-            TotalSumaVanzariProdus = group.Sum(product => product.PretAdus)
+            CodProdus = group.Key + "_" + group.Count(),
+            TotalSumaVanzariProdus = Math.Round(group.Sum(product => product.PretAdus))
         }).ToDictionaryAsync(productDict => productDict.CodProdus
             , productDict => productDict.TotalSumaVanzariProdus);
             
@@ -771,48 +867,48 @@ public async Task<DashboardGeneralData> GetMainDashboardData(DateTime? lowerInte
         decimal averageOrderValue = 0;
         if (totalFinishedOrders != 0)
         {
-            averageOrderValue = totalRevenue / totalFinishedOrders;
+            averageOrderValue = Math.Round(totalRevenue / totalFinishedOrders);
         }
         
         
         // best 5 selled products
-        var bestSelled5Products = await productWithOrdersRepository
+        var bestSelled10Products = await productWithOrdersRepository
             .GetSimpleQueryable()
             .Select(order => new
             {
+                orderObj = order.Comanda,
                 order.Produs.CodProdus,
                 order.IdComanda,
                 order.IdSet,
-                PretAdus = order.PcManopera == null 
-                    ? 
-                    order.PretCumparat * order.NrBucati
-                    : 
-                    ((order.PretCumparat * ((Convert.ToDecimal(order.PcDimensiune!.Lungime) / 100) * order.PcManopera.MaterialFolosit) ) 
-                        + order.PcManopera.PretCurentTipGalerie * ((Convert.ToDecimal(order.PcDimensiune!.Lungime) / 100) * order.PcManopera.MaterialFolosit)
-                        + order.PcManopera.PretCurentTipLinie * ((Convert.ToDecimal(order.PcDimensiune!.Lungime) / 100) * order.PcManopera.MaterialFolosit))
-                          * order.NrBucati
-            }).Where(order => order.IdSet == null)
+                PretAdus =  order.PretCumparat * order.NrBucati 
+            }).Where(order => order.orderObj.StatusComanda == StatusComanda.Finalizata
+                              && (lowerInterval == null || order.orderObj.DataEmitereComanda >= lowerInterval)
+                              && (upperInterval == null || order.orderObj.DataEmitereComanda <= upperInterval))
+            .Where(order => order.IdSet == null)
             .GroupBy(order => order.CodProdus)
             .Select(group => new TopVandutProdusDto
             {
                 CodProdus = group.Key,
                 NrVanzari = group.Count(),
-                VenitTotal = group.Sum(price => price.PretAdus),
+                VenitTotal = Math.Round(group.Sum(price => price.PretAdus)),
             }).OrderByDescending(product => product.NrVanzari)
             .ThenByDescending(product => product.VenitTotal)
-            .Take(5)
+            .Take(10)
             .ToListAsync();
 
         var dashboardDataDto = new DashboardGeneralData
         {
-            TotalIncasariGeneral = totalRevenue,
+            TotalIncasariGeneral = Math.Round(totalRevenue),
             TotalProduse = totalProduse,
             TipuriProduse = productTypes,
             PretMediuComandaGeneral = averageOrderValue,
-            TipuriClientiGeneral = clientTypes,
+            OneDayRevenue = revenueToday,
+            OneMonthRevenue = revenuePastMonth,
+            OneYearRevenue = revenuePastYear,
+            // TipuriClientiGeneral = clientTypes,
             TipuriComenziGeneral = orderTypes,
             VenitTotalPeProdus = totalRevenuePerProduct,
-            TopProduseVanduteGeneral = bestSelled5Products
+            TopProduseVanduteGeneral = bestSelled10Products
         };
         
         stopwatch.Stop();
@@ -876,8 +972,6 @@ public async Task<GaDashboardDto> GetGoogleAnalyticsData(string? lowerInterval ,
             }
         },
     };
-    
-   
     
     var totalUsersRealTime = new RunRealtimeReportRequest
     {
@@ -968,6 +1062,35 @@ public async Task<GaDashboardDto> GetGoogleAnalyticsData(string? lowerInterval ,
             }
         },
     };
+    
+    var totalEngagementSessionGeneral = new RunReportRequest
+    {
+        Property = "properties/" + propertyId,
+        Metrics =
+        {
+            new Metric { Name = "engagementRate" },
+            new Metric { Name = "engagedSessions" },
+            new Metric {Name = "averageSessionDuration"},
+            new Metric {Name = "bounceRate"}
+        },
+        DateRanges = { new DateRange { StartDate = lowerInterval, EndDate = upperInterval } },
+        DimensionFilter = new FilterExpression
+        {
+            NotExpression = new FilterExpression
+            {
+                Filter = new Filter
+                {
+                    FieldName = "pagePath",
+                    StringFilter = new Filter.Types.StringFilter
+                    {
+                        MatchType = Filter.Types.StringFilter.Types.MatchType.Contains,
+                        Value = "/admin"
+                    }
+                }
+            }
+        }
+    };
+    
     // response from first runReport for total active users
     var responseFromTotalUsers = await client.RunReportAsync(totalUsers);
     // Real time runReportRequest for total traffic on website
@@ -976,8 +1099,19 @@ public async Task<GaDashboardDto> GetGoogleAnalyticsData(string? lowerInterval ,
     var responseFromUsersPerPageRequest = await client.RunReportAsync(usersPerPage);
     // Real time response from total traffic on every page
     var realTimeResponseFromTotalTrafficPerPage = await client.RunRealtimeReportAsync(usersPerPageRealTime);
+    // Total engagement session and engagement rate
+    var responseFromEngagementSessionGeneral = await client.RunReportAsync(totalEngagementSessionGeneral);
     
     var googleAnalyticsDto = new GaDashboardDto();
+    
+    // general engagement rate and session
+    foreach (var row in responseFromEngagementSessionGeneral.Rows)
+    {
+        googleAnalyticsDto.EngagementRate = double.Parse(row.MetricValues[0].Value, CultureInfo.InvariantCulture);
+        googleAnalyticsDto.EngagementSessions = Convert.ToInt32(row.MetricValues[1].Value);
+        googleAnalyticsDto.AverageSessionDuration = (int)double.Parse(row.MetricValues[2].Value, CultureInfo.InvariantCulture);
+        googleAnalyticsDto.BounceRate =  double.Parse(row.MetricValues[3].Value, CultureInfo.InvariantCulture);
+    }
     
     // general
     foreach (var row in responseFromTotalUsers.Rows)
@@ -1082,8 +1216,147 @@ public async Task<GaDashboardDto> GetGoogleAnalyticsData(string? lowerInterval ,
     return googleAnalyticsDto;
 }
 
+public async Task<int> CancelBill(int orderId , string currency = "RON")
+{
+    IDbContextTransaction? cancelingBillTransaction = null;
+    try
+    {
+        cancelingBillTransaction = await _unitOfWork.BeginTransactionAsync();
+        const string invoiceApiEndpoint = "https://ws.smartbill.ro/SBORO/api/invoice/cancel";
+        const string seriesName = "THD2015";
+        var getOrderWithId = await _unitOfWork.Repository<Comenzi>()
+            .FindQueryable(order => order.IdComanda == orderId)
+            .FirstOrDefaultAsync();
 
-    private async Task<string?> GetPresignedUrlFromBucket(string imagePath, string dirInBucket)
+        if (getOrderWithId is null)
+        {
+            return -1;
+        }
+
+        // if (getOrderWithId.BillNumber == null)
+        // {
+        //     return -4; // bill not generated yet
+        // }
+        
+        var getInvoiceCredentials = await _unitOfWork.Repository<GlobalConfigs>()
+            .FindQueryable(setting => InvoiceCredentials.Contains(setting.NumeAtributGlobal))
+            .ToListAsync();
+
+        var username = getInvoiceCredentials.Find(p => p.NumeAtributGlobal == "smart_bill_username");
+        var password = getInvoiceCredentials.Find(p => p.NumeAtributGlobal == "smart_bill_password");
+        var cif = getInvoiceCredentials.Find(p => p.NumeAtributGlobal == "cif");
+        
+        if (username == null || password == null || cif == null ||
+            username.NumeAtributGlobal.IsNullOrEmpty() ||
+            password.NumeAtributGlobal.IsNullOrEmpty() ||
+            cif.NumeAtributGlobal.IsNullOrEmpty())
+        {
+            return -2; // credentials missing
+
+        }
+
+        if (getOrderWithId.BillNumberJson is null)
+        {
+            return -4; // bill not generated yet
+        }
+        
+        var invoiceApiEndpointOptions = new RestClientOptions(invoiceApiEndpoint)
+        {
+            Authenticator = new HttpBasicAuthenticator(username.ValoareAtributGlobal , password.ValoareAtributGlobal),
+        };
+        var client = new RestClient(invoiceApiEndpointOptions);
+        var request = new RestRequest
+        {
+            Method = Method.Put,
+        };
+
+        request.AddHeader("Accept", "application/json");
+        request.AddQueryParameter("cif", $"{cif.ValoareAtributGlobal}");
+        request.AddQueryParameter("seriesname", seriesName);
+        // request.AddQueryParameter("number", $"{getOrderWithId.BillNumber}");
+        request.AddQueryParameter("number", $"{(currency == "RON" ? getOrderWithId.BillNumberJson.NumarRomana : getOrderWithId.BillNumberJson.NumarEngleza)}");
+
+
+        var response = await client.ExecuteAsync(request);
+        _logger.LogInformation($"bill number RO {getOrderWithId.BillNumberJson.NumarRomana}");
+        _logger.LogInformation($"bill number EN {getOrderWithId.BillNumberJson.NumarEngleza}");
+        _logger.LogInformation($"{response.Content}");
+
+        if (response.IsSuccessful)
+        {
+            JObject jsonResponse = JObject.Parse(response.Content!);
+            var alreadyCanceledBillMessage = jsonResponse["message"]!.ToString();
+            if (alreadyCanceledBillMessage.Contains("este deja anulata"))
+            {
+                if (currency == "RON")
+                {
+                    if (getOrderWithId.BillNumberJson.NumarRomana != null)
+                    {
+                        getOrderWithId.BillNumberJson.NumarRomana = null;
+                    }
+                    _logger.LogInformation("Factura in moneda RON , limba RO deja anulata");
+                    await _unitOfWork.Repository<Comenzi>().UpdateAsync(getOrderWithId);
+                    await _unitOfWork.CommitTransactionAsync(cancelingBillTransaction);
+                    return 2;
+                }
+                else
+                {
+                    if (getOrderWithId.BillNumberJson.NumarEngleza != null)
+                    {
+                        getOrderWithId.BillNumberJson.NumarEngleza = null;
+                    }
+                    _logger.LogInformation("Factura in moneda EUR, limba EN deja anulata");
+                    await _unitOfWork.Repository<Comenzi>().UpdateAsync(getOrderWithId);
+                    await _unitOfWork.CommitTransactionAsync(cancelingBillTransaction);
+                    return 2;
+                }
+               
+            }
+
+            if (currency == "RON")
+            {
+                getOrderWithId.BillNumberJson.NumarRomana = null;
+            }
+            else
+            {
+                getOrderWithId.BillNumberJson.NumarEngleza = null;
+
+            }
+            _logger.LogInformation($"Making bill number attribute null to order with id {getOrderWithId.IdComanda}");
+            await _unitOfWork.Repository<Comenzi>().UpdateAsync(getOrderWithId);
+            await _unitOfWork.CommitTransactionAsync(cancelingBillTransaction);
+            _logger.LogInformation($"{(currency == "RON" ? $"Am anulat cu succes factura in RO , moneda RON {getOrderWithId.BillNumberJson.NumarRomana}" 
+                : $"Am anulat cu succes factura in EN {getOrderWithId.BillNumberJson.NumarEngleza}")}");
+            return 1;
+        }
+        else
+        {
+            _logger.LogError(
+                $"{(currency == "RON" ? $"O eroare s-a intamplat cand am incercat anularea facturii cu nr {getOrderWithId.BillNumberJson.NumarRomana} in romana)"
+                    : $"O eroare s-a intamplat cand am incercat anularea facturii cu nr {getOrderWithId.BillNumberJson.NumarEngleza} in engleza)")}");
+            _logger.LogError($"{response.ErrorMessage}");
+            await _unitOfWork.CommitTransactionAsync(cancelingBillTransaction);
+            return -1;
+        }
+    
+
+    }
+    catch (Exception e)
+    {
+        if (cancelingBillTransaction != null)
+        {
+            await _unitOfWork.RollBackTransactionAsync(cancelingBillTransaction);
+        }
+        _logger.LogError("Errot caught:");
+        _logger.LogError(e.Message);
+        _logger.LogError(e.StackTrace);
+        return -1;
+    }
+    
+}
+
+
+private async Task<string?> GetPresignedUrlFromBucket(string imagePath, string dirInBucket)
     {
         var url = await _bucketAcces.GenerateUrl(imagePath, dirInBucket);
         return url;

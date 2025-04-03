@@ -4,16 +4,19 @@ using E_Commerce_BackEnd.Models.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace E_Commerce_BackEnd.Migration.V1
+namespace E_Commerce_BackEnd.Migration.V2
 {
     [DbContext(typeof(ECommerceContext))]
-    partial class ECommerceContextModelSnapshot : ModelSnapshot
+    [Migration("20250327082351_BillNumberAdded")]
+    partial class BillNumberAdded
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -61,10 +64,10 @@ namespace E_Commerce_BackEnd.Migration.V1
                         .HasColumnType("varchar")
                         .HasColumnName("awb_fan_courier");
 
-                    b.Property<string>("BillNumberJson")
-                        .IsRequired()
-                        .HasColumnType("json")
-                        .HasColumnName("numar_factura_json");
+                    b.Property<string>("BillNumber")
+                        .HasMaxLength(75)
+                        .HasColumnType("varchar")
+                        .HasColumnName("bill_number");
 
                     b.Property<DateTime>("DataEmitereComanda")
                         .ValueGeneratedOnAdd()

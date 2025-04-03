@@ -186,7 +186,7 @@ builder.Services.AddQuartz(q =>
                 .WithIdentity("unlocking-products-trig", "products-trigs")
                 .WithCronSchedule("0 4 0 * * ?")
                 .StartNow();
-            //  Every 12 hours
+           
                 
         });
   
@@ -359,6 +359,7 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    app.UseHsts();
 }
 
 app.UseRateLimiter();

@@ -2,6 +2,7 @@
 using System.Security.Authentication;
 using System.Security.Claims;
 using AutoMapper;
+using E_Commerce_BackEnd.Models.ConfigurationModels;
 using E_Commerce_BackEnd.Models.DTO;
 using E_Commerce_BackEnd.Models.DTO.AdminRelatedDtos.Accounts;
 using E_Commerce_BackEnd.Models.DTO.ClientOrdersDto;
@@ -12,6 +13,7 @@ using E_Commerce_BackEnd.Models.DTO.ProduseDtos.ShoppingCartDtos;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.VouchereDtos;
 using E_Commerce_BackEnd.Models.DTO.Recaptcha;
 using E_Commerce_BackEnd.Models.Enums;
+using E_Commerce_BackEnd.Models.OrderRelatedModels;
 using E_Commerce_BackEnd.Models.UserRelatedModels;
 using E_Commerce_BackEnd.Services.emailService;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret;
@@ -22,8 +24,11 @@ using E_Commerce_BackEnd.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
 using NuGet.Packaging;
+using RestSharp;
+using RestSharp.Authenticators;
 
 
 namespace E_Commerce_BackEnd.Services.uService;
@@ -39,6 +44,7 @@ public class UserService : IUserService
     private readonly ILogger<Conturi> _logger;
     private readonly IBucketAcces _bucketAcces;
     private readonly IMjmlService _mjmlService;
+    private static readonly List<string> InvoiceCredentials = ["smart_bill_username", "smart_bill_password" , "cif"];
     private const string ReCaptchaUrl = "https://www.google.com/recaptcha/api/siteverify";
     private const int Size = 30;
     private const int Size2 = 30;
@@ -179,7 +185,6 @@ public class UserService : IUserService
         IDbContextTransaction? deleteRefreshTokenTransaction = null;
         try
         {
-            _logger.LogInformation(refreshToken);
             deleteRefreshTokenTransaction = await _unitOfWork.BeginTransactionAsync();
             var getRefreshTokenFromDb = await _unitOfWork.Repository<RememberUser>()
                 .FindQueryable(token => token.SessionToken == refreshToken)
@@ -207,12 +212,39 @@ public class UserService : IUserService
         }
     }
 
-    public async Task<string> GenerateRefreshToken()
+    public async Task<int> LogoutAsync(int userId)
     {
-        var getToken = _tokenService.RefreshToken();
-        await Task.CompletedTask;
-        return getToken;
-        
+        IDbContextTransaction? deleteRefreshTokenTransaction = null;
+
+        try
+        {
+            deleteRefreshTokenTransaction = await _unitOfWork.BeginTransactionAsync();
+            var getRefreshTokenFromDbById = await _unitOfWork.Repository<RememberUser>()
+                .FindQueryable(token => token.IdCont == userId)
+                .FirstOrDefaultAsync();
+
+            if (getRefreshTokenFromDbById == null)
+            {
+                _logger.LogWarning("Session token was already deleted from db.  No deletion required.");
+                return 1; // token already deleted | not present
+            }
+
+            await _unitOfWork.Repository<RememberUser>().DeleteAsync(getRefreshTokenFromDbById);
+            await _unitOfWork.CommitTransactionAsync(deleteRefreshTokenTransaction);
+            _logger.LogInformation("Succefully deleted session from the db.");
+            return 1; // succes delete
+        }
+        catch (Exception e)
+        {
+            if (deleteRefreshTokenTransaction != null)
+            {
+                await _unitOfWork.RollBackTransactionAsync(deleteRefreshTokenTransaction);
+                _logger.LogError(e.Message);
+                _logger.LogError(e.StackTrace);
+
+            }
+            return -1;
+        }
     }
 
     public async Task<Conturi?> CreateAccountBasedOnGoogleLogIn(IEnumerable<Claim> currentClaims)
@@ -280,7 +312,7 @@ public class UserService : IUserService
 
             RememberUser newRefreshToken;
             var rememberUserRepository = _unitOfWork.Repository<RememberUser>();
-            var expiringTime = DateTime.UtcNow.AddDays(7);
+            var expiringTime = currentUser is not { Rol: "Admin" } ? DateTime.UtcNow.AddDays(7) : DateTime.UtcNow.AddDays(30);
             
             
             if (currentUser is not null && plainTextPassword == null)
@@ -326,42 +358,42 @@ public class UserService : IUserService
 
             if (findRefreshTokenInDb != null)
             {
-                var newExpirationTime = DateTime.UtcNow.AddDays(7);
+                var newExpirationTime = currentUser is not {Rol: "Admin"} ? DateTime.UtcNow.AddDays(7)
+                        : DateTime.UtcNow.AddDays(30);
                 findRefreshTokenInDb.IssuedAt = DateTime.UtcNow;
                 findRefreshTokenInDb.ExpiresAt = newExpirationTime;
                 await rememberUserRepository.UpdateAsync(findRefreshTokenInDb);
                 await _unitOfWork.CommitTransactionAsync(addRefreshTokenTransaction);
-            
+                _logger.LogInformation($"AICI {findRefreshTokenInDb.SessionToken}");
                 var tokenForUser = await _tokenService.GenerateJwtAccesToken(currentUser);
-                return new LoginDto
-                {
-                    TokenProp = tokenForUser,
-                    RoleProp = currentUser.Rol,
-                    RefreshTokenProp = findRefreshTokenInDb.SessionToken
-                };
+                loginDto.TokenProp = tokenForUser;
+                loginDto.RoleProp = currentUser.Rol;
+                loginDto.RefreshTokenProp = findRefreshTokenInDb.SessionToken;
             }
-            
-
-            var tokenForCurrentUser = await _tokenService.GenerateJwtAccesToken(currentUser);
-            var refreshTokenForCurrentUser = _tokenService.RefreshToken() ;
-            loginDto.TokenProp = tokenForCurrentUser;
-            loginDto.RoleProp = currentUser.Rol;
-            loginDto.RefreshTokenProp = refreshTokenForCurrentUser;
+            else
+            {
+                var tokenForCurrentUser = await _tokenService.GenerateJwtAccesToken(currentUser);
+                var refreshTokenForCurrentUser = _tokenService.RefreshToken() ;
+                loginDto.TokenProp = tokenForCurrentUser;
+                loginDto.RoleProp = currentUser.Rol;
+                loginDto.RefreshTokenProp = refreshTokenForCurrentUser;
 
            
-            newRefreshToken = new RememberUser
-            {
-                IdCont = currentUser.IdCont,
-                SessionToken = refreshTokenForCurrentUser,
-                IssuedAt = DateTime.UtcNow,
-                ExpiresAt = expiringTime
-            };
+                newRefreshToken = new RememberUser
+                {
+                    IdCont = currentUser.IdCont,
+                    SessionToken = refreshTokenForCurrentUser,
+                    IssuedAt = DateTime.UtcNow,
+                    ExpiresAt = expiringTime
+                };
 
-            await rememberUserRepository.AddAsync(newRefreshToken);
-            await _unitOfWork.CommitTransactionAsync(addRefreshTokenTransaction);
+                await rememberUserRepository.AddAsync(newRefreshToken);
+                await _unitOfWork.CommitTransactionAsync(addRefreshTokenTransaction);
+            }
+
             return loginDto;
         }
-        catch (InvalidCredentialException e)
+        catch (InvalidCredentialException)
         {
             if (addRefreshTokenTransaction != null)
             {
@@ -370,7 +402,7 @@ public class UserService : IUserService
             _logger.LogError("Invalid credentials");
             return null;
         }
-        catch (UnauthorizedAccessException e)
+        catch (UnauthorizedAccessException)
         {
             if (addRefreshTokenTransaction != null)
             {
@@ -645,6 +677,71 @@ public class UserService : IUserService
 
 
         }
+    }
+
+    public async Task<KeyValuePair<int , Stream?>> VisualizeAndDownloadUserBillAsync(int orderId , string currency = "RON")
+    {
+        const string invoiceApiEndpoint = "https://ws.smartbill.ro/SBORO/api/invoice/pdf";
+        const string seriesNumber = "THD2015";
+        var getOrderWithId = await _unitOfWork.Repository<Comenzi>()
+            .FindQueryable(order => order.IdComanda == orderId)
+            .FirstOrDefaultAsync();
+
+        if (getOrderWithId is null)
+        {
+            return new KeyValuePair<int, Stream?>(-1,null);
+        }
+        
+        var getInvoiceCredentials = await _unitOfWork.Repository<GlobalConfigs>()
+            .FindQueryable(setting => InvoiceCredentials.Contains(setting.NumeAtributGlobal))
+            .ToListAsync();
+
+        var username = getInvoiceCredentials.Find(p => p.NumeAtributGlobal == "smart_bill_username");
+        var password = getInvoiceCredentials.Find(p => p.NumeAtributGlobal == "smart_bill_password");
+        var cif = getInvoiceCredentials.Find(p => p.NumeAtributGlobal == "cif");
+        
+        if (username == null || password == null || cif == null ||
+            username.NumeAtributGlobal.IsNullOrEmpty() ||
+            password.NumeAtributGlobal.IsNullOrEmpty() ||
+            cif.NumeAtributGlobal.IsNullOrEmpty())
+        {
+            // credentials missing , bill service was not yet configured by admin.
+            return new KeyValuePair<int, Stream?>(-2,null); 
+
+        }
+        
+        var invoiceApiEndpointOptions = new RestClientOptions(invoiceApiEndpoint)
+        {
+            Authenticator = new HttpBasicAuthenticator(username.ValoareAtributGlobal , password.ValoareAtributGlobal),
+        };
+        var client = new RestClient(invoiceApiEndpointOptions);
+        var request = new RestRequest
+        {
+            Method = Method.Get,
+        };
+        _logger.LogInformation($"bill number {(currency == "RON" ? $"{getOrderWithId.BillNumberJson.NumarRomana}" : $"{getOrderWithId.BillNumberJson.NumarEngleza}")}");
+        request.AddHeader("Accept", "application/octet-stream");
+        
+        request.AddQueryParameter("cif", $"{cif.ValoareAtributGlobal}");
+        request.AddQueryParameter("seriesname", seriesNumber);
+        request.AddQueryParameter("number", $"{(currency == "RON" ? $"{getOrderWithId.BillNumberJson.NumarRomana}" : $"{getOrderWithId.BillNumberJson.NumarEngleza}")}");
+        // request.AddQueryParameter("number", $"3883");
+        var response = await client.ExecuteAsync(request);
+
+        if (response.IsSuccessful)
+        {
+            var rawPdfBytes = response.RawBytes;
+            var memoryStream = new MemoryStream(rawPdfBytes!);
+            _logger.LogInformation($"Succefully visualized bill for order {orderId}");
+            return new KeyValuePair<int, Stream?>(1 , memoryStream);
+        }
+        else
+        {
+            _logger.LogError(response.ErrorMessage);
+            _logger.LogInformation($"Error occured when trying to visualize bill with id {orderId}");
+            return new KeyValuePair<int, Stream?>(-3 , null);
+        }
+
     }
 
     public async Task<int> ContactAdmin(ContactDetails detaliiContact)
@@ -1275,6 +1372,7 @@ public class UserService : IUserService
                     OrderStatus = order.StatusComanda,
                     OrderPayment = order.TipPlata,
                     OrderTrackingString = order.AwbComanda,
+                    OrderBillNumber = order.BillNumberJson!,
                     IsCancelableDto = order.IsCancelable,
                     OrderVoucher = order.IdVoucher != null ? new VouchereDto
                     {

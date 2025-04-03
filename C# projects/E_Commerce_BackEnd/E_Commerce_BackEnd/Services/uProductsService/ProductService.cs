@@ -93,7 +93,7 @@ public partial class ProductService : IProductService
             return 1;
             
         }
-        catch (Exception e)
+        catch (Exception)
         {
             if (transaction != null)
             {

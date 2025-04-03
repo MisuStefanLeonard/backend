@@ -376,6 +376,14 @@ public class ECommerceContext : DbContext
                 .HasDefaultValue(false)
                 .IsRequired();
             
+            entity.Property(e => e.BillNumberJson)
+                .HasConversion(
+                    value => JsonSerializer.Serialize(value, (JsonSerializerOptions)null!),
+                    value => JsonSerializer.Deserialize<NumarFactura>(value, (JsonSerializerOptions)null!)!
+                ).HasColumnType("json")
+                .HasColumnName("numar_factura_json");
+          
+            
             entity.Property(e => e.IsOrderPayed)
                 .HasColumnName("is_order_payed")
                 .HasColumnType("tinyint")
@@ -572,12 +580,6 @@ public class ECommerceContext : DbContext
             entity.Property(e => e.IdCuloare)
                 .HasColumnName("id_culoare")
                 .HasColumnType("int(1)");
-
-            // entity.Property(e => e.NumeCuloare)
-            //     .HasColumnName("nume_culoare")
-            //     .HasColumnType("varchar")
-            //     .HasMaxLength(20)
-            //     .IsRequired();
             
             entity.Property(e => e.NumeCuloareJson)
                 .HasConversion(

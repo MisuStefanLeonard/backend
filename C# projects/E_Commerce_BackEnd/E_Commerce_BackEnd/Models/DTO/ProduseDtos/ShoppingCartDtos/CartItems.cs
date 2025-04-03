@@ -10,10 +10,10 @@ public class CartItems
     public int IdProdus { get; init; }
     public int? IdSet { get; init; }
     public string? NumeSet { get; init; }
-    public Nume? NumeSetJson { get; init; } = null;
+    // public Nume? NumeSetJson { get; init; } = null;
     public string CodProdus { get; init; } = null!;
     public string NumeProdus { get; init; } = null!;
-    public Nume NumeProdusjson { get; init; } = null!;
+    // public Nume NumeProdusjson { get; init; } = null!;
     public string TipProdus { get; init; } = null!;
     public TipProdus TipProdusJson { get; init; } = null!;
     public CuloriDto CuloareSelectata { get; init; } = null!;

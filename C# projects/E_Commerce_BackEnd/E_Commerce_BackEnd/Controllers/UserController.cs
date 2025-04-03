@@ -1,8 +1,10 @@
 using E_Commerce_BackEnd.Models.DTO;
+using E_Commerce_BackEnd.Models.DTO.ClientOrdersDto;
 using E_Commerce_BackEnd.Models.UserRelatedModels;
 using E_Commerce_BackEnd.Services.uAdminService;
 using E_Commerce_BackEnd.Services.uAdressService;
 using E_Commerce_BackEnd.Services.uGeneralService;
+using E_Commerce_BackEnd.Services.uOrdersService;
 using E_Commerce_BackEnd.Services.uService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
@@ -24,10 +26,11 @@ public class UserController : ControllerBase
     private readonly IAdminService _adminService;
     private readonly IMemoryCache _cache;
     private readonly IGeneralSettingsService _generalSettingsService;
+    private readonly IOrderService _orderService;
     
 
     public UserController(IUserService userService, IAdressService adressService, 
-        ILogger<Adrese> adreseLogger, IAdminService adminService, IMemoryCache cache, IGeneralSettingsService generalSettingsService)
+        ILogger<Adrese> adreseLogger, IAdminService adminService, IMemoryCache cache, IGeneralSettingsService generalSettingsService, IOrderService orderService)
     {
         _userService = userService;
         _adressService = adressService;
@@ -35,6 +38,7 @@ public class UserController : ControllerBase
         _adminService = adminService;
         _cache = cache;
         _generalSettingsService = generalSettingsService;
+        _orderService = orderService;
     }
     
     [HttpGet("profile")]
@@ -49,7 +53,6 @@ public class UserController : ControllerBase
     public async Task<IActionResult> ProfilePersonalData()
     {
         
-        var watch = System.Diagnostics.Stopwatch.StartNew();
         var userClaims = HttpContext.User;
         // USER ID CLAIM
         var userIdClaim = userClaims.FindFirst("user_id");
@@ -57,9 +60,6 @@ public class UserController : ControllerBase
         var userId = int.Parse(userIdClaim!.Value);
             
         var data = await _userService.GetProfileDataAsync(userId);
-        
-        watch.Stop();
-        Console.WriteLine($"In controller it took : {watch.ElapsedMilliseconds}");
         
         return Ok(data);
     }
@@ -217,12 +217,49 @@ public class UserController : ControllerBase
         };
     }
 
-    [HttpGet("settings")]
+    [HttpGet("settings/{name}")]
     [AllowAnonymous]
-    public async Task<IActionResult> GetGeneralSettings()
+    public async Task<IActionResult> GetGeneralSettings([FromRoute] string name)
     {
-        var response = await _generalSettingsService.GetGeneralSettingsData();
+        var response = await _generalSettingsService.GetSpecifiedSetting(name);
         return Ok(response);
+    }
+
+    [HttpPost("sendBillOnEmail")]
+    [Authorize]
+    public async Task<IActionResult> SendBillOnEmail([FromBody] SendBillEmailDto sendingBillOnEmail)
+    {
+        if (sendingBillOnEmail.Currency != "RON" && sendingBillOnEmail.Currency != "EUR")
+        {
+            sendingBillOnEmail.Currency = "RON";
+        }
+        
+        Console.WriteLine($"id {sendingBillOnEmail.OrderId} , {sendingBillOnEmail.Email}");
+
+        var response = await _orderService.SendBillOnMail(sendingBillOnEmail.OrderId, sendingBillOnEmail.Email,
+            sendingBillOnEmail.Currency);
+
+        return response switch
+        {
+            1 =>  Ok("Succesfully sent bill on email"),
+            -2 => NotFound("Adminul nu a configurat serviciul de generare de factura inca."),
+            -1 => BadRequest("Comanda pentru care vreti sa trimiteti factura nu a fost gasita"),
+            _ => StatusCode(500, "Internal server error")
+        };
+    }
+
+    [HttpGet("visualizeBill/{orderId:int:required}/{currency:required}")]
+    [Authorize]
+    public async Task<IActionResult> VisualizeBill([FromRoute] int orderId,[FromRoute] string currency = "RON")
+    {
+        var response = await _userService.VisualizeAndDownloadUserBillAsync(orderId, currency);
+        return response.Key switch
+        {
+            1 =>  File(response.Value!, "application/pdf", $"factura_{orderId}.pdf"),
+            -2 => NotFound("Adminul nu a configurat serviciul de generare de factura inca."),
+            -1 => BadRequest("Comanda pentru care vreti sa vizualizati factura nu a fost gasita"),
+            _ => StatusCode(500, "Internal server error")
+        };
     }
     
 }

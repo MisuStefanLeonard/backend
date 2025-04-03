@@ -21,11 +21,11 @@ public  class Conturi
     public string? Parola { get; init; } // parola
     public  DateTime? DataCreare { get; init; }
     [StringLength(100)]
-    public string CodActivare { get; set; }
+    public string CodActivare { get; set; } = null!;
     public bool Verificat { get; set; }
     public bool IsGuest { get; set; }
     [StringLength(15)]
-    public string Rol { get; init; }
+    public string Rol { get; init; } = null!;
     public DateTime OraLinkConfirmare { get; set; }
     public ICollection<Adrese>? AdreseConturi { get; set; } = new HashSet<Adrese>();
     public ICollection<CosCumparaturi>? ProduseInCosPeCont { get; } = new HashSet<CosCumparaturi>();
