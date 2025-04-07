@@ -2027,7 +2027,9 @@ public partial class ProductService : IProductService
         {
            productPrices = productPrices!.Where(price => onlyNumbers.IsMatch(price.ToString())).ToList();
         }
-        
+
+        currency = currency.ToUpper();
+        _logger.LogInformation($"{currency}");
         
         if (currency == "EUR")
         {
@@ -2196,18 +2198,11 @@ public partial class ProductService : IProductService
             .ToListAsync();
         
         
-        var pricesRange = new List<decimal>(2);
-        if (currency == "EUR")
+        var pricesRange = new List<decimal>(2)
         {
-            pricesRange.Add(0);
-            pricesRange.Add(UserHelpers.ConvertCurrency("RON" , "EUR" , 2000 , 0));
-        }
-        else
-        {
-            pricesRange.Add(0);
-            pricesRange.Add(2000);
-        }
-       
+            0,
+            currency == "EUR" ? UserHelpers.ConvertCurrency("RON", "EUR", 2000, 0) : 2000
+        };
 
 
         return new ProductsFilterOptions
