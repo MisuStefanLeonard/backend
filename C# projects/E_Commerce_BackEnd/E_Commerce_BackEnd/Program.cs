@@ -46,20 +46,33 @@ using Sqids;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddResponseCompression(options =>
 {
-    options.Providers.Add<GzipCompressionProvider>();
     options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
     options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
-        new[] { "application/json" });
+        new[] {
+            "application/json",
+            "application/javascript",
+            "application/xml",
+            "text/css",
+            "application/octet-stream",
+            "image/svg+xml",
+            "application/x-font-ttf",
+            "application/vnd.ms-fontobject",
+            "font/woff",
+            "font/woff2"
+        });
+});
+
+builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
+{
+    options.Level = CompressionLevel.Optimal; // Choose Fastest or Optimal
 });
 builder.Services.Configure<GzipCompressionProviderOptions>(options =>
 {
     options.Level = CompressionLevel.Fastest; // Choose Fastest or Optimal
 });
 
-builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
-{
-    options.Level = CompressionLevel.Fastest; // Choose Fastest or Optimal
-});
+
 builder.Services.AddHealthChecks();
 // Configure AWS options
 // FOR DOCKER AWS CREDENTIALS
@@ -352,7 +365,7 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-
+app.UseResponseCompression();
 app.UseCors("AllowVueApp");
 app.MapHealthChecks("/healthz").AllowAnonymous();
 if (app.Environment.IsDevelopment())
