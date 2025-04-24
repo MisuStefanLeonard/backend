@@ -800,12 +800,13 @@ public class DocumentProcessing
                 }
             }
             
-            workbook.Save($"Produse_{DateTime.Now.Date:yyyy-MM-dd_HH-mm-ss}.xlsx");
+            // workbook.Save($"Produse_{DateTime.Now.Date:yyyy-MM-dd_HH-mm-ss}.xlsx");
             var memoryStream = new MemoryStream();
             memoryStream.Position = 0;
             workbook.Save(memoryStream, new XlsxSaveOptions
             {
-                ImageDpi = 330
+                ImageDpi = 330,
+                
             });
             return new KeyValuePair<int, Stream?>(1 , memoryStream);
 
