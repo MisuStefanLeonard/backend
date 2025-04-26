@@ -799,8 +799,12 @@ public class DocumentProcessing
                     }
                 }
             }
-            
-            // workbook.Save($"Produse_{DateTime.Now.Date:yyyy-MM-dd_HH-mm-ss}.xlsx");
+
+            var isProduction = Environment.GetEnvironmentVariable("DOCKER");
+            if (isProduction != "true")
+            {
+                workbook.Save($"Produse_{DateTime.Now.Date:yyyy-MM-dd}.xlsx");
+            }
             var memoryStream = new MemoryStream();
             memoryStream.Position = 0;
             workbook.Save(memoryStream, new XlsxSaveOptions

@@ -93,18 +93,7 @@ public class GenericRepository<TEntity> : IRepository<TEntity> where TEntity : c
         _dbSet.UpdateRange();
         await _context.SaveChangesAsync();
     }
-
-    public async Task DeleteEntityWhere(Expression<Func<TEntity, bool>> expression)
-    {
-        var entityToDelete = await _dbSet.Where(expression).FirstOrDefaultAsync();
-        if (entityToDelete is null)
-        {
-            return;
-        }
-        _dbSet.Remove(entityToDelete);
-        await _context.SaveChangesAsync();
-    }
-
+    
     public IQueryable<TEntity> FindQueryable(Expression<Func<TEntity, bool>> expression, 
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null)
     {
