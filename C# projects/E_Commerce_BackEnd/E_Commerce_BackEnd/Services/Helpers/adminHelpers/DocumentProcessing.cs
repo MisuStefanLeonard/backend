@@ -466,8 +466,8 @@ public class DocumentProcessing
                     var folderName = row.Cells[16].StringValue.ToLower().Trim();
                     var folderNamesArray = folderName.Split(",");
                     // images processing
-                    var relativePathOfImagesString = row.Cells[15].StringValue;
-                    string[] relativePathOfImagesArray = [];
+                    var relativePathOfImagesString = row.Cells[15].StringValue.Trim();;
+                    var relativePathOfImagesArray = relativePathOfImagesString.Split(",");
 
                     var checkEqualWithOrEmpty = string.Equals(folderName, "-") && string.IsNullOrEmpty(folderName);
                     
@@ -476,10 +476,10 @@ public class DocumentProcessing
                         throw new Exception($"Nu ati selectat niciun fisier in care sa puneti imaginea " +
                                             $"Va rog, selectati un fisier .Vezi randul {row.Name} in excel ");
                     }
-
+                    _docsLogger.LogError($"{relativePathOfImagesArray.Length} - {folderNamesArray.Length}");
                     if (relativePathOfImagesArray.Length != folderNamesArray.Length)
                     {
-                        throw new Exception($"Acelasi numar de imagini trebuie sa fie egal cu numarul de fisiere " +
+                        throw new Exception($"Acelasi numar de imagini trebuie sa fie egal cu numarul de fisiere. " +
                                             $"Va rog, selectati un fisier .Vezi randul {row.Name} in excel ");
                     }
                     
@@ -490,8 +490,15 @@ public class DocumentProcessing
                     {
                         relativePathOfImagesArray = relativePathOfImagesString.Split(',');
                     }
-                    
-                    
+
+                    if (string.Equals(relativePathOfImagesString, "-"))
+                    {
+                        relativePathOfImagesArray = [];
+                        folderNamesArray = [];
+                    }
+
+
+
                     var productBasePrice = row.Cells[17].StringValue.Trim(); // case we have a perdea/draperie
                     decimal productBasePriceDecimal = 0;
                     var isDigits = productBasePrice.All(char.IsDigit);
@@ -559,6 +566,8 @@ public class DocumentProcessing
                         ActiveazaInNoutati = false,
                         InaltimeMaximaDto = decMaxMaterialHeight
                     };
+                    
+                    
                     
                     var responseAddProduct = await _productService.AddOrEditProductFromExcel(newProdusDto, dimensionsIdList,
                         relativePathOfImagesArray, tipuriProduseIdList, colorIdList,

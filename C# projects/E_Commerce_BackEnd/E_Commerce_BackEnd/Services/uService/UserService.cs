@@ -719,7 +719,7 @@ public class UserService : IUserService
         {
             Method = Method.Get,
         };
-        _logger.LogInformation($"bill number {(currency == "RON" ? $"{getOrderWithId.BillNumberJson.NumarRomana}" : $"{getOrderWithId.BillNumberJson.NumarEngleza}")}");
+        _logger.LogInformation($"bill number {(currency == "RON" ? $"{getOrderWithId.BillNumberJson!.NumarRomana}" : $"{getOrderWithId.BillNumberJson!.NumarEngleza}")}");
         request.AddHeader("Accept", "application/octet-stream");
         
         request.AddQueryParameter("cif", $"{cif.ValoareAtributGlobal}");

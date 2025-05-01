@@ -187,7 +187,7 @@ public class OrderService : IOrderService
                     },
                     OrderDate = order.DataEmitereComanda,
                     OrderId = order.IdComanda,
-                    OrderBillNumber = order.BillNumberJson,
+                    OrderBillNumber = order.BillNumberJson!,
                     OrderStatus = order.StatusComanda,
                     OrderPayment = order.TipPlata,
                     OrderTrackingString = order.AwbComanda,
@@ -670,14 +670,14 @@ public class OrderService : IOrderService
 
         if (currency == "RON")
         {
-            if (getOrderWithId.BillNumberJson.NumarRomana == null)
+            if (getOrderWithId.BillNumberJson!.NumarRomana == null)
             {
                 return new KeyValuePair<int, Stream?>(-4, null);
             }
         }
         else
         {
-            if (getOrderWithId.BillNumberJson.NumarEngleza == null)
+            if (getOrderWithId.BillNumberJson!.NumarEngleza == null)
             {
                 return new KeyValuePair<int, Stream?>(-4, null);
             }

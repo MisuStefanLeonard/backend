@@ -716,20 +716,15 @@ public partial class ProductService : IProductService
                     newProduct = new Produse
                     {
                         CodProdus = produseDto.CodProdusDto!,
-                        // Descriere = produseDto.DescriereDto,
                         DescriereJson = produseDto.DescriereJsonDto,
-                        // NumeProdus = produseDto.NumeProdusDto,
                         NumeProdusJson = produseDto.NumeProdusJsonDto,
-                        // Compozitie = produseDto.CompozitieDto,
                         CompozitieJson = produseDto.CompozitieJsonDto,
                         Tva = produseDto.TvaDto,
-                        // Ingrijire = produseDto.IngrijireDto,
                         IngrijireJson = produseDto.IngrijireJsonDto,
                         FataReversibila = produseDto.FataReversibilaDto,
                         Stoc = produseDto.StocDto,
                         IsDeleted = produseDto.IsDeletedDto,
                         ActivInMagazin = produseDto.ActivInMagazinDto,
-                        // TipulProdusului = produseDto.TipProdusDto,
                         TipulProdusuluiJson = produseDto.TipProdusJsonDto,
                         InaltimeMaxima = produseDto.InaltimeMaximaDto,
                         PretDeBaza = produseDto.PretBazaDto,
@@ -743,27 +738,21 @@ public partial class ProductService : IProductService
                     await productRepository.AddAsync(newProduct);
                     await _unitOfWork.CommitAsync();
                     _logger.LogInformation("Product saved succesfully with manufacturer");
-                    findProductAlreadyInDb = newProduct;
                 }
                 else
                 {
                     newProduct = new Produse
                     {
                         CodProdus = produseDto.CodProdusDto!,
-                        // Descriere = produseDto.DescriereDto,
                         DescriereJson = produseDto.DescriereJsonDto,
-                        // NumeProdus = produseDto.NumeProdusDto,
                         NumeProdusJson = produseDto.NumeProdusJsonDto,
-                        // Compozitie = produseDto.CompozitieDto,
                         CompozitieJson = produseDto.CompozitieJsonDto,
                         Tva = produseDto.TvaDto,
-                        // Ingrijire = produseDto.IngrijireDto,
                         IngrijireJson = produseDto.IngrijireJsonDto,
                         FataReversibila = produseDto.FataReversibilaDto,
                         Stoc = produseDto.StocDto,
                         IsDeleted = produseDto.IsDeletedDto,
                         ActivInMagazin = produseDto.ActivInMagazinDto,
-                        // TipulProdusului = produseDto.TipProdusDto,
                         TipulProdusuluiJson = produseDto.TipProdusJsonDto,
                         PretDeBaza = produseDto.PretBazaDto,
                         InaltimeMaxima = produseDto.InaltimeMaximaDto,
@@ -774,9 +763,10 @@ public partial class ProductService : IProductService
                     await productRepository.AddAsync(newProduct);
                     await _unitOfWork.CommitAsync();
                     _logger.LogInformation("Product saved succesfully without manufacturer");
-                    findProductAlreadyInDb = newProduct;
                 }
-                
+
+                findProductAlreadyInDb = newProduct;
+
                 var dimensionsArray = idDimensiuni.ToArray();
                 var productId = findProductAlreadyInDb.IdProdus;
                 
@@ -822,28 +812,24 @@ public partial class ProductService : IProductService
                         IdProdus = productId,
                         IdCuloare = currentColorId
                     };
-
-                    await culoriCuProduseRepository.AddAsync(temp);
-                    await _unitOfWork.CommitAsync();
-                    _logger.LogInformation($"Color id: {currentColorId} - Product id: {productId} SAVED");
                     productWithColorsJustAdded.Add(temp);
+                   _logger.LogInformation($"Color id: {currentColorId} - Product id: {productId} SAVED");
+                   
                 }
+                
+                await culoriCuProduseRepository.AddRangeAsync(productWithColorsJustAdded);
+                await _unitOfWork.CommitAsync();
 
-                // var dirNameInS3 = folderName;
                 if (!filePath.IsNullOrEmpty())
                 {
                     var imagesDirPath = $"{Environment.GetFolderPath(Environment.SpecialFolder.Desktop)}/imagini_import";
                     var index = 0;
                     foreach (var imageName in filePath)
                     {
-                        
-                        // AYLIN_X03_CUVERTURA
-                        // ProductWithColorsObjects that were added ( id_produs, id_culoare)
-                        // link the image to respective color
-
-                        var patternCode = @"X(\d{2})";
+                        _logger.LogError($"imagename : {imageName}");
+                        const string patternCode = @"X(\d{2})";
                         string colorCode;
-                        Match matchColor = Regex.Match(imageName, patternCode);
+                        var matchColor = Regex.Match(imageName, patternCode);
 
                         if (matchColor.Success)
                         {
@@ -854,9 +840,6 @@ public partial class ProductService : IProductService
                         {
                             throw new DbUpdateException("Color code not found in the image name");
                         }
-                        
-                        // 03
-                        // look for the id of the color code
 
                         var currentColorCode = await colorCodesRepository
                             .FindQueryable(c => c.CodCuloare == colorCode)
@@ -867,23 +850,31 @@ public partial class ProductService : IProductService
                             throw new DbUpdateException($"Codul de culoare {colorCode} nu a fost gasit");
                         }
                         
-                        // id of the color linked with the currentColorCode
                         var colorRelatedToTheCurrentColorCode = await colorsRepository
                             .FindQueryable(c => c.IdCodCuloare == currentColorCode.IdCodCuloare)
-                            .FirstOrDefaultAsync();
+                            .ToListAsync();
                         
-                        if (colorRelatedToTheCurrentColorCode is null)
+                        if (colorRelatedToTheCurrentColorCode.IsNullOrEmpty())
                         {
                             throw new DbUpdateException($"Culoarea cu codul {currentColorCode.CodCuloare} nu a fost gasita");
                         }
+                        
+                        var colorIds = colorRelatedToTheCurrentColorCode
+                            .Select(c => c.IdCuloare)
+                            .ToHashSet();
 
                         var productWithColorIdToBeLinkedToImage = productWithColorsJustAdded
-                            .FirstOrDefault(p => p.IdProdus == productId
-                                                 && p.IdCuloare == colorRelatedToTheCurrentColorCode.IdCuloare);
+                            .FirstOrDefault(p =>
+                                p.IdProdus == productId &&
+                                colorIds.Contains(p.IdCuloare));
+                        
+                        // var productWithColorIdToBeLinkedToImage = productWithColorsJustAdded
+                        //     .FirstOrDefault(p => p.IdProdus == productId
+                        //                          && p.IdCuloare == colorRelatedToTheCurrentColorCode.Find());
                         
                         if (productWithColorIdToBeLinkedToImage is null)
                         {
-                            throw new DbUpdateException($"Product with id  {productId} with color id {colorRelatedToTheCurrentColorCode.IdCuloare} not found              ");
+                            throw new DbUpdateException($"Product with id  {productId} with color id not found");
                         }
                         
                         
@@ -980,20 +971,15 @@ public partial class ProductService : IProductService
                     var updatedProduct = new Produse
                     {
                         CodProdus = produseDto.CodProdusDto!,
-                        // Descriere = produseDto.DescriereDto,
                         DescriereJson = produseDto.DescriereJsonDto,
-                        // NumeProdus = produseDto.NumeProdusDto,
                         NumeProdusJson = produseDto.NumeProdusJsonDto,
-                        // Compozitie = produseDto.CompozitieDto,
                         CompozitieJson = produseDto.CompozitieJsonDto,
                         Tva = produseDto.TvaDto,
-                        // Ingrijire = produseDto.IngrijireDto,
                         IngrijireJson = produseDto.IngrijireJsonDto,
                         FataReversibila = produseDto.FataReversibilaDto,
                         Stoc = produseDto.StocDto,
                         IsDeleted = produseDto.IsDeletedDto,
                         ActivInMagazin = produseDto.ActivInMagazinDto,
-                        // TipulProdusului = produseDto.TipProdusDto,
                         TipulProdusuluiJson = produseDto.TipProdusJsonDto,
                         PretDeBaza = produseDto.PretBazaDto,
                         InaltimeMaxima = produseDto.InaltimeMaximaDto,
@@ -1014,14 +1000,10 @@ public partial class ProductService : IProductService
                     var updatedProduct = new Produse
                     {
                         CodProdus = produseDto.CodProdusDto!,
-                        // Descriere = produseDto.DescriereDto,
                         DescriereJson = produseDto.DescriereJsonDto,
-                        // NumeProdus = produseDto.NumeProdusDto,
                         NumeProdusJson = produseDto.NumeProdusJsonDto,
-                        // Compozitie = produseDto.CompozitieDto,
                         CompozitieJson = produseDto.CompozitieJsonDto,
                         Tva = produseDto.TvaDto,
-                        // Ingrijire = produseDto.IngrijireDto,
                         IngrijireJson = produseDto.IngrijireJsonDto,
                         FataReversibila = produseDto.FataReversibilaDto,
                         Stoc = produseDto.StocDto,
@@ -1029,7 +1011,6 @@ public partial class ProductService : IProductService
                         IsDeleted = produseDto.IsDeletedDto,
                         InaltimeMaxima = produseDto.InaltimeMaximaDto,
                         ActivInMagazin = produseDto.ActivInMagazinDto,
-                        // TipulProdusului = produseDto.TipProdusDto,
                         TipulProdusuluiJson = produseDto.TipProdusJsonDto,
                         IdProducator = null
                     };
@@ -1266,10 +1247,6 @@ public partial class ProductService : IProductService
                     }
                     index++;
                 }
-                // var imagesToAdd = (from newImage in filePath
-                //                              let isNewImageAnOldImage = oldImageNames.FirstOrDefault(pair => pair.Key == newImage && pair.Value == folderName) 
-                //                              where isNewImageAnOldImage.Key == null 
-                //                              select newImage).ToList();
 
                 if (imagesToRemove.IsNullOrEmpty() && imagesToAdd.IsNullOrEmpty())
                 {
@@ -1328,8 +1305,8 @@ public partial class ProductService : IProductService
                         // Extract color code
                         const string patternCode = @"X(\d{2})";
                         string colorCode;
-                        var matchColor = Regex.Match(key, patternCode);
-                
+                        var matchColor = MyRegex1().Match(key);
+                        _logger.LogError($"key : {key}  , value {value}");
                         if (matchColor.Success)
                         {
                             colorCode = matchColor.Groups[1].Value;
@@ -2844,4 +2821,6 @@ public partial class ProductService : IProductService
     }
     [GeneratedRegex(".*_X\\d{2}_.*$")]
     private static partial Regex MyRegex();
+    [GeneratedRegex(@"X(\d{2})")]
+    private static partial Regex MyRegex1();
 }

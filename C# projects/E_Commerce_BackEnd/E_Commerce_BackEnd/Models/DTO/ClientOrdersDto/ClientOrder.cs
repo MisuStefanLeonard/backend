@@ -19,7 +19,7 @@ public class ClientOrder
     public StatusComanda OrderStatus { get; init; }
     public TipPlata OrderPayment { get; init; }
     public string OrderTrackingString { get; init; } = null!;
-    public NumarFactura OrderBillNumber { get; init; } 
+    public NumarFactura OrderBillNumber { get; init; } = null!;
     public bool IsCancelableDto { get; set; }
     public VouchereDto? OrderVoucher { get; init; }
     public decimal PretTotal { get; set; }
