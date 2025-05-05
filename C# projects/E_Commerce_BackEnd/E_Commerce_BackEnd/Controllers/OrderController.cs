@@ -126,7 +126,8 @@ public class OrderController : ControllerBase
         return intResponse switch
         {
             -2 => NotFound("Error thrown. Cancelling transaction"),
-            -3 => NoContent(), // PAYMENT REJECTED.
+            -5 => NoContent(), // PAYMENT REJECTED.
+            -3 => StatusCode(515, "Error occured at database level. Sorry for the incovinience"),
             -1 => BadRequest($"Voucher negasit / Voucher expirat / No voucher found / Voucher expired"),
             1 => Ok($"Token {stringValue}"),
             _ => StatusCode(500, "Server error")

@@ -1,4 +1,5 @@
 using System.Text;
+using E_Commerce_BackEnd.CustomExceptions;
 using E_Commerce_BackEnd.Models.ConfigurationModels;
 using E_Commerce_BackEnd.Models.DTO;
 using E_Commerce_BackEnd.Models.DTO.AdminRelatedDtos.OrdersDto;
@@ -15,6 +16,7 @@ using E_Commerce_BackEnd.Models.ProductRelatedModels.JSON_Models;
 using E_Commerce_BackEnd.Models.ProductVouchersModels;
 using E_Commerce_BackEnd.Models.UserRelatedModels;
 using E_Commerce_BackEnd.Services.emailService;
+using E_Commerce_BackEnd.Services.Helpers.adminHelpers;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
 using E_Commerce_BackEnd.Services.Helpers.UserHelpers;
 using E_Commerce_BackEnd.Services.uMJMLService;
@@ -37,15 +39,17 @@ public class OrderService : IOrderService
     private readonly IMjmlService _mjmlService;
     private static readonly List<string> InvoiceCredentials = ["smart_bill_username", "smart_bill_password" , "cif"];
     private const string SeriesNumber = "THD2015";
+    private readonly DocumentProcessing _documentProcessing;
     
 
-    public OrderService(IUnitOfWork unitOfWork, IBucketAcces bucketAcces, ILogger<OrderService> logger, IEmailService emailService, IMjmlService mjmlService)
+    public OrderService(IUnitOfWork unitOfWork, IBucketAcces bucketAcces, ILogger<OrderService> logger, IEmailService emailService, IMjmlService mjmlService, DocumentProcessing documentProcessing)
     {
         _unitOfWork = unitOfWork;
         _bucketAcces = bucketAcces;
         _logger = logger;
         _emailService = emailService;
         _mjmlService = mjmlService;
+        _documentProcessing = documentProcessing;
     }
 
     public async Task<IList<ClientOrder>> GetClientOrders(int accountId , string currency = "RON")
@@ -548,7 +552,6 @@ public class OrderService : IOrderService
             {
                 NrBucati = itemInCart.CantitateProdus,
                 PretCumparat = voucherApplied != null ? itemInCart.PretProdus - itemInCart.PretProdus * voucherApplied.Reducere : itemInCart.PretProdus,
-                // PretCumparat =  itemInCart.PretProdus,
                 InaltimeAleasaPentruSet = itemInCart.InaltimeAleasaPentruSet,
                 IdentificatorSet = itemInCart.IdentificatorSet,
                 IdSet = itemInCart.IdSet,
@@ -573,18 +576,37 @@ public class OrderService : IOrderService
                 }
                 else
                 {
-                    throw new InvalidOperationException("Payment unsuccesfull. ");
+                    throw new PaymentRejectedException("Payment unsuccesfull. ");
                 }
             }
             
             await _unitOfWork.CommitTransactionAsync(placeOrderTransaction);
+            
+            
             /*
-             * if payment succefull
-             * 
+             * if payment succefull or it was cash payment.
+             *  contact courier and place order there!
              */
+            
+            // courier here
+            //-----
+            // courier here
+            
+            // bill generated!
+            var generateBillResponse = await _documentProcessing.GenerateBill(orderId, currency);
+            if (generateBillResponse.Key == 1)
+            {
+                _logger.LogInformation($"Bill generated succefully for currency {currency}, order id {orderId}. Invoice number {generateBillResponse.Value}");
+            }else if (generateBillResponse.Key == -4)
+            {
+                _logger.LogInformation($"{generateBillResponse.Value}");
+            }else if (generateBillResponse.Key == -3)
+            {
+                _logger.LogInformation($"{generateBillResponse.Value}");
+            }
             /*
              *
-             * PAYMENT API ( if succesfull ) => put products into the order with products table => confirmation page => unlock products
+             * PAYMENT API ( if succesfull ) => put products into the order with products table => confirmation page
              * IF PAYMENT IS UNSUCCEFULL IN ANY WAY , UNLOCK PRODUCTS AND RETRY!
              * 
              */
@@ -613,8 +635,11 @@ public class OrderService : IOrderService
             switch (e)
             {
                 case InvalidOperationException:
-                    _logger.LogError("Payment rejected! . Cancelling transaction and payment");
-                    return new KeyValuePair<int, string>(-3, "Payment rejected");
+                    _logger.LogError("An error occured! . Cancelling transaction and payment");
+                    return new KeyValuePair<int, string>(-3, "An error occured");
+                case PaymentRejectedException:
+                    _logger.LogError("PAYMENT REJECTED . Cancelling transaction and payment");
+                    return new KeyValuePair<int, string>(-5, "Payment rejected");
                 default:
                     return new KeyValuePair<int, string>(-2 , "General error occured");
             }

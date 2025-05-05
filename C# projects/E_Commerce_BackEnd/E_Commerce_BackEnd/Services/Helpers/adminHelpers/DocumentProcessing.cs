@@ -1225,7 +1225,6 @@ public class DocumentProcessing
             request.AddJsonBody(serializedJson);
           
             var response = await client.ExecuteAsync(request);
-            _docsLogger.LogInformation(response.Content);
             if (response.IsSuccessful)
             {
                 _docsLogger.LogInformation($"Succefully generated bill for order with ID: {orderId}");
