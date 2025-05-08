@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using E_Commerce_BackEnd.Models.ConfigurationModels;
 using E_Commerce_BackEnd.Models.OrderRelatedModels;
 using MySqlConnector;
 
@@ -16,8 +17,9 @@ public class Vouchere
     public DateTime DataExpirare { get; set; }
     public bool IsDeleted { get; set; }
     // Foreign Keys
-    public ICollection<Comenzi>? VVoucherePeComenzi { get; }
-    
-    
-    
+    public ICollection<Comenzi>? VVoucherePeComenzi { get; } = new List<Comenzi>();
+    public ICollection<PopUps>? VVoucherPopUps { get; } = new List<PopUps>();
+
+
+
 }

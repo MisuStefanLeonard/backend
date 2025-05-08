@@ -1476,9 +1476,6 @@ public class ECommerceContext : DbContext
                 .HasForeignKey(r => r.IdSet);
             
         });
-        // de adaugat tipuri de produse din backend pe frontend sa le afisez in caz ca dauga + 
-        // de adaugat subcategoriile pe fiecare produs !!!!
-        // de updatat paginile de produse cand e perdea/draperie sa se poate vedea cum se masoara !!!!
         
         modelBuilder.Entity<GlobalConfigs>(entity =>
         {
@@ -1497,6 +1494,46 @@ public class ECommerceContext : DbContext
                 .HasColumnName("valoare_atribut")
                 .HasColumnType("varchar(50)");
             
+        });
+        
+        modelBuilder.Entity<PopUps>(entity =>
+        {
+            entity.ToTable("pop_ups");
+            entity.HasKey(e => e.IdPopUp);
+
+            entity.Property(e => e.IdPopUp)
+                .HasColumnName("id_pop_up")
+                .HasColumnType("int(1)");
+
+            entity.Property(e => e.DescriereJson)
+                .HasConversion(
+                    value => JsonSerializer.Serialize(value, (JsonSerializerOptions)null!),
+                    value => JsonSerializer.Deserialize<Descriere>(value, (JsonSerializerOptions)null!)!
+                ).HasColumnType("json")
+                .HasColumnName("descriere_pop_up");
+
+            entity.Property(e => e.TitluJson)
+                .HasConversion(
+                    value => JsonSerializer.Serialize(value, (JsonSerializerOptions)null!),
+                    value => JsonSerializer.Deserialize<Nume>(value, (JsonSerializerOptions)null!)!
+                ).HasColumnType("json")
+                .HasColumnName("titlu_pop_up");
+
+            entity.Property(e => e.IdVoucher)
+                .HasColumnName("id_voucher")
+                .HasColumnType("int");
+            
+            entity.Property(e => e.IsActive)
+                .HasColumnName("is_active")
+                .HasColumnType("tinyint")
+                .HasDefaultValue(false)
+                .IsRequired();
+
+            entity.HasOne(e => e.Voucher)
+                .WithMany(v => v.VVoucherPopUps)
+                .HasForeignKey(e => e.IdVoucher);
+
+
         });
 
     }

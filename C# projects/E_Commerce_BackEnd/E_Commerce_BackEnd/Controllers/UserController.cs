@@ -5,6 +5,7 @@ using E_Commerce_BackEnd.Services.uAdminService;
 using E_Commerce_BackEnd.Services.uAdressService;
 using E_Commerce_BackEnd.Services.uGeneralService;
 using E_Commerce_BackEnd.Services.uOrdersService;
+using E_Commerce_BackEnd.Services.uPopUpService;
 using E_Commerce_BackEnd.Services.uService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
@@ -24,13 +25,14 @@ public class UserController : ControllerBase
     private readonly IAdressService _adressService;
     private readonly ILogger<Adrese> _adreseLogger;
     private readonly IAdminService _adminService;
+    private readonly IPopUpService _popUpService;
     private readonly IMemoryCache _cache;
     private readonly IGeneralSettingsService _generalSettingsService;
     private readonly IOrderService _orderService;
     
 
     public UserController(IUserService userService, IAdressService adressService, 
-        ILogger<Adrese> adreseLogger, IAdminService adminService, IMemoryCache cache, IGeneralSettingsService generalSettingsService, IOrderService orderService)
+        ILogger<Adrese> adreseLogger, IAdminService adminService, IMemoryCache cache, IGeneralSettingsService generalSettingsService, IOrderService orderService, IPopUpService popUpService)
     {
         _userService = userService;
         _adressService = adressService;
@@ -39,6 +41,7 @@ public class UserController : ControllerBase
         _cache = cache;
         _generalSettingsService = generalSettingsService;
         _orderService = orderService;
+        _popUpService = popUpService;
     }
     
     [HttpGet("profile")]
@@ -260,6 +263,14 @@ public class UserController : ControllerBase
             -1 => BadRequest("Comanda pentru care vreti sa vizualizati factura nu a fost gasita"),
             _ => StatusCode(500, "Internal server error")
         };
+    }
+    
+    [HttpPost("getAllPopUps")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetPopUps()
+    {
+        var response = await _popUpService.GetAllPopUps();
+        return Ok(response);
     }
     
 }

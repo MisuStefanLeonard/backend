@@ -12,6 +12,8 @@ public class GeneralSettingsService : IGeneralSettingsService
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<GeneralSettingsService> _logger;
     private readonly IMemoryCache _cache;
+    private static readonly List<string> InvoiceCredentials = ["smart_bill_username", "smart_bill_password" , "cif"];
+
 
 
     public GeneralSettingsService(IUnitOfWork unitOfWork, ILogger<GeneralSettingsService> logger, IMemoryCache cache)
@@ -162,6 +164,11 @@ public class GeneralSettingsService : IGeneralSettingsService
 
         var kvPairToReturn = settings!
             .FirstOrDefault(kv => kv.Key == setting);
+
+        if (InvoiceCredentials.Contains(kvPairToReturn.Key))
+        {
+            return new KeyValuePair<string, string>("", "");
+        }
 
         return kvPairToReturn.Key == null ? new KeyValuePair<string, string>("", "")
             : new KeyValuePair<string, string>(kvPairToReturn.Key, kvPairToReturn.Value);

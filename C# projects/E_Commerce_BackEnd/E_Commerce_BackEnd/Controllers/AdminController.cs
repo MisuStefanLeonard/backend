@@ -1,6 +1,8 @@
 using System.Text;
+using E_Commerce_BackEnd.Models.ConfigurationModels;
 using E_Commerce_BackEnd.Models.DTO;
 using E_Commerce_BackEnd.Models.DTO.AdminRelatedDtos.Accounts;
+using E_Commerce_BackEnd.Models.DTO.AdminRelatedDtos.PopUps;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.BulkOperationsDto;
 using E_Commerce_BackEnd.Models.DTO.ProduseDtos.InelePrindereDtos;
@@ -18,6 +20,7 @@ using E_Commerce_BackEnd.Services.uGeneralService;
 using E_Commerce_BackEnd.Services.uInelePrindereService;
 using E_Commerce_BackEnd.Services.uManopereService;
 using E_Commerce_BackEnd.Services.uOrdersService;
+using E_Commerce_BackEnd.Services.uPopUpService;
 using E_Commerce_BackEnd.Services.uProductsService;
 using E_Commerce_BackEnd.Services.uService;
 using E_Commerce_BackEnd.Services.uSeturiService;
@@ -46,11 +49,12 @@ namespace E_Commerce_BackEnd.Controllers
         private readonly ITipuriLinieService _tipuriLinieService;
         private readonly IVoucherService _voucherService;
         private readonly IUserService _userService;
-        private readonly DocumentProcessing _documentProcessing;
-        private readonly IBucketAcces _bucketAcces;
         private readonly IManopereService _manopereService;
         private readonly IGeneralSettingsService _generalSettingsService;
         private readonly IOrderService _orderService;
+        private readonly IPopUpService _popUpService;
+        private readonly DocumentProcessing _documentProcessing;
+        private readonly IBucketAcces _bucketAcces;
 
         private readonly SqidsEncoder<int> _sqidsEncoder;
 
@@ -59,7 +63,7 @@ namespace E_Commerce_BackEnd.Controllers
              SqidsEncoder<int> sqidsEncoder, 
             IInelePrindereService inelePrindereService, ITipuriGalerieService tipuriGalerieService, 
             ITipuriLinieService tipuriLinieService, IUserService userService, IVoucherService voucherService, IManopereService manopereService, IGeneralSettingsService generalSettingsService
-            , IBucketAcces bucketAcces, IOrderService orderService)
+            , IBucketAcces bucketAcces, IOrderService orderService, IPopUpService popUpService)
         {
             _adminService = adminService;
             _documentProcessing = documentProcessing;
@@ -75,6 +79,7 @@ namespace E_Commerce_BackEnd.Controllers
             _generalSettingsService = generalSettingsService;
             _bucketAcces = bucketAcces;
             _orderService = orderService;
+            _popUpService = popUpService;
         }
 
        
@@ -1531,6 +1536,66 @@ namespace E_Commerce_BackEnd.Controllers
             };
 
         }
+        
+        [HttpGet("getAllPopUps")]
+        [Authorize]
+        public async Task<IActionResult> GetPopUps()
+        {
+            var response = await _popUpService.GetAllPopUps();
+            return Ok(response);
+        }
+
+        [HttpPost("create_popup")]
+        [Authorize]
+        public async Task<IActionResult> CreatePopUp([FromBody] PopUpDto popUp)
+        {
+            var response = await _popUpService.CreatePopUp(popUp);
+            return response.Key switch
+            {
+                1 => Ok($"{response.Value}"),
+                _ => StatusCode(500, "Internal server error")
+            };
+        }
+        
+        [HttpPut("update_popup")]
+        [Authorize]
+        public async Task<IActionResult> UpdatePopUp([FromBody] PopUpDto updatedPopUp)
+        {
+            var response = await _popUpService.UpdatePopUp(updatedPopUp);
+            return response switch
+            {
+                1 => Ok("Succesfully updated pop-up"),
+                _ => StatusCode(500, "Internal server error")
+            };
+        }
+        
+        
+        [HttpPost("delete_popup/{idPopUp:int:required}")]
+        [Authorize]
+        public async Task<IActionResult> DeletePopUp([FromRoute]int idPopUp)
+        {
+            var response = await _popUpService.DeletePopUp(idPopUp);
+            return response switch
+            {
+                1 => Ok("Succesfully deleted pop-up"),
+                -2 => NotFound("Pop-up not found"),
+                _ => StatusCode(500, "Internal server error")
+            };
+        }
+        
+        [HttpPut("modifyPopUpState/{idPopUp:int:required}")]
+        [Authorize]
+        public async Task<IActionResult> ModifyPopUpActivation([FromRoute]int idPopUp)
+        {
+            var response = await _popUpService.DeactivatePopUp(idPopUp);
+            return response switch
+            {
+                1 => Ok("Succesfully updated  pop-up state"),
+                -2 => NotFound("Pop-up not found"),
+                _ => StatusCode(500, "Internal server error")
+            };
+        }
+        
 
        
     }

@@ -5,7 +5,7 @@ using E_Commerce_BackEnd.Models.DTO.ProduseDtos.InelePrindereDtos;
 using E_Commerce_BackEnd.Models.ProductRelatedModels;
 using E_Commerce_BackEnd.Models.ProductRelatedModels.JSON_Models;
 using E_Commerce_BackEnd.Services.Helpers.AWS_Secret.AWSBucket_CRUD;
-using E_Commerce_BackEnd.Services.uBucketService;
+// using E_Commerce_BackEnd.Services.uBucketService;
 using E_Commerce_BackEnd.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
