@@ -265,11 +265,15 @@ public class UserController : ControllerBase
         };
     }
     
-    [HttpPost("getAllPopUps")]
+    [HttpGet("getAllPopUps")]
     [AllowAnonymous]
     public async Task<IActionResult> GetPopUps()
     {
         var response = await _popUpService.GetAllPopUps();
+        if (response is { Count: > 0 })
+        {
+            response = response.Where(p => p.IsActive).ToList();
+        }
         return Ok(response);
     }
     
