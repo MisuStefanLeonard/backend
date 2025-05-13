@@ -108,7 +108,7 @@ namespace E_Commerce_BackEnd.MIddleware
         }
         if (!context.Request.Cookies.ContainsKey("admin"))
         {
-            return "Admin cookie not present";
+            return "Admin not authorized";
         }
         return "You are not allowed here!";
     }
