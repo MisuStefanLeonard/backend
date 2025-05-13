@@ -76,6 +76,7 @@ builder.Services.Configure<GzipCompressionProviderOptions>(options =>
 builder.Services.AddHealthChecks();
 // Configure AWS options
 // FOR DOCKER AWS CREDENTIALS
+// testing migration
 // ------
 Environment.SetEnvironmentVariable("DOCKER" , "true");
 var getDockerEnv = Environment.GetEnvironmentVariable("DOCKER");
